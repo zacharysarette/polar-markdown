@@ -5,6 +5,7 @@ const STORAGE_KEY = "planning-central:last-selected-path";
 const DOCS_FOLDER_KEY = "planning-central:docs-folder";
 const SORT_MODE_KEY = "planning-central:sort-mode";
 const LAYOUT_MODE_KEY = "planning-central:layout-mode";
+const OPEN_PANES_KEY = "planning-central:open-panes";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -36,4 +37,18 @@ export function saveLayoutMode(mode: LayoutMode): void {
 
 export function getLayoutMode(): LayoutMode {
   return (localStorage.getItem(LAYOUT_MODE_KEY) as LayoutMode) || "centered";
+}
+
+export function saveOpenPanes(paths: string[]): void {
+  localStorage.setItem(OPEN_PANES_KEY, JSON.stringify(paths));
+}
+
+export function getOpenPanes(): string[] {
+  const stored = localStorage.getItem(OPEN_PANES_KEY);
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
 }

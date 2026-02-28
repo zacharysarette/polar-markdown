@@ -7,3 +7,20 @@ export interface FileEntry {
 }
 
 export type LayoutMode = "centered" | "columns";
+
+export interface OpenPane {
+  id: string;
+  path: string;
+  content: string;
+}
+
+export interface SearchMatch {
+  line_number: number;
+  line_content: string;
+}
+
+export interface SearchResult {
+  path: string;
+  name: string;
+  matches: SearchMatch[];
+}

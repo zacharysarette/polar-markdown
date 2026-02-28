@@ -9,6 +9,19 @@ pub struct FileEntry {
     pub modified: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SearchMatch {
+    pub line_number: usize,
+    pub line_content: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SearchResult {
+    pub path: String,
+    pub name: String,
+    pub matches: Vec<SearchMatch>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

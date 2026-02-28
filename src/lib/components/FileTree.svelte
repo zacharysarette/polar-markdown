@@ -10,7 +10,7 @@
   }: {
     entries: FileEntry[];
     selectedPath?: string;
-    onselect: (path: string) => void;
+    onselect: (path: string, event?: MouseEvent) => void;
   } = $props();
 
   let focusedPath = $state("");

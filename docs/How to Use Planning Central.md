@@ -40,6 +40,29 @@ Directories always appear before files regardless of sort mode. Your chosen sort
 
 Type in the **filter bar** below the sidebar header to narrow down files by name. The filter is instant and case-insensitive — only files whose names match your query are shown. Directories are kept if they contain matching files. Clear the input to see all files again.
 
+### Full-Text Search
+
+Click the **🔍** button next to the filter bar to switch to full-text search mode. In this mode, the input searches the **contents** of all markdown files in the current folder.
+
+- Results appear in the sidebar, grouped by file, with matching lines and line numbers
+- The search is **case-insensitive** and **debounced** (300ms delay) so it doesn't search on every keystroke
+- Click a result line to open that file and **highlight the matching text** with a temporary amber flash that fades out
+- Click a file name header to open the file without highlighting
+- Click the **🔍** button again to return to filename filter mode
+- Hidden directories and non-markdown files are excluded from search
+
+### Multi-File Viewing
+
+You can view multiple files side by side in split panes:
+
+- **Ctrl+Click** a file in the sidebar to open it in a **new pane** (up to 4 panes)
+- **Click** a file normally to replace the content in the active pane
+- **Close** a pane with the **×** button on its tab header
+- **Ctrl+W** closes the active pane
+- **Ctrl+1/2/3/4** switches between open panes
+
+The active pane is highlighted with a blue filename tab. Your open panes are remembered across sessions.
+
 ### Help Button
 
 Click the **?** button to open this guide at any time, no matter what folder you're currently viewing.
@@ -64,7 +87,7 @@ Your chosen layout is remembered across sessions.
 The main content area renders your markdown with full formatting support:
 
 - **Headings, lists, tables, blockquotes** — standard markdown
-- **Code blocks** — syntax highlighted with highlight.js
+- **Code blocks** — syntax highlighted with highlight.js, with line numbers in the left gutter
 - **Links** — clickable
 - **Mermaid diagrams** — rendered as live SVG diagrams
 

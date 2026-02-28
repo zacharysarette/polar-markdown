@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import Sidebar from "./lib/components/Sidebar.svelte";
-  import MarkdownViewer from "./lib/components/MarkdownViewer.svelte";
+  import ContentArea from "./lib/components/ContentArea.svelte";
   import {
     readDirectoryTree,
     readFileContents,
@@ -10,6 +10,7 @@
     getDocsPath,
     getHelpContent,
     pickFolder,
+    searchFiles,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -20,21 +21,38 @@
     getSortMode,
     saveLayoutMode,
     getLayoutMode,
+    saveOpenPanes,
+    getOpenPanes,
   } from "./lib/services/persistence";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
   import { sortEntries, type SortMode } from "./lib/services/sort";
-  import type { FileEntry, LayoutMode } from "./lib/types";
+  import type { FileEntry, LayoutMode, OpenPane, SearchResult } from "./lib/types";
+
+  const MAX_PANES = 4;
+  let nextPaneId = 1;
 
   let rawTree: FileEntry[] = $state([]);
-  let selectedPath = $state("");
-  let fileContent = $state("");
+  let panes: OpenPane[] = $state([]);
+  let activePaneId = $state("");
   let docsPath = $state("");
   let sortMode: SortMode = $state(getSortMode());
   let layoutMode: LayoutMode = $state(getLayoutMode());
   let filterQuery = $state("");
+  let searchMode = $state(false);
+  let searchQuery = $state("");
+  let searchResults: SearchResult[] = $state([]);
+  let isSearching = $state(false);
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let highlightText = $state("");
+  let highlightKey = $state(0);
 
   let sortedTree: FileEntry[] = $derived(sortEntries(rawTree, sortMode));
   let tree: FileEntry[] = $derived(filterEntries(sortedTree, filterQuery));
+
+  // The "selected" path for sidebar highlighting is the active pane's path
+  let selectedPath: string = $derived(
+    panes.find((p) => p.id === activePaneId)?.path ?? ""
+  );
 
   async function loadTree() {
     if (!docsPath) return;
@@ -45,18 +63,69 @@
     }
   }
 
-  async function loadFile(path: string) {
+  function createPaneId(): string {
+    return String(nextPaneId++);
+  }
+
+  async function openInActivePane(path: string) {
     try {
-      fileContent = await readFileContents(path);
-      selectedPath = path;
+      const content = await readFileContents(path);
+      if (panes.length === 0) {
+        const id = createPaneId();
+        panes = [{ id, path, content }];
+        activePaneId = id;
+      } else {
+        panes = panes.map((p) =>
+          p.id === activePaneId ? { ...p, path, content } : p
+        );
+      }
+      saveLastSelectedPath(path);
+      persistPanes();
     } catch (e) {
       console.error("Failed to read file:", e);
     }
   }
 
-  function handleSelect(path: string) {
-    loadFile(path);
-    saveLastSelectedPath(path);
+  async function openInNewPane(path: string) {
+    if (panes.length >= MAX_PANES) return;
+    try {
+      const content = await readFileContents(path);
+      const id = createPaneId();
+      panes = [...panes, { id, path, content }];
+      activePaneId = id;
+      saveLastSelectedPath(path);
+      persistPanes();
+    } catch (e) {
+      console.error("Failed to read file:", e);
+    }
+  }
+
+  function persistPanes() {
+    saveOpenPanes(panes.map((p) => p.path));
+  }
+
+  function handleSelect(path: string, event?: MouseEvent, lineContent?: string) {
+    highlightText = lineContent ?? "";
+    if (lineContent) highlightKey++;
+    if (event?.ctrlKey && panes.length < MAX_PANES) {
+      openInNewPane(path);
+    } else {
+      openInActivePane(path);
+    }
+  }
+
+  function handleClosePane(id: string) {
+    panes = panes.filter((p) => p.id !== id);
+    if (activePaneId === id) {
+      activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+    }
+    persistPanes();
+  }
+
+  function handleActivatePane(id: string) {
+    activePaneId = id;
+    const pane = panes.find((p) => p.id === id);
+    if (pane) saveLastSelectedPath(pane.path);
   }
 
   function findEntryByPath(items: FileEntry[], path: string): FileEntry | undefined {
@@ -72,19 +141,18 @@
 
   async function switchToFolder(path: string) {
     docsPath = path;
-    selectedPath = "";
-    fileContent = "";
+    panes = [];
+    activePaneId = "";
     await loadTree();
 
     // Restore last selected file if it exists in the new tree
     const lastPath = getLastSelectedPath();
     if (lastPath && findEntryByPath(sortedTree, lastPath)) {
-      await loadFile(lastPath);
+      await openInActivePane(lastPath);
     } else {
       const firstFile = findFirstFile(sortedTree);
       if (firstFile) {
-        await loadFile(firstFile.path);
-        saveLastSelectedPath(firstFile.path);
+        await openInActivePane(firstFile.path);
       }
     }
 
@@ -102,6 +170,38 @@
     filterQuery = query;
   }
 
+  function handleSearchModeChange() {
+    searchMode = !searchMode;
+    if (!searchMode) {
+      searchQuery = "";
+      searchResults = [];
+      isSearching = false;
+    }
+  }
+
+  function handleSearchChange(query: string) {
+    searchQuery = query;
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+    if (!query.trim()) {
+      searchResults = [];
+      isSearching = false;
+      return;
+    }
+
+    isSearching = true;
+    searchDebounceTimer = setTimeout(async () => {
+      if (!docsPath || !searchQuery.trim()) return;
+      try {
+        searchResults = await searchFiles(docsPath, searchQuery);
+      } catch (e) {
+        console.error("Search failed:", e);
+        searchResults = [];
+      }
+      isSearching = false;
+    }, 300);
+  }
+
   function handleSortChange() {
     const currentIndex = sortModes.indexOf(sortMode);
     sortMode = sortModes[(currentIndex + 1) % sortModes.length];
@@ -115,8 +215,18 @@
 
   async function handleHelp() {
     try {
-      fileContent = await getHelpContent();
-      selectedPath = "How to Use Planning Central.md";
+      const content = await getHelpContent();
+      if (panes.length === 0) {
+        const id = createPaneId();
+        panes = [{ id, path: "How to Use Planning Central.md", content }];
+        activePaneId = id;
+      } else {
+        panes = panes.map((p) =>
+          p.id === activePaneId
+            ? { ...p, path: "How to Use Planning Central.md", content }
+            : p
+        );
+      }
     } catch (e) {
       console.error("Failed to load help content:", e);
     }
@@ -130,8 +240,27 @@
     }
   }
 
+  function handleKeyDown(event: KeyboardEvent) {
+    // Ctrl+W: close active pane
+    if (event.ctrlKey && event.key === "w") {
+      event.preventDefault();
+      if (activePaneId) handleClosePane(activePaneId);
+    }
+    // Ctrl+1/2/3/4: switch panes
+    if (event.ctrlKey && event.key >= "1" && event.key <= "4") {
+      event.preventDefault();
+      const index = parseInt(event.key) - 1;
+      if (index < panes.length) {
+        handleActivatePane(panes[index].id);
+      }
+    }
+  }
+
   onMount(() => {
     let unlistenFn: (() => void) | undefined;
+
+    // Global keyboard shortcuts
+    document.addEventListener("keydown", handleKeyDown);
 
     (async () => {
       // Check for a saved folder first, then fall back to Rust backend default
@@ -149,15 +278,30 @@
 
       await loadTree();
 
-      // Restore last selected file, or auto-select the first file
-      const lastPath = getLastSelectedPath();
-      if (lastPath && findEntryByPath(sortedTree, lastPath)) {
-        await loadFile(lastPath);
+      // Restore saved panes, or fall back to last selected file, or auto-select first
+      const savedPanes = getOpenPanes();
+      const validPanes = savedPanes.filter((p) => findEntryByPath(sortedTree, p));
+
+      if (validPanes.length > 0) {
+        for (const path of validPanes) {
+          try {
+            const content = await readFileContents(path);
+            const id = createPaneId();
+            panes = [...panes, { id, path, content }];
+            activePaneId = id; // Last one becomes active
+          } catch {
+            // Skip files that can't be read
+          }
+        }
       } else {
-        const firstFile = findFirstFile(sortedTree);
-        if (firstFile) {
-          await loadFile(firstFile.path);
-          saveLastSelectedPath(firstFile.path);
+        const lastPath = getLastSelectedPath();
+        if (lastPath && findEntryByPath(sortedTree, lastPath)) {
+          await openInActivePane(lastPath);
+        } else {
+          const firstFile = findFirstFile(sortedTree);
+          if (firstFile) {
+            await openInActivePane(firstFile.path);
+          }
         }
       }
 
@@ -168,24 +312,34 @@
         console.error("Failed to start file watcher:", e);
       }
 
-      // Listen for file changes
+      // Listen for file changes — update ALL open panes with that file
       unlistenFn = await listen<string[]>("file-changed", async (event) => {
         await loadTree();
-        if (selectedPath && event.payload.some((p) => p === selectedPath)) {
-          await loadFile(selectedPath);
+        for (const pane of panes) {
+          if (event.payload.some((p) => p === pane.path)) {
+            try {
+              const content = await readFileContents(pane.path);
+              panes = panes.map((p) =>
+                p.id === pane.id ? { ...p, content } : p
+              );
+            } catch {
+              // Non-fatal
+            }
+          }
         }
       });
     })();
 
     return () => {
       unlistenFn?.();
+      document.removeEventListener("keydown", handleKeyDown);
     };
   });
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} onselect={handleSelect} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {filterQuery} onfilterchange={handleFilterChange} />
-  <MarkdownViewer content={fileContent} filePath={selectedPath} {layoutMode} onlayoutchange={handleLayoutChange} />
+  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} {highlightText} {highlightKey} />
 </div>
 
 <style>

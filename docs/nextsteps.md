@@ -4,13 +4,13 @@
 
 Desktop markdown viewer built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, last-selected-file persistence, and docs folder persistence via localStorage.
 
-### Current Test Count: 55 frontend (7 test files) + 11 Rust = 66 total
+### Current Test Count: 120 frontend (11 test files) + 20 Rust = 140 total
 
 ### Key Files
-- **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher}.rs`
-- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer), `src/lib/services/` (filesystem, persistence, markdown, tree-utils), `src/lib/types.ts`
+- **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
+- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer, ContentArea), `src/lib/services/` (filesystem, persistence, markdown, tree-utils, sort), `src/lib/types.ts`
 - **Config:** `tauri.conf.json`, `vitest.config.ts`, `src-tauri/Cargo.toml`, `src-tauri/capabilities/default.json`
-- **Tests:** 7 `.test.ts` files in `src/lib/`, Rust tests in `commands/filesystem.rs`
+- **Tests:** 9 `.test.ts` files in `src/lib/`, Rust tests in `commands/{filesystem,diagram}.rs`
 
 ### Environment Notes
 - **Node v20.11.1** — too old for Vite 7 / @sveltejs/vite-plugin-svelte v6. Use Vite 6 + plugin v5.
@@ -454,6 +454,8 @@ When filtering, auto-expand all directories so matched files are visible. Reset 
 
 ### Phase 2: Full-Text Search (Across All Files)
 
+#### Status: DONE
+
 Search the **contents** of all markdown files in the selected folder. This requires backend support since reading all files on the frontend would be slow.
 
 #### Problem
@@ -767,6 +769,8 @@ Add a toggle control in the viewer header next to the filename:
 ---
 
 ## Feature: Multi-File Viewing
+
+### Status: DONE
 
 ### Problem
 Currently the app can only display one file at a time. On a widescreen, users want to view multiple documents side by side — compare notes, reference one doc while reading another, etc.
@@ -1516,22 +1520,93 @@ Users add the server to their Claude Code MCP config:
 
 ---
 
+## Feature: Search Result Line Highlighting
+
+### Status: DONE
+
+### Problem
+When clicking a search result in full-text search, the file opens but the user has to manually find the matching line. There's no visual indication of where the match is.
+
+### Solution
+When a search result line is clicked, open the file AND scroll to + highlight the matching line in the rendered markdown. The highlight should be a temporary visual indicator (e.g. a yellow/amber flash that fades out) so it draws attention without being permanent.
+
+### Implementation Plan
+
+**1. Extend `onselect` to pass line content**
+- `SearchResults.onselect` changes from `(path: string)` to `(path: string, lineContent?: string)`
+- Individual result lines pass the `match.line_content` when clicked
+- File name buttons still pass just the path (no highlight)
+
+**2. Thread highlight through the component chain**
+- `Sidebar` → `App.handleSelect` receives the line content
+- `App` stores `highlightText` state, passes to `ContentArea` → `MarkdownViewer`
+- `MarkdownViewer` receives `highlightText` prop
+
+**3. Highlight logic in MarkdownViewer**
+- After markdown renders, if `highlightText` is set:
+  - Walk DOM text nodes in `.markdown-body` looking for matching text
+  - Wrap matching text in a `<mark class="search-highlight">` element
+  - Scroll the mark into view
+  - Fade highlight out after ~2 seconds via CSS animation
+
+**4. Clear highlight on navigation**
+- When opening a different file or clearing search, reset `highlightText`
+
+### Tests
+- SearchResults: clicking a result line passes line content to onselect
+- MarkdownViewer: highlight prop triggers scroll/highlight behavior
+
+---
+
+## Feature: Line Numbers Toggle
+
+### Status: PENDING (lower priority)
+
+### Problem
+Users may want to see line numbers in the rendered markdown for reference — useful when discussing documents or correlating with search results.
+
+### Solution
+Add a toggle button in the viewer header (next to the layout controls) that overlays line numbers on the rendered content. When enabled, each block-level element (paragraph, heading, list item, code block) shows a line number gutter.
+
+### Implementation Plan
+
+**1. Track source line numbers in rendered HTML**
+- Extend the `marked` renderer to add `data-source-line` attributes to block-level elements
+- The attribute value is the 1-based line number in the original markdown source
+
+**2. Line number toggle UI**
+- Add a button (e.g. `#` or `1:`) to the layout controls area in MarkdownViewer header
+- Persist the toggle state via localStorage (`persistence.ts`)
+
+**3. CSS line number gutter**
+- When enabled, block-level elements with `data-source-line` get a `::before` pseudo-element showing the line number
+- Use a left margin/padding to accommodate the gutter
+
+**4. Tests**
+- MarkdownViewer: toggle button renders, clicking toggles line numbers
+- persistence.test.ts: save/restore line number toggle state
+
+---
+
 ## Suggested Implementation Order
 
 These features build on each other. Recommended sequence:
 
-1. **~~Folder Selector~~** — DONE. Native folder picker with persistence.
-2. **Auto-Select First File on Folder Open** — PRIORITY 1. Fix the empty-state UX bug. Small change, big impact. See top of this document.
-3. **Sort Controls** — small, self-contained, good warmup
-4. **Search & Filter Phase 1** (filename) — client-side only, quick win
-5. **Widescreen Layout** — fixes the most visible UX issue on ultrawides
-6. **Multi-File Viewing** — requires restructuring App.svelte's data model
-7. **Search & Filter Phase 2** (full-text) — needs Rust backend work
-8. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-9. **Markdown & Diagram Editor** — biggest feature, builds on everything above
-10. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-11. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-12. **MCP Server** — depends on write command + validation + search being built first
+1. ~~**Folder Selector**~~ — DONE
+2. ~~**Auto-Select First File on Folder Open**~~ — DONE
+3. ~~**Sort Controls**~~ — DONE
+4. ~~**Search & Filter Phase 1**~~ (filename) — DONE
+5. ~~**Widescreen Layout**~~ — DONE
+6. ~~**Multi-File Viewing**~~ — DONE
+7. ~~**Search & Filter Phase 2**~~ (full-text) — DONE
+8. ~~**ASCII Art Diagram Rendering**~~ (svgbob) — DONE
+9. ~~**Search Result Line Highlighting**~~ — DONE
+10. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+11. **Line Numbers Toggle** — nice-to-have viewer enhancement
+12. **Markdown & Diagram Editor** — biggest feature, builds on everything above
+13. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+14. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+15. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 

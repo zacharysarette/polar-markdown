@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { FileEntry } from "../types";
+import type { FileEntry, SearchResult } from "../types";
 
 export async function readDirectoryTree(path: string): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("read_directory_tree", { path });
@@ -24,6 +24,10 @@ export async function getHelpContent(): Promise<string> {
 
 export async function renderAsciiDiagram(input: string): Promise<string> {
   return invoke<string>("render_ascii_diagram", { input });
+}
+
+export async function searchFiles(path: string, query: string): Promise<SearchResult[]> {
+  return invoke<SearchResult[]>("search_files", { path, query });
 }
 
 export async function pickFolder(): Promise<string | null> {

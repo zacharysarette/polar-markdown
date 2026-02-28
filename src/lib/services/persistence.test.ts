@@ -8,6 +8,8 @@ import {
   getSortMode,
   saveLayoutMode,
   getLayoutMode,
+  saveOpenPanes,
+  getOpenPanes,
 } from "./persistence";
 
 const STORAGE_KEY = "planning-central:last-selected-path";
@@ -95,5 +97,16 @@ describe("saveLayoutMode / getLayoutMode", () => {
 
   it("returns 'centered' as the default when nothing stored", () => {
     expect(getLayoutMode()).toBe("centered");
+  });
+});
+
+describe("saveOpenPanes / getOpenPanes", () => {
+  it("round-trips an array of pane paths", () => {
+    saveOpenPanes(["/docs/readme.md", "/docs/plan.md"]);
+    expect(getOpenPanes()).toEqual(["/docs/readme.md", "/docs/plan.md"]);
+  });
+
+  it("returns empty array when nothing stored", () => {
+    expect(getOpenPanes()).toEqual([]);
   });
 });

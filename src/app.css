@@ -124,6 +124,7 @@ html, body, #app {
   padding: 16px;
   overflow-x: auto;
   margin-bottom: 1em;
+  line-height: 1.5;
 }
 
 .markdown-body pre code {
@@ -131,6 +132,7 @@ html, body, #app {
   padding: 0;
   font-size: 0.85em;
   line-height: 1.5;
+  display: block;
 }
 
 .markdown-body blockquote {
@@ -224,4 +226,82 @@ html, body, #app {
   font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
   font-size: 0.85em;
   color: var(--text-secondary);
+}
+
+/* Line numbers for code blocks */
+pre.line-numbers {
+  position: relative;
+  padding-left: 3.8em;
+}
+
+.line-numbers-rows {
+  position: absolute;
+  pointer-events: none;
+  top: 16px;
+  bottom: 16px;
+  left: 0;
+  width: 3em;
+  font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  user-select: none;
+  border-right: 1px solid var(--border);
+  counter-reset: linenumber;
+  overflow: hidden;
+}
+
+.line-numbers-rows > span {
+  display: block;
+  counter-increment: linenumber;
+}
+
+.line-numbers-rows > span::before {
+  content: counter(linenumber);
+  color: #565f89;
+  display: block;
+  padding-right: 0.8em;
+  text-align: right;
+}
+
+/* Search result highlight — inline text match */
+mark.search-highlight {
+  background: rgba(224, 175, 104, 0.4);
+  color: #e0af68;
+  border-radius: 2px;
+  padding: 1px 2px;
+  animation: highlight-fade 3s ease-out forwards;
+}
+
+/* Search result highlight — element-level (for syntax-highlighted code blocks) */
+.search-highlight-line {
+  outline: 2px solid rgba(224, 175, 104, 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+  background: rgba(224, 175, 104, 0.1) !important;
+  animation: highlight-line-fade 3s ease-out forwards;
+}
+
+@keyframes highlight-fade {
+  0% { background: rgba(224, 175, 104, 0.5); }
+  70% { background: rgba(224, 175, 104, 0.4); }
+  100% { background: rgba(224, 175, 104, 0.15); }
+}
+
+@keyframes highlight-line-fade {
+  0% { outline-color: rgba(224, 175, 104, 0.6); background: rgba(224, 175, 104, 0.15) !important; }
+  70% { outline-color: rgba(224, 175, 104, 0.5); background: rgba(224, 175, 104, 0.1) !important; }
+  100% { outline-color: rgba(224, 175, 104, 0.15); background: rgba(224, 175, 104, 0.05) !important; }
+}
+
+/* Search result highlight — code block line overlay */
+.search-line-overlay {
+  background: rgba(224, 175, 104, 0.2);
+  border-left: 3px solid #e0af68;
+  animation: line-overlay-fade 3s ease-out forwards;
+}
+
+@keyframes line-overlay-fade {
+  0% { background: rgba(224, 175, 104, 0.25); border-left-color: #e0af68; }
+  70% { background: rgba(224, 175, 104, 0.15); border-left-color: rgba(224, 175, 104, 0.7); }
+  100% { background: rgba(224, 175, 104, 0.05); border-left-color: rgba(224, 175, 104, 0.3); }
 }

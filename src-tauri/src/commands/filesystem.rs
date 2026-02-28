@@ -1,7 +1,8 @@
-use crate::models::FileEntry;
+use crate::models::{FileEntry, SearchMatch, SearchResult};
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
+use walkdir::WalkDir;
 
 /// Help file content embedded at compile time — always available regardless of install location.
 const HELP_CONTENT: &str = include_str!("../../../docs/How to Use Planning Central.md");
@@ -132,6 +133,74 @@ pub fn get_help_content() -> String {
     HELP_CONTENT.to_string()
 }
 
+/// Searches the contents of all .md files in a directory for a query string.
+/// Returns matching files with line numbers and content. Case-insensitive.
+/// Skips hidden directories and non-.md files.
+#[tauri::command]
+pub fn search_files(path: String, query: String) -> Result<Vec<SearchResult>, String> {
+    let dir = Path::new(&path);
+    if !dir.exists() || !dir.is_dir() {
+        return Err(format!("Invalid directory: {}", path));
+    }
+
+    if query.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let query_lower = query.to_lowercase();
+    let mut results: Vec<SearchResult> = Vec::new();
+
+    for entry in WalkDir::new(dir)
+        .into_iter()
+        .filter_entry(|e| {
+            // Skip hidden directories
+            !e.file_name().to_string_lossy().starts_with('.')
+                || e.path() == dir
+        })
+        .filter_map(|e| e.ok())
+    {
+        let entry_path = entry.path();
+
+        // Only search .md files
+        if !entry_path.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.ends_with(".md") {
+            continue;
+        }
+
+        // Read file and search line by line
+        let content = match fs::read_to_string(entry_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let mut matches: Vec<SearchMatch> = Vec::new();
+        for (i, line) in content.lines().enumerate() {
+            if line.to_lowercase().contains(&query_lower) {
+                matches.push(SearchMatch {
+                    line_number: i + 1,
+                    line_content: line.to_string(),
+                });
+            }
+        }
+
+        if !matches.is_empty() {
+            results.push(SearchResult {
+                path: entry_path.to_string_lossy().to_string(),
+                name,
+                matches,
+            });
+        }
+    }
+
+    // Sort results by file name for consistent ordering
+    results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -229,5 +298,64 @@ mod tests {
     fn test_read_file_contents_nonexistent() {
         let result = read_file_contents("/nonexistent/file.md".into());
         assert!(result.is_err());
+    }
+
+    fn setup_search_dir() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+
+        // tmp/
+        //   readme.md    -> "# README\nThis is a guide to the project."
+        //   notes.md     -> "# Notes\nSome notes about testing.\nAnother line."
+        //   .hidden/
+        //     secret.md  -> "secret keyword here"
+        //   image.png    -> "keyword in non-md file"
+
+        let hidden = dir.path().join(".hidden");
+        fs::create_dir_all(&hidden).unwrap();
+
+        fs::write(dir.path().join("readme.md"), "# README\nThis is a guide to the project.").unwrap();
+        fs::write(dir.path().join("notes.md"), "# Notes\nSome notes about testing.\nAnother line.").unwrap();
+        fs::write(hidden.join("secret.md"), "secret keyword here").unwrap();
+        fs::write(dir.path().join("image.png"), "keyword in non-md file").unwrap();
+
+        dir
+    }
+
+    #[test]
+    fn test_search_files_returns_matching_files_with_line_numbers() {
+        let dir = setup_search_dir();
+        let results = search_files(dir.path().to_string_lossy().to_string(), "guide".into()).unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "readme.md");
+        assert_eq!(results[0].matches.len(), 1);
+        assert_eq!(results[0].matches[0].line_number, 2);
+        assert!(results[0].matches[0].line_content.contains("guide"));
+    }
+
+    #[test]
+    fn test_search_files_is_case_insensitive() {
+        let dir = setup_search_dir();
+        let results = search_files(dir.path().to_string_lossy().to_string(), "README".into()).unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "readme.md");
+    }
+
+    #[test]
+    fn test_search_files_returns_empty_when_no_matches() {
+        let dir = setup_search_dir();
+        let results = search_files(dir.path().to_string_lossy().to_string(), "nonexistent_xyz".into()).unwrap();
+
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_files_skips_hidden_dirs_and_non_md_files() {
+        let dir = setup_search_dir();
+        // "keyword" exists in .hidden/secret.md and image.png but not in visible .md files
+        let results = search_files(dir.path().to_string_lossy().to_string(), "keyword".into()).unwrap();
+
+        assert!(results.is_empty());
     }
 }

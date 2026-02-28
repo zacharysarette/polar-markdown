@@ -15,18 +15,18 @@
     depth?: number;
     selectedPath?: string;
     focusedPath?: string;
-    onselect: (path: string) => void;
+    onselect: (path: string, event?: MouseEvent) => void;
     ontoggle: (path: string) => void;
     expandedPaths?: Set<string>;
   } = $props();
 
   const expanded = $derived(expandedPaths.has(entry.path));
 
-  function handleClick() {
+  function handleClick(event: MouseEvent) {
     if (entry.is_directory) {
       ontoggle(entry.path);
     } else {
-      onselect(entry.path);
+      onselect(entry.path, event);
     }
   }
 

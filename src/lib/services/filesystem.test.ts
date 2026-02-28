@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 
@@ -101,5 +101,19 @@ describe("pickFolder", () => {
     const result = await pickFolder();
 
     expect(result).toBeNull();
+  });
+});
+
+describe("searchFiles", () => {
+  it("calls invoke with correct command and args", async () => {
+    const mockResults = [
+      { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },
+    ];
+    mockInvoke.mockResolvedValue(mockResults);
+
+    const result = await searchFiles("/docs", "README");
+
+    expect(mockInvoke).toHaveBeenCalledWith("search_files", { path: "/docs", query: "README" });
+    expect(result).toEqual(mockResults);
   });
 });

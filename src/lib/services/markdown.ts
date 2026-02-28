@@ -22,6 +22,12 @@ function toBobBlock(text: string): string {
   return `<pre class="bob">${escaped}</pre>`;
 }
 
+function wrapWithLineNumbers(highlighted: string, text: string, langClass: string): string {
+  const lineCount = text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
+  const lineRows = '<span></span>'.repeat(lineCount);
+  return `<pre class="line-numbers"><code class="hljs ${langClass}">${highlighted}</code><span class="line-numbers-rows" aria-hidden="true">${lineRows}</span></pre>`;
+}
+
 // Create a configured Marked instance with syntax highlighting and mermaid support
 const marked = new Marked({
   renderer: {
@@ -39,7 +45,7 @@ const marked = new Marked({
       // All tagged code gets syntax highlighted
       if (lang && hljs.getLanguage(lang)) {
         const highlighted = hljs.highlight(text, { language: lang }).value;
-        return `<pre><code class="hljs language-${lang}">${highlighted}</code></pre>`;
+        return wrapWithLineNumbers(highlighted, text, 'language-' + lang);
       }
 
       // Auto-detect: unlabeled blocks with box-drawing/arrow Unicode chars are diagrams
@@ -49,7 +55,7 @@ const marked = new Marked({
 
       // Fallback: auto-detect language
       const highlighted = hljs.highlightAuto(text).value;
-      return `<pre><code class="hljs">${highlighted}</code></pre>`;
+      return wrapWithLineNumbers(highlighted, text, '');
     },
   },
 });

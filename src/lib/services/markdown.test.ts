@@ -76,6 +76,7 @@ describe("renderMarkdown", () => {
     const html = await renderMarkdown(md);
     expect(html).not.toContain('<pre class="bob">');
     expect(html).toContain("hljs");
+    expect(html).toContain('pre class="line-numbers"');
   });
 
   it("syntax highlights known languages", async () => {
@@ -83,6 +84,32 @@ describe("renderMarkdown", () => {
     const html = await renderMarkdown(md);
     expect(html).toContain("hljs");
     expect(html).toContain("language-javascript");
+    expect(html).toContain('pre class="line-numbers"');
+    expect(html).toContain("line-numbers-rows");
+  });
+
+  it("adds correct number of line number spans", async () => {
+    const md = '```javascript\nline1\nline2\nline3\n```';
+    const html = await renderMarkdown(md);
+    const match = html.match(/<span class="line-numbers-rows" aria-hidden="true">((?:<span><\/span>)*)<\/span>/);
+    expect(match).not.toBeNull();
+    const spans = match![1].match(/<span><\/span>/g);
+    expect(spans).toHaveLength(3);
+  });
+
+  it("line number rows are sibling of code under pre.line-numbers with matching count", async () => {
+    const md = '```javascript\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```';
+    const html = await renderMarkdown(md);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const pre = doc.querySelector("pre.line-numbers");
+    expect(pre).not.toBeNull();
+    const code = pre!.querySelector(":scope > code");
+    const lineNumbersRows = pre!.querySelector(":scope > .line-numbers-rows");
+    expect(code).not.toBeNull();
+    expect(lineNumbersRows).not.toBeNull();
+    const spans = lineNumbersRows!.querySelectorAll(":scope > span");
+    expect(spans).toHaveLength(3);
   });
 
   it("renders inline code", async () => {

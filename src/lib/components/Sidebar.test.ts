@@ -115,4 +115,61 @@ describe("Sidebar", () => {
 
     expect(onhelp).toHaveBeenCalledOnce();
   });
+
+  it("renders search toggle button", () => {
+    render(Sidebar, {
+      props: {
+        entries: [],
+        selectedPath: "",
+        onselect: vi.fn(),
+        onfilterchange: vi.fn(),
+        onsearchmodechange: vi.fn(),
+        onsearchchange: vi.fn(),
+      },
+    });
+
+    expect(screen.getByTitle("Search file contents")).toBeInTheDocument();
+  });
+
+  it("calls onsearchmodechange when search toggle is clicked", async () => {
+    const onsearchmodechange = vi.fn();
+    render(Sidebar, {
+      props: {
+        entries: [],
+        selectedPath: "",
+        onselect: vi.fn(),
+        onfilterchange: vi.fn(),
+        onsearchmodechange,
+        onsearchchange: vi.fn(),
+      },
+    });
+
+    const button = screen.getByTitle("Search file contents");
+    await fireEvent.click(button);
+
+    expect(onsearchmodechange).toHaveBeenCalledOnce();
+  });
+
+  it("shows search results instead of file tree when searchMode is active with a query", () => {
+    const searchResults = [
+      { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },
+    ];
+
+    render(Sidebar, {
+      props: {
+        entries: [{ name: "other.md", path: "/docs/other.md", is_directory: false, children: [] }],
+        selectedPath: "",
+        onselect: vi.fn(),
+        searchMode: true,
+        searchQuery: "readme",
+        searchResults,
+        onsearchchange: vi.fn(),
+        onsearchmodechange: vi.fn(),
+      },
+    });
+
+    // Should show search result, not the file tree entry
+    expect(screen.getByText("readme.md")).toBeInTheDocument();
+    expect(screen.queryByText("other.md")).not.toBeInTheDocument();
+  });
 });
