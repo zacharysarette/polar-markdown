@@ -1,24 +1,44 @@
-# Planning Central
+<p align="center">
+  <img src="img/logo.png" alt="Planning Central" width="220">
+</p>
 
-A desktop markdown viewer with Mermaid diagram support, built with **Tauri 2 + Svelte 5 + TypeScript**.
+<h1 align="center">Planning Central</h1>
 
-Browse, search, and read markdown documentation with live-rendered diagrams — all in a fast native app.
+<p align="center">
+  <strong>A desktop markdown viewer with Mermaid diagram support</strong><br>
+  Built with <b>Tauri 2</b> + <b>Svelte 5</b> + <b>TypeScript</b>
+</p>
+
+<p align="center">
+  <a href="#features"><img src="https://img.shields.io/badge/features-packed-blue?style=for-the-badge" alt="Features"></a>
+  <a href="#getting-started"><img src="https://img.shields.io/badge/setup-easy-green?style=for-the-badge" alt="Setup"></a>
+  <a href="https://github.com/zacharysarette/planning-central/releases"><img src="https://img.shields.io/badge/download-latest-orange?style=for-the-badge" alt="Download"></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-MIT-purple?style=for-the-badge" alt="License"></a>
+</p>
+
+<p align="center">
+  <em>Browse, search, and read markdown documentation with live-rendered diagrams — all in a fast native app.</em>
+</p>
+
+---
 
 ## Features
 
-- **Markdown rendering** with syntax-highlighted code blocks, tables, and full formatting
-- **Mermaid diagrams** rendered as live SVGs (flowcharts, sequence diagrams, ER diagrams, etc.)
-- **ASCII art diagrams** via svgbob — write box-drawing characters or use `bob`/`svgbob` code blocks
-- **Full-text search** across all markdown files with line-number results
-- **Multi-pane layout** — open up to 4 files side-by-side (Ctrl+Click to open, Ctrl+W to close)
-- **File tree sidebar** with expand/collapse, keyboard navigation, and arrow-key auto-select
-- **Native folder picker** — open any directory on your system
-- **Sort controls** — sort files by name (A-Z / Z-A) or modification time (newest / oldest)
-- **Filename filter** — instantly narrow down files by typing in the filter bar
-- **Live file watching** — sidebar and content update automatically when files change on disk
-- **Built-in help** — click the `?` button for a user guide embedded directly in the binary
-- **Persistence** — remembers your last folder, selected file, open panes, and sort mode across sessions
-- **Cross-platform** — Windows, macOS, and Linux
+| | Feature | Description |
+|---|---|---|
+| **Rendering** | Markdown | Syntax-highlighted code blocks, tables, and full formatting |
+| **Diagrams** | Mermaid | Live SVG flowcharts, sequence diagrams, ER diagrams, and more |
+| **Diagrams** | ASCII Art | svgbob renders box-drawing characters and `bob`/`svgbob` code blocks |
+| **Search** | Full-text | Search across all markdown files with line-number results |
+| **Layout** | Multi-pane | Open up to 4 files side-by-side (Ctrl+Click, Ctrl+W, Ctrl+1-4) |
+| **Navigation** | File tree | Expand/collapse, keyboard nav, arrow-key auto-select |
+| **Folders** | Native picker | Open any directory on your system |
+| **Sorting** | Flexible | Sort by name (A-Z / Z-A) or modification time (newest / oldest) |
+| **Filter** | Filename | Instantly narrow down files by typing |
+| **Watch** | Live reload | Sidebar and content update when files change on disk |
+| **Help** | Built-in | Click the `?` button for an embedded user guide |
+| **State** | Persistence | Remembers folder, file, panes, and sort mode across sessions |
+| **Platforms** | Cross-platform | Windows, macOS, and Linux |
 
 ## Getting Started
 

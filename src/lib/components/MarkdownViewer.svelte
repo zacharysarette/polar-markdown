@@ -25,7 +25,7 @@
 
   $effect(() => {
     if (content) {
-      renderMarkdown(content).then((html) => {
+      renderMarkdown(content, filePath).then((html) => {
         htmlContent = html;
       });
     } else {

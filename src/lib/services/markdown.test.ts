@@ -13,7 +13,12 @@ vi.mock("./filesystem", () => ({
   renderAsciiDiagram: vi.fn(),
 }));
 
-import { renderMarkdown, renderMermaidDiagrams } from "./markdown";
+// Mock Tauri core for convertFileSrc
+vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: vi.fn((path: string) => `http://asset.localhost/${path.replace(/\\/g, "/")}`),
+}));
+
+import { renderMarkdown, renderMermaidDiagrams, getDirectory, resolveImageSrc } from "./markdown";
 import mermaid from "mermaid";
 
 describe("renderMarkdown", () => {
@@ -144,5 +149,93 @@ describe("renderMermaidDiagrams", () => {
     expect(mermaid.run).toHaveBeenCalledWith({
       querySelector: "pre.mermaid",
     });
+  });
+});
+
+describe("getDirectory", () => {
+  it("extracts directory from Unix path", () => {
+    expect(getDirectory("/home/user/docs/readme.md")).toBe("/home/user/docs");
+  });
+
+  it("extracts directory from Windows path", () => {
+    expect(getDirectory("C:\\Users\\test\\docs\\readme.md")).toBe("C:\\Users\\test\\docs");
+  });
+
+  it("returns empty string for bare filename", () => {
+    expect(getDirectory("readme.md")).toBe("");
+  });
+
+  it("handles path with mixed separators", () => {
+    expect(getDirectory("C:\\Users\\test/docs/readme.md")).toBe("C:\\Users\\test/docs");
+  });
+});
+
+describe("resolveImageSrc", () => {
+  it("passes through https URLs unchanged", () => {
+    const url = "https://example.com/image.png";
+    expect(resolveImageSrc(url, "/some/dir")).toBe(url);
+  });
+
+  it("passes through http URLs unchanged", () => {
+    const url = "http://example.com/image.png";
+    expect(resolveImageSrc(url, "/some/dir")).toBe(url);
+  });
+
+  it("passes through data URIs unchanged", () => {
+    const dataUri = "data:image/png;base64,iVBOR...";
+    expect(resolveImageSrc(dataUri, "/some/dir")).toBe(dataUri);
+  });
+
+  it("resolves relative path against markdown directory", () => {
+    const result = resolveImageSrc("./img/photo.png", "/home/user/docs");
+    expect(result).toBe("http://asset.localhost//home/user/docs/img/photo.png");
+  });
+
+  it("resolves parent directory references", () => {
+    const result = resolveImageSrc("../sibling/image.jpg", "/home/user/docs");
+    expect(result).toBe("http://asset.localhost//home/user/sibling/image.jpg");
+  });
+
+  it("resolves bare relative path (no ./)", () => {
+    const result = resolveImageSrc("screenshot.png", "/home/user/docs");
+    expect(result).toBe("http://asset.localhost//home/user/docs/screenshot.png");
+  });
+});
+
+describe("renderMarkdown image integration", () => {
+  it("renders external image URL unchanged", async () => {
+    const html = await renderMarkdown("![alt](https://example.com/img.png)");
+    expect(html).toContain("<img");
+    expect(html).toContain('src="https://example.com/img.png"');
+    expect(html).toContain('alt="alt"');
+  });
+
+  it("resolves relative image path when filePath provided", async () => {
+    const html = await renderMarkdown("![photo](./img/photo.png)", "/home/user/docs/readme.md");
+    expect(html).toContain("<img");
+    expect(html).toContain("http://asset.localhost/");
+    expect(html).toContain("img/photo.png");
+  });
+
+  it("includes title attribute when specified", async () => {
+    const html = await renderMarkdown('![alt](https://example.com/img.png "My Title")');
+    expect(html).toContain('title="My Title"');
+  });
+
+  it("adds lazy loading attribute", async () => {
+    const html = await renderMarkdown("![alt](https://example.com/img.png)");
+    expect(html).toContain('loading="lazy"');
+  });
+
+  it("adds onerror handler for broken images", async () => {
+    const html = await renderMarkdown("![broken](./missing.png)", "/home/user/docs/readme.md");
+    expect(html).toContain("onerror");
+    expect(html).toContain("img-broken");
+  });
+
+  it("renders image without filePath using relative path as-is", async () => {
+    const html = await renderMarkdown("![alt](./local.png)");
+    expect(html).toContain("<img");
+    expect(html).toContain('alt="alt"');
   });
 });
