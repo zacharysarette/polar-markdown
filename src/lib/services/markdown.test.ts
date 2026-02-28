@@ -136,6 +136,32 @@ describe("renderMarkdown", () => {
   });
 });
 
+describe("renderMarkdown tables", () => {
+  it("wraps tables in a scrollable container", async () => {
+    const md = "| Col A | Col B |\n|-------|-------|\n| 1 | 2 |";
+    const html = await renderMarkdown(md);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const wrapper = doc.querySelector(".table-wrapper");
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.querySelector("table")).not.toBeNull();
+  });
+
+  it("renders table cell content correctly (not [object Object])", async () => {
+    const md = "| Col A | Col B |\n|-------|-------|\n| hello | world |";
+    const html = await renderMarkdown(md);
+    expect(html).toContain("<th>Col A</th>");
+    expect(html).toContain("<td>hello</td>");
+    expect(html).not.toContain("[object Object]");
+  });
+
+  it("table wrapper has the correct class", async () => {
+    const md = "| Col A | Col B |\n|-------|-------|\n| 1 | 2 |";
+    const html = await renderMarkdown(md);
+    expect(html).toContain('class="table-wrapper"');
+  });
+});
+
 describe("renderMermaidDiagrams", () => {
   beforeEach(() => {
     vi.mocked(mermaid.run).mockReset();

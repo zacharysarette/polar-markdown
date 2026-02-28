@@ -161,6 +161,8 @@ stateDiagram-v2
 
 ## Tables
 
+### Compact Table (fits in view)
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | File tree sidebar | Done | Recursive, filterable |
@@ -172,6 +174,20 @@ stateDiagram-v2
 | Multi-pane viewing | Done | Up to 4 panes |
 | Full-text search | Done | With highlight + scroll |
 | Image rendering | Done | Local + external + broken fallback |
+
+### Wide Table (horizontal scroll)
+
+The table below has many columns and should scroll horizontally instead of overflowing off-screen.
+
+| Component | Language | Framework | Build Tool | Test Framework | Lines of Code | Status | Owner | Priority | Sprint | Dependencies | Notes |
+|-----------|----------|-----------|------------|----------------|---------------|--------|-------|----------|--------|--------------|-------|
+| FileTree | TypeScript | Svelte 5 | Vite 6 | vitest + testing-library | ~250 | Complete | Frontend Team | P0 | Sprint 1 | tree-utils, persistence | Keyboard nav with arrow keys, expand/collapse |
+| MarkdownViewer | TypeScript | Svelte 5 | Vite 6 | vitest + testing-library | ~220 | Complete | Frontend Team | P0 | Sprint 1 | markdown service, highlight service | Renders HTML from marked, triggers mermaid/bob |
+| Sidebar | TypeScript | Svelte 5 | Vite 6 | vitest + testing-library | ~180 | Complete | Frontend Team | P0 | Sprint 1 | FileTree, SearchResults, filesystem | Filter bar, search toggle, sort controls |
+| ContentArea | TypeScript | Svelte 5 | Vite 6 | vitest + testing-library | ~150 | Complete | Frontend Team | P1 | Sprint 2 | MarkdownViewer, persistence | Multi-pane CSS grid layout, Ctrl+Click to open |
+| filesystem.rs | Rust | Tauri 2.10 | Cargo | cargo test | ~200 | Complete | Backend Team | P0 | Sprint 1 | walkdir, serde | Directory tree, file reading, full-text search |
+| watcher.rs | Rust | Tauri 2.10 | Cargo | cargo test | ~100 | Complete | Backend Team | P0 | Sprint 1 | notify 7 | Native file system watcher, emits Tauri events |
+| diagram.rs | Rust | Tauri 2.10 | Cargo | cargo test | ~50 | Complete | Backend Team | P1 | Sprint 2 | svgbob 0.7 | ASCII art to SVG conversion with dark theme colors |
 
 ---
 

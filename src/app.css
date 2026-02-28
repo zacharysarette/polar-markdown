@@ -153,10 +153,14 @@ html, body, #app {
   margin-bottom: 0.25em;
 }
 
+.markdown-body .table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
 .markdown-body table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 1em;
 }
 
 .markdown-body th,

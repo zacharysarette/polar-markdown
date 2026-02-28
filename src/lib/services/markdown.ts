@@ -71,6 +71,13 @@ function wrapWithLineNumbers(highlighted: string, text: string, langClass: strin
 
 // Create a configured Marked instance with syntax highlighting and mermaid support
 const marked = new Marked({
+  hooks: {
+    postprocess(html) {
+      return html
+        .replace(/<table>/g, '<div class="table-wrapper"><table>')
+        .replace(/<\/table>/g, '</table></div>');
+    },
+  },
   renderer: {
     image({ href, title, text }: { href: string; title?: string | null; text: string }) {
       const resolvedHref = resolveImageSrc(href, currentMarkdownDir);
