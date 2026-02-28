@@ -27,6 +27,9 @@ Desktop.ini
 *.exe
 *.msi
 *.nsis
+*.dmg
+*.deb
+*.AppImage
 
 # Vitest
 coverage/
