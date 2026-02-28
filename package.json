@@ -1,0 +1,37 @@
+{
+  "name": "planning-central",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts,.svelte",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "@tauri-apps/cli": "^2.10.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/svelte": "^5.3.1",
+    "@tsconfig/svelte": "^5.0.8",
+    "happy-dom": "^20.7.0",
+    "svelte": "^5.53.5",
+    "svelte-check": "^4.4.4",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^17.0.3",
+    "mermaid": "^11.12.3"
+  }
+}

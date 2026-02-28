@@ -1,0 +1,36 @@
+# Claude Code local settings
+.claude/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+
+# Environment and secrets
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Tauri debug/release artifacts (binaries, installers)
+*.exe
+*.msi
+*.nsis
+
+# Vitest
+coverage/
+
+# Logs
+*.log
+npm-debug.log*

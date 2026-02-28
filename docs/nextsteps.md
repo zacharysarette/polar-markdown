@@ -1,0 +1,1525 @@
+# Planning Central — Next Steps
+
+## Project Context
+
+Desktop markdown viewer built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, last-selected-file persistence, and docs folder persistence via localStorage.
+
+### Current Test Count: 55 frontend (7 test files) + 11 Rust = 66 total
+
+### Key Files
+- **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher}.rs`
+- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer), `src/lib/services/` (filesystem, persistence, markdown, tree-utils), `src/lib/types.ts`
+- **Config:** `tauri.conf.json`, `vitest.config.ts`, `src-tauri/Cargo.toml`, `src-tauri/capabilities/default.json`
+- **Tests:** 7 `.test.ts` files in `src/lib/`, Rust tests in `commands/filesystem.rs`
+
+### Environment Notes
+- **Node v20.11.1** — too old for Vite 7 / @sveltejs/vite-plugin-svelte v6. Use Vite 6 + plugin v5.
+- **happy-dom** for vitest (not jsdom)
+- **Svelte 5 runes** — `$state()`, `$derived()`, `$effect()`, `$props()`
+- **vitest config** needs `resolve.conditions: ["browser"]` for Svelte 5
+- **Shell "Permission denied"** on every command due to bash profile bug with spaces in username path. Commands succeed despite exit code 1. Ignore it.
+- **Tauri capabilities:** `core:default` + `dialog:default` in `capabilities/default.json`. Add more permissions there for new plugins.
+- **User prefers TDD workflow:** Write tests first (red), implement (green), verify full suite.
+
+---
+
+## PRIORITY 0: Embed Help File in Binary
+
+### Status: DONE
+
+### Problem
+The help button loads `How to Use Planning Central.md` from the app's `docs/` folder at runtime using `get_docs_path()`. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.
+
+### Solution: Rust `include_str!`
+Compile the help file directly into the binary at build time using Rust's `include_str!` macro. This reads the file at compile time and embeds it as a string constant in the executable. No runtime file access needed.
+
+```rust
+// In commands/filesystem.rs
+const HELP_CONTENT: &str = include_str!("../../docs/How to Use Planning Central.md");
+
+#[tauri::command]
+pub fn get_help_content() -> String {
+    HELP_CONTENT.to_string()
+}
+```
+
+The frontend calls `invoke("get_help_content")` instead of reading a file path. Works from anywhere — installed, portable, any folder.
+
+**Trade-off:** The help content is frozen at build time. Any edits to the `.md` file require a rebuild. This is fine since the file only changes when we ship new features (which requires a rebuild anyway).
+
+---
+
+## PRIORITY 1: Auto-Select First File on Folder Open
+
+### Status: DONE
+
+### Problem
+When the user opens a new folder via the folder selector (or on first app launch with no saved selection), the content pane shows the empty state ("Select a markdown file..."). The user has to manually click a file to see anything. This feels broken — you pick a folder and nothing happens.
+
+### Expected Behavior
+When a folder is loaded and there's no previously-selected file to restore, the app should automatically select and display the first file in the tree.
+
+### Root Cause
+In `src/App.svelte`, the `switchToFolder()` function and the `onMount` flow only restore a file if `getLastSelectedPath()` returns a path that exists in the new tree. When switching to a brand new folder (or on first launch), there's no saved path, so nothing gets selected.
+
+### Fix Location
+`src/App.svelte` — two places need the same logic:
+
+1. **`switchToFolder()`** — after `loadTree()`, if no last-selected file was restored, auto-select the first file
+2. **`onMount`** — same: after tree loads and last-selected restore fails, auto-select first file
+
+### Helper Needed
+A utility to find the first file (not directory) in the tree, respecting the sort order:
+
+```typescript
+function findFirstFile(entries: FileEntry[]): FileEntry | undefined {
+  for (const entry of entries) {
+    if (!entry.is_directory) return entry;
+    const found = findFirstFile(entry.children);
+    if (found) return found;
+  }
+  return undefined;
+}
+```
+
+### Implementation
+In both `switchToFolder()` and the `onMount` flow, after the last-selected restore attempt:
+
+```typescript
+// Restore last selected file if it exists in the new tree
+const lastPath = getLastSelectedPath();
+if (lastPath && findEntryByPath(tree, lastPath)) {
+  await loadFile(lastPath);
+} else {
+  // Auto-select the first file in the tree
+  const firstFile = findFirstFile(tree);
+  if (firstFile) {
+    await loadFile(firstFile.path);
+    saveLastSelectedPath(firstFile.path);
+  }
+}
+```
+
+### Tests to Write (TDD — write these FIRST)
+
+**tree-utils.test.ts** (3 new tests):
+- `findFirstFile` returns first non-directory entry
+- `findFirstFile` recurses into directories to find files
+- `findFirstFile` returns undefined for empty tree
+
+*Note: Testing the App.svelte auto-select behavior directly is hard (requires mocking Tauri invoke). The utility function should be tested in isolation, and the integration verified manually.*
+
+---
+
+## Feature: Folder Selector
+
+### Problem
+The app currently only reads from a `docs/` folder discovered via `get_docs_path()` in Rust. Users can't choose a different folder.
+
+### Solution
+Add a native folder picker dialog so users can browse any directory on their system. Persist the chosen folder path so it's remembered across sessions.
+
+### Implementation Plan
+
+#### 1. Add Tauri Dialog Plugin (Rust side)
+
+In `src-tauri/Cargo.toml`, add:
+```toml
+[dependencies]
+tauri-plugin-dialog = "2"
+```
+
+In `src-tauri/src/lib.rs`, register the plugin:
+```rust
+.plugin(tauri_plugin_dialog::init())
+```
+
+In `src-tauri/capabilities/default.json`, add the permission:
+```json
+"permissions": [
+  "core:default",
+  "dialog:default"
+]
+```
+
+#### 2. Add Frontend Dialog Integration
+
+Install the JS package:
+```bash
+npm install @tauri-apps/plugin-dialog
+```
+
+Create a function in `src/lib/services/filesystem.ts` (or a new `dialog.ts`):
+```typescript
+import { open } from "@tauri-apps/plugin-dialog";
+
+export async function pickFolder(): Promise<string | null> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: "Select markdown folder",
+  });
+  return selected as string | null;
+}
+```
+
+#### 3. Persist Selected Folder
+
+Extend `src/lib/services/persistence.ts` with:
+- `saveDocsFolder(path: string): void`
+- `getDocsFolder(): string | null`
+
+Use a separate localStorage key like `"planning-central:docs-folder"`.
+
+#### 4. Update App.svelte
+
+The `onMount` flow becomes:
+1. Check persistence for a saved docs folder
+2. If none saved, call `get_docs_path()` as fallback (current behavior)
+3. Load the tree from whichever path is active
+4. On folder change, save new path, reload tree, clear selected file
+
+Add a "Change Folder" button/action — either in the sidebar header or a toolbar.
+
+#### 5. Update Sidebar UI
+
+Add a folder picker trigger to `Sidebar.svelte`'s header area:
+```svelte
+<header class="sidebar-header">
+  <h2>Files</h2>
+  <button onclick={onchangefolder} title="Change folder">📁</button>
+</header>
+```
+
+Pass `onchangefolder` callback from App.svelte.
+
+#### 6. Tests to Write (TDD — write these FIRST)
+
+**persistence.test.ts** (2 new tests):
+- `saveDocsFolder` saves folder path to localStorage
+- `getDocsFolder` returns stored folder or null
+
+**filesystem.test.ts** (1 new test):
+- `pickFolder` calls the dialog open function (mock `@tauri-apps/plugin-dialog`)
+
+**Sidebar.test.ts** (2 new tests):
+- Renders a "Change folder" button
+- Calls `onchangefolder` callback when button clicked
+
+**FileTree.test.ts** (1 new test):
+- Clears focusedPath when entries change (tree reload on folder switch)
+
+---
+
+## File Watching: How It Works (Already Implemented)
+
+The app **already detects new, modified, and deleted files automatically** — no polling, no restart needed.
+
+### Architecture
+
+```
+OS Kernel (ReadDirectoryChangesW on Windows)
+  → notify crate (RecommendedWatcher, recursive)
+    → Rust callback filters for Create/Modify/Remove events
+      → Tauri emits "file-changed" event with affected paths
+        → App.svelte listener calls loadTree() to refresh sidebar
+          → If the selected file was modified, its content reloads too
+```
+
+### What's in `src-tauri/src/commands/watcher.rs`
+- Uses `notify::RecommendedWatcher` which hooks into the **native OS file system notification API** (not polling)
+- Watches the entire docs folder recursively (`RecursiveMode::Recursive`)
+- Filters for `EventKind::Create`, `EventKind::Modify`, `EventKind::Remove` — ignores access/metadata-only events
+- Emits a `"file-changed"` Tauri event containing the list of affected file paths
+
+### What's in `src/App.svelte`
+- Calls `startWatching(docsPath)` on mount
+- Listens for `"file-changed"` events via `listen<string[]>("file-changed", callback)`
+- On every event: reloads the full directory tree (`loadTree()`)
+- If the currently-selected file is in the changed paths list, also reloads its content
+
+### Real-World Scenario
+If Claude Code writes a new `.md` file into the watched folder, within ~100ms the sidebar will update to show the new file. If Claude modifies a file you're currently viewing, the content pane refreshes automatically.
+
+### Gap: Folder Selector Must Restart the Watcher
+When the folder selector feature is implemented (above), switching folders needs to:
+1. Call `startWatching(newPath)` — the Rust side already handles this by dropping the old watcher and creating a new one (`*watcher_guard = None` then re-creates)
+2. This is already handled in the existing code! The `start_watching` command drops any existing watcher before creating a new one. Just call it with the new path from the frontend.
+
+### Potential Improvement: Debounce Rapid Events
+When a tool like Claude Code writes multiple files in quick succession, the watcher may fire many events in a short window. Each one triggers a full `loadTree()`. A debounce (e.g., 200ms) could batch these into a single tree reload. This isn't critical yet but would be a nice optimization:
+
+```typescript
+// In App.svelte, debounced version:
+let reloadTimeout: ReturnType<typeof setTimeout>;
+unlistenFn = await listen<string[]>("file-changed", async (event) => {
+  clearTimeout(reloadTimeout);
+  reloadTimeout = setTimeout(async () => {
+    await loadTree();
+    if (selectedPath && event.payload.some((p) => p === selectedPath)) {
+      await loadFile(selectedPath);
+    }
+  }, 200);
+});
+```
+
+**Test for debounce (TDD):** Mock the timer, fire 5 rapid events, assert `loadTree` is only called once after the debounce settles.
+
+---
+
+## How to Get a Clickable Windows Binary
+
+**You already have one!** The Tauri build (`npx tauri build`) produces three outputs:
+
+### Option A: Standalone EXE (simplest)
+```
+src-tauri\target\release\app.exe
+```
+Copy this file to your Desktop. Double-click to run. **Caveat:** it will look for `docs/` relative to where the exe lives, so either:
+- Put a `docs/` folder next to it on the Desktop, OR
+- Implement the folder selector above first so it doesn't need a hardcoded path
+
+### Option B: NSIS Installer (recommended for distribution)
+```
+src-tauri\target\release\bundle\nsis\Planning Central_0.1.0_x64-setup.exe
+```
+Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller.
+
+### Option C: MSI Installer (enterprise/IT deployment)
+```
+src-tauri\target\release\bundle\msi\Planning Central_0.1.0_x64_en-US.msi
+```
+Standard Windows Installer package, good for Group Policy deployment.
+
+### Rebuild Command
+After any code changes:
+```bash
+npx tauri build
+```
+This compiles both the frontend (Vite) and Rust backend, then packages everything. Takes ~30 seconds.
+
+### Run Tests + Type Check + Build (full pipeline)
+```bash
+npx vitest run && npx svelte-check && npx tauri build
+```
+
+---
+
+## Feature: Sort Controls
+
+### Problem
+Files are currently sorted with a fixed rule: directories first, then alphabetical by name (case-insensitive). Users have no way to change this.
+
+### Solution
+Add sort controls to the sidebar header. Support multiple sort modes that apply to the file tree.
+
+### Sort Modes
+1. **Name A-Z** (current default)
+2. **Name Z-A**
+3. **Recently modified first** — requires passing modification timestamps from Rust
+4. **Recently modified last**
+
+### Implementation Plan
+
+#### 1. Extend FileEntry with Metadata (Rust)
+
+Update `src-tauri/src/models.rs` to include a `modified` timestamp:
+```rust
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    pub children: Vec<FileEntry>,
+    pub modified: Option<u64>,  // Unix timestamp in seconds
+}
+```
+
+In `commands/filesystem.rs` `build_tree()`, populate it from `fs::metadata().modified()`.
+
+#### 2. Update Frontend Type
+
+In `src/lib/types.ts`:
+```typescript
+export interface FileEntry {
+  name: string;
+  path: string;
+  is_directory: boolean;
+  children: FileEntry[];
+  modified?: number;
+}
+```
+
+#### 3. Add Sort State and Logic
+
+New file `src/lib/services/sort.ts`:
+```typescript
+export type SortMode = "name-asc" | "name-desc" | "modified-desc" | "modified-asc";
+
+export function sortEntries(entries: FileEntry[], mode: SortMode): FileEntry[] {
+  // Deep sort: sort children recursively, directories always first
+}
+```
+
+#### 4. UI: Sort Toggle in Sidebar Header
+
+Add a sort dropdown or cycle button next to the "Files" heading. Persist the chosen sort mode via `persistence.ts`.
+
+#### 5. Tests to Write (TDD)
+
+**sort.test.ts** (new file, ~6 tests):
+- Sorts by name ascending (default)
+- Sorts by name descending
+- Sorts by modified descending (newest first)
+- Sorts by modified ascending (oldest first)
+- Directories always come before files regardless of sort mode
+- Recursively sorts children
+
+**Sidebar.test.ts** (2 new tests):
+- Renders sort control
+- Calls sort change callback when toggled
+
+**persistence.test.ts** (2 new tests):
+- `saveSortMode` / `getSortMode` round-trip
+
+**Rust tests** (2 new tests):
+- `FileEntry` includes `modified` field
+- `build_tree` populates `modified` from file metadata
+
+---
+
+## Feature: Search & Filter (Two Phases)
+
+### Phase 1: Filename Filter
+
+Fast, client-side filtering of the file tree by filename. No backend changes needed.
+
+#### Problem
+With many files, scrolling/scanning the tree is slow. Users need to quickly narrow down to a file by typing part of its name.
+
+#### Solution
+Add a search/filter input at the top of the sidebar. As the user types, the tree filters to show only entries whose filename matches the query. Directories are shown if they contain any matching descendants.
+
+#### Implementation Plan
+
+**1. Add Filter Input to Sidebar**
+
+Add a text input above the FileTree in `Sidebar.svelte`:
+```svelte
+<input
+  type="text"
+  placeholder="Filter files..."
+  bind:value={filterQuery}
+  class="filter-input"
+/>
+```
+
+Pass the filter query down to FileTree, or filter at the Sidebar/App level before passing entries.
+
+**2. Filter Logic — New Utility**
+
+New function in `src/lib/services/tree-utils.ts`:
+```typescript
+export function filterEntries(entries: FileEntry[], query: string): FileEntry[] {
+  // Case-insensitive match on entry.name
+  // Keep directories if any child matches (recursively prune)
+  // Return empty array if no matches
+}
+```
+
+**3. Auto-expand matches**
+
+When filtering, auto-expand all directories so matched files are visible. Reset expansion state when filter is cleared.
+
+**4. Keyboard shortcut**
+
+`Ctrl+F` or `/` focuses the filter input. `Escape` clears the filter and returns focus to the file tree.
+
+**5. Tests to Write (TDD)**
+
+**tree-utils.test.ts** (5 new tests):
+- Filters files by partial name match (case-insensitive)
+- Keeps parent directories of matching files
+- Returns empty array when nothing matches
+- Returns full tree when query is empty
+- Handles nested matches (grandchild files)
+
+**Sidebar.test.ts** (2 new tests):
+- Renders filter input
+- Filter input updates the displayed entries
+
+**FileTree.test.ts** (1 new test):
+- All directories are expanded when filter is active
+
+---
+
+### Phase 2: Full-Text Search (Across All Files)
+
+Search the **contents** of all markdown files in the selected folder. This requires backend support since reading all files on the frontend would be slow.
+
+#### Problem
+Users know a keyword is *somewhere* in their docs but don't know which file. Filename filtering won't help here.
+
+#### Solution
+Add a Rust command that searches file contents, returning matching file paths and context snippets. Display results in a search results panel.
+
+#### Implementation Plan
+
+**1. New Rust Command: `search_files`**
+
+In `src-tauri/src/commands/filesystem.rs`:
+```rust
+#[derive(Serialize)]
+pub struct SearchResult {
+    pub path: String,
+    pub name: String,
+    pub matches: Vec<SearchMatch>,
+}
+
+#[derive(Serialize)]
+pub struct SearchMatch {
+    pub line_number: usize,
+    pub line_content: String,
+}
+
+#[tauri::command]
+pub fn search_files(path: String, query: String) -> Result<Vec<SearchResult>, String> {
+    // Walk directory with walkdir
+    // Read each .md file, search line-by-line (case-insensitive)
+    // Return files with matching lines and context
+}
+```
+
+The `walkdir` crate is already a dependency — use it here.
+
+**2. Frontend Search Service**
+
+In `src/lib/services/filesystem.ts`:
+```typescript
+export async function searchFiles(path: string, query: string): Promise<SearchResult[]> {
+  return invoke<SearchResult[]>("search_files", { path, query });
+}
+```
+
+**3. Search Results UI**
+
+Two possible approaches:
+- **Option A:** Replace the file tree with search results when a search is active
+- **Option B:** Show results in a separate panel/tab alongside the tree
+
+Recommend Option A for simplicity — the sidebar shows either the tree or search results, toggled by whether the search input has a full-text query.
+
+Each result shows the filename and matching line snippets. Clicking a result navigates to that file (and ideally scrolls to the match).
+
+**4. Debounce the Search**
+
+Full-text search is heavier than filename filtering. Debounce by 300ms so we're not hammering Rust on every keystroke.
+
+**5. Search Mode Toggle**
+
+The filter input could have a toggle or mode indicator:
+- Default mode: filename filter (Phase 1, client-side, instant)
+- Toggle to: full-text search (Phase 2, backend, debounced)
+
+Or detect automatically: if the query starts with `/` or a special prefix, do full-text; otherwise filename filter.
+
+**6. Tests to Write (TDD)**
+
+**Rust tests** (4 new tests):
+- `search_files` returns matching files with line numbers
+- `search_files` is case-insensitive
+- `search_files` returns empty vec when no matches
+- `search_files` skips non-.md files and hidden directories
+
+**filesystem.test.ts** (1 new test):
+- `searchFiles` calls invoke with correct command and args
+
+**New component test or Sidebar.test.ts** (3 new tests):
+- Search results display file names and matching lines
+- Clicking a search result calls onselect
+- Clearing search returns to normal tree view
+
+---
+
+## How to Get a Clickable Windows Binary
+
+**You already have one!** The Tauri build (`npx tauri build`) produces three outputs:
+
+### Option A: Standalone EXE (simplest)
+```
+src-tauri\target\release\app.exe
+```
+Copy this file to your Desktop. Double-click to run. **Caveat:** it will look for `docs/` relative to where the exe lives, so either:
+- Put a `docs/` folder next to it on the Desktop, OR
+- Implement the folder selector above first so it doesn't need a hardcoded path
+
+### Option B: NSIS Installer (recommended for distribution)
+```
+src-tauri\target\release\bundle\nsis\Planning Central_0.1.0_x64-setup.exe
+```
+Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller.
+
+### Option C: MSI Installer (enterprise/IT deployment)
+```
+src-tauri\target\release\bundle\msi\Planning Central_0.1.0_x64_en-US.msi
+```
+Standard Windows Installer package, good for Group Policy deployment.
+
+### Rebuild Command
+After any code changes:
+```bash
+npx tauri build
+```
+This compiles both the frontend (Vite) and Rust backend, then packages everything. Takes ~30 seconds.
+
+### Run Tests + Type Check + Build (full pipeline)
+```bash
+npx vitest run && npx svelte-check && npx tauri build
+```
+
+---
+
+## Feature: Widescreen Reading Layout
+
+### Problem
+On widescreen/ultrawide monitors, the markdown content stretches across the full width of the viewport. The `.markdown-body` has no `max-width` and the app grid is `280px 1fr`, so text lines can be 200+ characters wide — far beyond the ~80 character comfort zone for reading. There's massive wasted horizontal space.
+
+### Current Layout (from screenshot)
+```
+┌──────────┬─────────────────────────────────────────────────────────────┐
+│ Sidebar  │  Content stretches allllll the way across...               │
+│ 280px    │  ...with huge empty space on long lines                    │
+│          │                                                             │
+│          │                                                             │
+│          │                                                             │
+│          │                                                             │
+└──────────┴─────────────────────────────────────────────────────────────┘
+```
+
+### Solution: Three Reading Modes
+
+Give users a layout toggle in the viewer header with three modes:
+
+#### Mode 1: Single Column (Centered)
+Classic article layout — cap content width, center it.
+```
+┌──────────┬─────────────────────────────────────────────────────────────┐
+│ Sidebar  │         ┌──────────────────────┐                           │
+│          │         │  Content, max 800px  │                           │
+│          │         │  centered in pane    │                           │
+│          │         │  vertical scroll     │                           │
+│          │         └──────────────────────┘                           │
+└──────────┴─────────────────────────────────────────────────────────────┘
+```
+- Add `max-width: 800px; margin: 0 auto;` to `.markdown-body`
+- Simplest fix, good default for normal monitors too
+
+#### Mode 2: Multi-Column (Newspaper/Snaking)
+CSS columns — content fills the viewport height in column 1, then snakes to column 2, etc. Horizontal scroll instead of vertical.
+```
+┌──────────┬──────────────────┬──────────────────┬──────────────────┐
+│ Sidebar  │  Column 1        │  Column 2        │  Column 3        │
+│          │  Content starts  │  ...continues    │  ...continues    │
+│          │  here, flows     │  here after col  │  here, scroll    │
+│          │  down to bottom  │  1 is full       │  right for more  │
+└──────────┴──────────────────┴──────────────────┴──────────────────┘
+```
+- Uses CSS `column-width: 600px; column-gap: 32px; column-fill: auto`
+- Container switches from `overflow-y: auto` to `overflow-x: auto`
+- Need `break-inside: avoid` on headings, code blocks, tables, blockquotes, lists to prevent ugly mid-element column breaks
+- Browser auto-calculates column count based on available width
+- On a typical ultrawide (~3440px minus 280px sidebar), you'd get 4-5 columns
+
+#### Mode 3: Paginated (Book-Style)
+Content split into fixed-size pages, navigate with arrow keys or page buttons.
+```
+┌──────────┬──────────────────┬──────────────────┬──────────────────┐
+│ Sidebar  │  ┌─── Page ───┐  │  ┌─── Page ───┐  │                  │
+│          │  │  Content    │  │  │  Content    │  │   (empty or     │
+│          │  │  page 1     │  │  │  page 2     │  │    next pages)  │
+│          │  └─────────────┘  │  └─────────────┘  │                  │
+│          │        < Page 1 of 5 >                                   │
+└──────────┴──────────────────────────────────────────────────────────┘
+```
+- More complex — requires measuring content and splitting at page boundaries
+- Could reuse CSS columns with `column-count: 2` (fixed) + pagination controls
+- Nice for long-form reading but harder to implement
+
+**Recommendation:** Start with Mode 1 (centered) as the default, then add Mode 2 (newspaper) as the widescreen power-user mode. Mode 3 (paginated) is optional/future.
+
+### Implementation Plan
+
+#### 1. Layout Mode State
+
+Add a layout mode type and persistence:
+
+```typescript
+// In types.ts or a new layout.ts
+export type LayoutMode = "centered" | "columns";
+```
+
+In `persistence.ts`:
+- `saveLayoutMode(mode: LayoutMode): void`
+- `getLayoutMode(): LayoutMode` (default: `"centered"`)
+
+#### 2. Update MarkdownViewer Component
+
+`MarkdownViewer.svelte` receives a `layoutMode` prop and applies the right CSS class:
+
+```svelte
+<article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"}>
+  {@html htmlContent}
+</article>
+```
+
+CSS for centered mode:
+```css
+.markdown-body.centered {
+  max-width: 800px;
+  margin: 0 auto;
+  overflow-y: auto;
+}
+```
+
+CSS for columns mode:
+```css
+.markdown-body.columns {
+  column-width: 550px;
+  column-gap: 40px;
+  column-fill: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+}
+
+.markdown-body.columns h1,
+.markdown-body.columns h2,
+.markdown-body.columns h3,
+.markdown-body.columns h4,
+.markdown-body.columns pre,
+.markdown-body.columns blockquote,
+.markdown-body.columns table,
+.markdown-body.columns ul,
+.markdown-body.columns ol,
+.markdown-body.columns .mermaid {
+  break-inside: avoid;
+}
+```
+
+#### 3. Layout Toggle UI
+
+Add a toggle control in the viewer header next to the filename:
+```svelte
+<header class="viewer-header">
+  <span class="file-name">{fileName}</span>
+  <div class="layout-controls">
+    <button class:active={layoutMode === "centered"} onclick={() => setLayout("centered")} title="Single column">≡</button>
+    <button class:active={layoutMode === "columns"} onclick={() => setLayout("columns")} title="Multi-column">⊞</button>
+  </div>
+</header>
+```
+
+#### 4. Tests to Write (TDD)
+
+**MarkdownViewer.test.ts** (3 new tests):
+- Renders with `centered` class when layoutMode is "centered"
+- Renders with `columns` class when layoutMode is "columns"
+- Defaults to centered when no layoutMode prop
+
+**persistence.test.ts** (2 new tests):
+- `saveLayoutMode` / `getLayoutMode` round-trip
+- `getLayoutMode` returns "centered" as default
+
+**Visual/integration testing note:** CSS column behavior can't be meaningfully tested in happy-dom (no real layout engine). Manual testing on an actual widescreen monitor is essential for this feature.
+
+---
+
+## Feature: Multi-File Viewing
+
+### Problem
+Currently the app can only display one file at a time. On a widescreen, users want to view multiple documents side by side — compare notes, reference one doc while reading another, etc.
+
+### Solution
+Support opening multiple files in side-by-side panes. Each pane is an independent MarkdownViewer. Users can open, close, and switch between panes.
+
+### Target Layout
+```
+┌──────────┬──────────────────────────┬──────────────────────────┐
+│ Sidebar  │  readme.md          [x]  │  plan.md             [x] │
+│          │  ┌────────────────────┐   │  ┌────────────────────┐  │
+│          │  │  # README          │   │  │  # Plan             │  │
+│          │  │  Content...        │   │  │  Content...         │  │
+│          │  │                    │   │  │                     │  │
+│          │  └────────────────────┘   │  └────────────────────┘  │
+└──────────┴──────────────────────────┴──────────────────────────┘
+```
+
+### Data Model Change
+
+Currently in `App.svelte`:
+```typescript
+let selectedPath = $state("");
+let fileContent = $state("");
+```
+
+Change to a multi-pane model:
+```typescript
+interface OpenPane {
+  id: string;
+  path: string;
+  content: string;
+}
+
+let panes: OpenPane[] = $state([]);
+let activePaneId = $state("");  // which pane has keyboard focus
+```
+
+### Implementation Plan
+
+#### 1. New Component: `ContentArea.svelte`
+
+Manages the pane layout. Replaces the direct `<MarkdownViewer>` in App.svelte.
+
+```svelte
+<!-- ContentArea.svelte -->
+<div class="content-area" style="grid-template-columns: repeat({panes.length}, 1fr)">
+  {#each panes as pane (pane.id)}
+    <div class="pane" class:active={pane.id === activePaneId}>
+      <header class="pane-header">
+        <span class="pane-filename">{getFileName(pane.path)}</span>
+        <button onclick={() => closePane(pane.id)} title="Close">×</button>
+      </header>
+      <MarkdownViewer content={pane.content} filePath={pane.path} {layoutMode} />
+    </div>
+  {/each}
+</div>
+```
+
+The `content-area` uses CSS grid with equal-width columns that auto-adjust as panes are added/removed.
+
+#### 2. Opening Files — Single Click vs Split
+
+Two interaction patterns to support:
+- **Single click** (or arrow key): Opens file in the active pane (replaces content) — current behavior preserved
+- **Ctrl+Click** (or a "Split" button): Opens file in a **new pane** to the right
+
+This keeps the simple default behavior but adds multi-file support as a power-user action.
+
+#### 3. Pane Management
+
+- **Close pane:** X button on pane header, or `Ctrl+W`
+- **Switch active pane:** Click on a pane, or `Ctrl+1`/`Ctrl+2`/etc.
+- **Max panes:** Cap at 3-4 to avoid tiny unusable panes. Show a notification if limit reached.
+- **Last pane closed:** Show the empty state ("Select a markdown file...")
+- **Pane resizing:** Optionally, make pane dividers draggable. Can defer to a later iteration — equal-width is fine for v1.
+
+#### 4. Update File Watcher Integration
+
+When a file changes, update ALL panes that have that file open (not just the "selected" one):
+```typescript
+listen<string[]>("file-changed", async (event) => {
+  await loadTree();
+  for (const pane of panes) {
+    if (event.payload.some(p => p === pane.path)) {
+      pane.content = await readFileContents(pane.path);
+    }
+  }
+});
+```
+
+#### 5. Persistence
+
+Save the list of open pane paths (not content) so they reopen on next launch:
+- `saveOpenPanes(paths: string[]): void`
+- `getOpenPanes(): string[]`
+
+Restore them after tree loads, same as last-selected-file but for multiple files.
+
+#### 6. Interaction with Layout Modes
+
+Each pane has its own layout mode, or share a global one. Recommend global — simpler, and mixed modes would look chaotic.
+
+When multiple panes are open:
+- **Centered mode:** Each pane centers its content within its column — works naturally
+- **Columns mode:** Probably should auto-switch to centered when 2+ panes are open (each pane is already narrow enough). Or let users decide.
+
+#### 7. Tests to Write (TDD)
+
+**ContentArea.test.ts** (new file, ~8 tests):
+- Renders single pane with file content
+- Renders multiple panes side by side
+- Closes a pane when X button clicked
+- Shows empty state when last pane closed
+- Active pane has `.active` class
+- Clicking a pane sets it as active
+- File content updates when file changes (via props)
+- Max pane limit respected
+
+**App-level integration tests** (if feasible, or manual):
+- Ctrl+Click opens new pane
+- Single click replaces active pane content
+- Pane state persists across sessions
+
+**persistence.test.ts** (2 new tests):
+- `saveOpenPanes` / `getOpenPanes` round-trip
+- Returns empty array when nothing stored
+
+---
+
+## Feature: Markdown & Diagram Editor
+
+### Problem
+Planning Central is currently read-only. Users have to edit markdown files in a separate text editor, then switch back to see the rendered result. For a planning tool, editing should be built-in.
+
+### Solution
+Add a split-pane editor view: raw markdown editor on one side, live preview on the other. Includes Mermaid diagram editing with live-rendered previews.
+
+### Editor Library: CodeMirror 6
+
+**Why CodeMirror 6 over Monaco (VS Code's editor):**
+- ~150KB vs ~2MB bundle size — important for a Tauri app
+- Modular — only load what you need (markdown mode, syntax highlighting)
+- Excellent mobile support (not relevant now but good architecture)
+- First-class markdown extension with syntax highlighting
+- Active development, well-documented
+
+**Install:**
+```bash
+npm install codemirror @codemirror/lang-markdown @codemirror/theme-one-dark @codemirror/state @codemirror/view
+```
+
+### Editor Modes
+
+The viewer header gets a toggle between **View** and **Edit** modes:
+
+#### View Mode (current behavior)
+```
+┌──────────┬──────────────────────────────────────────┐
+│ Sidebar  │  readme.md              [View] [Edit]     │
+│          │  ┌──────────────────────────────────────┐ │
+│          │  │  Rendered markdown (current)          │ │
+│          │  └──────────────────────────────────────┘ │
+└──────────┴──────────────────────────────────────────┘
+```
+
+#### Edit Mode (split: editor + preview)
+```
+┌──────────┬─────────────────────┬─────────────────────┐
+│ Sidebar  │  Editor (raw md)    │  Preview (rendered)   │
+│          │  # README           │  README               │
+│          │                     │  ─────────            │
+│          │  Some **bold** text │  Some bold text       │
+│          │                     │                       │
+│          │  ```mermaid         │  ┌──────────────┐    │
+│          │  graph LR           │  │ A ──→ B ──→ C│    │
+│          │    A --> B --> C     │  └──────────────┘    │
+│          │  ```                │                       │
+└──────────┴─────────────────────┴─────────────────────┘
+```
+
+### Implementation Plan
+
+#### 1. New Rust Command: `write_file_contents`
+
+In `src-tauri/src/commands/filesystem.rs`:
+```rust
+#[tauri::command]
+pub fn write_file_contents(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, &content)
+        .map_err(|e| format!("Failed to write file {}: {}", path, e))
+}
+```
+
+Register in `lib.rs`'s `generate_handler![]`.
+
+#### 2. Frontend Write Service
+
+In `src/lib/services/filesystem.ts`:
+```typescript
+export async function writeFileContents(path: string, content: string): Promise<void> {
+  return invoke<void>("write_file_contents", { path, content });
+}
+```
+
+#### 3. New Component: `MarkdownEditor.svelte`
+
+Wraps CodeMirror 6 with markdown mode:
+
+```svelte
+<script lang="ts">
+  import { onMount, onDestroy } from "svelte";
+  import { EditorView, basicSetup } from "codemirror";
+  import { markdown } from "@codemirror/lang-markdown";
+  import { oneDark } from "@codemirror/theme-one-dark";
+
+  let { content, onchange }: { content: string; onchange: (value: string) => void } = $props();
+  let editorContainer: HTMLDivElement;
+  let view: EditorView;
+
+  onMount(() => {
+    view = new EditorView({
+      doc: content,
+      extensions: [
+        basicSetup,
+        markdown(),
+        oneDark,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onchange(update.state.doc.toString());
+          }
+        }),
+      ],
+      parent: editorContainer,
+    });
+  });
+
+  onDestroy(() => view?.destroy());
+</script>
+
+<div bind:this={editorContainer} class="editor-container"></div>
+```
+
+#### 4. New Component: `EditablePane.svelte`
+
+Manages the split view for a single file in edit mode:
+
+```svelte
+<div class="editable-pane">
+  <div class="editor-side">
+    <MarkdownEditor content={rawContent} onchange={handleEdit} />
+  </div>
+  <div class="preview-side">
+    <MarkdownViewer content={rawContent} filePath={filePath} layoutMode="centered" />
+  </div>
+</div>
+```
+
+The preview updates live as the user types (fed by the same `rawContent` state).
+
+#### 5. Auto-Save with Debounce
+
+Don't save on every keystroke — debounce writes:
+
+```typescript
+let saveTimeout: ReturnType<typeof setTimeout>;
+
+function handleEdit(newContent: string) {
+  rawContent = newContent;  // Updates preview immediately
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    await writeFileContents(filePath, newContent);
+  }, 1000);  // Save 1s after last keystroke
+}
+```
+
+Also support `Ctrl+S` for immediate save.
+
+#### 6. File Watcher Feedback Loop Prevention
+
+Problem: when the editor saves a file, the watcher will detect the change and trigger a tree reload + content reload, potentially resetting the editor cursor position.
+
+Solutions:
+- **Approach A (simple):** Set a flag `isOwnWrite = true` before saving, check it in the watcher listener, clear it after. Skip reload if it's our own write.
+- **Approach B (robust):** Compare content — if the watcher fires and the file content matches what's in the editor, skip the reload.
+
+Recommend Approach A for simplicity:
+```typescript
+let isOwnWrite = false;
+
+async function saveFile(content: string) {
+  isOwnWrite = true;
+  await writeFileContents(filePath, content);
+  setTimeout(() => { isOwnWrite = false; }, 500);
+}
+
+// In watcher listener:
+listen("file-changed", async (event) => {
+  if (isOwnWrite) return;
+  // ... normal reload logic
+});
+```
+
+#### 7. Mermaid Diagram Editing
+
+No special handling needed — the editor edits raw markdown including mermaid code blocks. The preview side renders them via the existing `renderMermaidDiagrams()` pipeline. As the user types mermaid syntax, the preview updates live.
+
+For a better experience in a future iteration, could add:
+- Syntax highlighting for mermaid blocks in the editor (CodeMirror extension)
+- A "Diagram Helper" panel with mermaid syntax reference
+- Drag-and-drop diagram node editing (very complex, future)
+
+#### 8. Edit Mode per Pane (Interaction with Multi-File)
+
+If multi-file viewing is implemented first, each pane can independently be in View or Edit mode. The toggle is per-pane, not global. This lets you edit one file while referencing another in view mode.
+
+#### 9. Tests to Write (TDD)
+
+**Rust tests** (2 new tests):
+- `write_file_contents` creates/overwrites a file
+- `write_file_contents` returns error for invalid path
+
+**filesystem.test.ts** (1 new test):
+- `writeFileContents` calls invoke with correct command and args
+
+**MarkdownEditor.test.ts** (new file, ~4 tests):
+- Renders an editor container element
+- Calls `onchange` when content is modified
+- Initializes with provided content
+- Applies dark theme
+
+**EditablePane.test.ts** (new file, ~4 tests):
+- Renders editor and preview side by side
+- Preview updates when editor content changes
+- Save is debounced (mock timer, verify single write after settling)
+- Ctrl+S triggers immediate save
+
+**Integration/manual tests:**
+- Editing a mermaid block updates the diagram in preview
+- File watcher doesn't reset editor on own writes
+- Cursor position preserved during auto-save
+
+---
+
+## Feature: Mermaid Validation, Linting & Auto-Fix
+
+### Problem
+Mermaid diagram blocks in markdown files often have syntax errors — wrong keywords, missing arrows, unclosed brackets, bad indentation. Currently the app silently fails: `mermaid.run()` catches the error and the diagram just doesn't render. The user sees a blank space (or raw text) with no indication of what's wrong. This is especially painful when AI tools like Claude Code generate mermaid blocks that have subtle syntax issues.
+
+### How Mermaid Rendering Works Today
+
+In `src/lib/services/markdown.ts`:
+1. The `marked` renderer detects `` ```mermaid `` blocks and outputs `<pre class="mermaid">...</pre>`
+2. After DOM update, `mermaid.run({ querySelector: "pre.mermaid" })` attempts to render all blocks
+3. If a block has invalid syntax, `mermaid.run()` throws silently — the block stays as raw text or goes blank
+4. No error feedback to the user at all
+
+### Solution: Three Layers
+
+#### Layer 1: Validation with Error Display (Viewer)
+
+Show clear inline error messages when a mermaid block fails to parse, so users know what's wrong even in view-only mode.
+
+**How it works:** Mermaid.js has a `mermaid.parse(text)` function that validates syntax without rendering. It throws an error with a message and (sometimes) a line number. Use this to pre-validate each block before rendering.
+
+**Implementation:**
+
+Update `src/lib/services/markdown.ts` with a validation wrapper:
+
+```typescript
+export interface MermaidDiagnostic {
+  blockIndex: number;
+  error: string;
+  line?: number;
+}
+
+export async function validateMermaidBlocks(container: HTMLElement): Promise<MermaidDiagnostic[]> {
+  const blocks = container.querySelectorAll("pre.mermaid");
+  const diagnostics: MermaidDiagnostic[] = [];
+
+  for (let i = 0; i < blocks.length; i++) {
+    const text = blocks[i].textContent ?? "";
+    try {
+      await mermaid.parse(text);
+    } catch (e: any) {
+      diagnostics.push({
+        blockIndex: i,
+        error: e.message || "Invalid mermaid syntax",
+        line: e.hash?.line,
+      });
+    }
+  }
+  return diagnostics;
+}
+```
+
+Update `MarkdownViewer.svelte` to call `validateMermaidBlocks()` after rendering and display error overlays on broken blocks:
+
+```svelte
+{#each diagnostics as diag}
+  <!-- Overlay on the broken mermaid block -->
+  <div class="mermaid-error">
+    ⚠️ Diagram error: {diag.error}
+  </div>
+{/each}
+```
+
+Style the error as a visible banner inside the `<pre class="mermaid">` block — red/orange border, error message text, so it's obvious what's wrong instead of a silent blank.
+
+#### Layer 2: Live Linting in Editor (CodeMirror Integration)
+
+When the editor feature is built, integrate mermaid validation into CodeMirror's linting framework. Errors show as red squiggly underlines inside mermaid code blocks while typing.
+
+**How it works:** CodeMirror 6 has a `@codemirror/lint` package. Create a custom linter that:
+1. Detects mermaid fenced code blocks in the document
+2. Extracts the text of each block
+3. Runs `mermaid.parse()` on each
+4. Returns diagnostics with positions mapped to editor coordinates
+
+**Install:**
+```bash
+npm install @codemirror/lint
+```
+
+**Implementation:**
+
+New file `src/lib/services/mermaid-linter.ts`:
+
+```typescript
+import { linter, type Diagnostic } from "@codemirror/lint";
+import mermaid from "mermaid";
+
+// Regex to find ```mermaid ... ``` blocks and their positions
+const MERMAID_BLOCK_RE = /```mermaid\n([\s\S]*?)```/g;
+
+export const mermaidLinter = linter(async (view) => {
+  const doc = view.state.doc.toString();
+  const diagnostics: Diagnostic[] = [];
+  let match;
+
+  while ((match = MERMAID_BLOCK_RE.exec(doc)) !== null) {
+    const blockContent = match[1];
+    const blockStart = match.index + "```mermaid\n".length;
+
+    try {
+      await mermaid.parse(blockContent);
+    } catch (e: any) {
+      diagnostics.push({
+        from: blockStart,
+        to: blockStart + blockContent.length,
+        severity: "error",
+        message: e.message || "Invalid mermaid syntax",
+      });
+    }
+  }
+
+  return diagnostics;
+});
+```
+
+Add this linter to the CodeMirror extensions in `MarkdownEditor.svelte`:
+```typescript
+import { mermaidLinter } from "../services/mermaid-linter";
+
+// In extensions array:
+extensions: [
+  basicSetup,
+  markdown(),
+  oneDark,
+  mermaidLinter,  // <-- add this
+  // ...
+]
+```
+
+This gives real-time red underlines on broken mermaid blocks as you type.
+
+#### Layer 3: Auto-Fix Common Errors
+
+An auto-fix system that can detect and repair common mermaid syntax mistakes. This is critical for AI-generated content (Claude Code, etc.) where diagrams are often close-but-not-quite valid.
+
+**Common fixable patterns:**
+
+| Problem | Example | Fix |
+|---------|---------|-----|
+| Missing diagram type | `A --> B` (no `graph` keyword) | Prepend `graph TD\n` |
+| Wrong arrow syntax | `A -> B` (single dash) | Replace with `A --> B` |
+| Spaces in node IDs | `My Node --> Other Node` | Wrap in quotes: `"My Node" --> "Other Node"` |
+| Missing direction | `graph\n  A --> B` | Default to `graph TD` |
+| Unclosed subgraph | `subgraph X\n  A --> B` | Append `end` |
+| Semicolons instead of newlines | `A --> B; B --> C` | Replace `;` with `\n` |
+| Flowchart instead of graph | `flowchart LR` (old syntax) | Replace with `graph LR` |
+| Stray backticks | Extra backticks inside block | Remove them |
+
+**Implementation:**
+
+New file `src/lib/services/mermaid-fixer.ts`:
+
+```typescript
+export interface FixResult {
+  fixed: string;
+  changes: string[];  // Human-readable list of what was fixed
+}
+
+export function fixMermaidBlock(text: string): FixResult {
+  const changes: string[] = [];
+  let fixed = text.trim();
+
+  // Fix: missing diagram type declaration
+  if (!fixed.match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|quadrantChart|xychart|block)/)) {
+    if (fixed.includes("-->") || fixed.includes("---")) {
+      fixed = "graph TD\n" + fixed;
+      changes.push("Added missing 'graph TD' declaration");
+    }
+  }
+
+  // Fix: flowchart → graph (mermaid supports both but graph is more reliable)
+  // Actually, flowchart is valid modern mermaid. Skip this fix.
+
+  // Fix: single-dash arrows
+  fixed = fixed.replace(/(\w+)\s*->\s*(\w+)/g, (_, a, b) => {
+    changes.push(`Fixed arrow syntax: ${a} -> ${b} → ${a} --> ${b}`);
+    return `${a} --> ${b}`;
+  });
+
+  // Fix: unclosed subgraphs
+  const subgraphCount = (fixed.match(/\bsubgraph\b/g) || []).length;
+  const endCount = (fixed.match(/\bend\b/g) || []).length;
+  if (subgraphCount > endCount) {
+    const missing = subgraphCount - endCount;
+    for (let i = 0; i < missing; i++) {
+      fixed += "\nend";
+    }
+    changes.push(`Added ${missing} missing 'end' statement(s) for subgraph(s)`);
+  }
+
+  return { fixed, changes };
+}
+
+export async function fixMermaidInMarkdown(markdown: string): Promise<{ result: string; totalFixes: number }> {
+  // Find all ```mermaid blocks, run fixMermaidBlock on each, reassemble
+  let totalFixes = 0;
+  const result = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (fullMatch, blockContent) => {
+    const { fixed, changes } = fixMermaidBlock(blockContent);
+    totalFixes += changes.length;
+    return "```mermaid\n" + fixed + "\n```";
+  });
+  return { result, totalFixes };
+}
+```
+
+**UI integration (in editor):**
+
+Add a "Fix Diagrams" button in the editor toolbar or as a CodeMirror keybinding (`Ctrl+Shift+F`):
+- Runs `fixMermaidInMarkdown()` on the current document
+- Shows a toast/notification: "Fixed 3 issues in 2 mermaid blocks"
+- Updates the editor content with the fixed version
+- Preview immediately re-renders with working diagrams
+
+**UI integration (in viewer):**
+
+When a mermaid block fails validation, show an error banner with a "Try Auto-Fix" button:
+```
+┌──────────────────────────────────────────────────────┐
+│ ⚠️ Diagram error: Lexical error on line 2            │
+│                                                       │
+│ [Try Auto-Fix]  [Show Raw]                            │
+└──────────────────────────────────────────────────────┘
+```
+
+Clicking "Try Auto-Fix" runs the fixer on that block, writes the fixed content back to the file, and the watcher triggers a re-render.
+
+### Validation Status Indicator
+
+Add a status indicator in the viewer header showing mermaid health for the current document:
+
+```
+nextsteps.md                    ✅ 3 diagrams OK
+nextsteps.md                    ⚠️ 1 of 3 diagrams has errors
+```
+
+This gives at-a-glance feedback without scrolling through the whole doc.
+
+### Future: CLI / MCP Tool for Validation
+
+For use by AI tools and CI pipelines, expose the validation and fixing as a standalone capability:
+
+**Option A: npm script**
+```bash
+npm run lint:mermaid -- docs/
+```
+Walks all `.md` files, validates all mermaid blocks, prints errors, returns non-zero exit code if any fail. Could also auto-fix with a `--fix` flag.
+
+**Option B: MCP Server tool** (see MCP section below)
+Expose `validate_mermaid` and `fix_mermaid` as MCP tools so Claude Code can validate diagrams before writing them to disk.
+
+### Tests to Write (TDD)
+
+**mermaid-validation.test.ts** (new file, ~5 tests):
+- `validateMermaidBlocks` returns empty array for valid diagrams
+- `validateMermaidBlocks` returns diagnostics for invalid syntax
+- `validateMermaidBlocks` includes error message from mermaid
+- `validateMermaidBlocks` handles multiple blocks (some valid, some not)
+- `validateMermaidBlocks` handles empty blocks gracefully
+
+**mermaid-fixer.test.ts** (new file, ~8 tests):
+- `fixMermaidBlock` adds missing graph declaration
+- `fixMermaidBlock` fixes single-dash arrows to double-dash
+- `fixMermaidBlock` closes unclosed subgraphs
+- `fixMermaidBlock` returns empty changes array for valid blocks
+- `fixMermaidBlock` handles multiple fixes in one block
+- `fixMermaidInMarkdown` fixes mermaid blocks within full markdown text
+- `fixMermaidInMarkdown` leaves non-mermaid code blocks untouched
+- `fixMermaidInMarkdown` reports total fix count
+
+**mermaid-linter.test.ts** (new file, ~3 tests):
+- Linter returns no diagnostics for valid mermaid
+- Linter returns error diagnostic with correct position for invalid mermaid
+- Linter handles document with no mermaid blocks
+
+**MarkdownViewer.test.ts** (2 new tests):
+- Shows error overlay when mermaid block is invalid
+- Shows validation status indicator (count of OK vs broken diagrams)
+
+---
+
+## Future: MCP Server for Claude Code Integration
+
+### Vision
+Expose Planning Central's capabilities as an MCP (Model Context Protocol) server so AI tools like Claude Code can read, write, validate, and search markdown docs programmatically. This turns Planning Central from a standalone viewer into an AI-accessible knowledge base.
+
+### Why MCP
+Claude Code already supports MCP servers. An MCP server would let Claude Code:
+- Read the file tree and document contents directly
+- Write and update markdown files
+- Validate mermaid diagrams before committing them
+- Search across all docs for context
+- All through a standardized protocol, no custom integration needed
+
+### MCP Tools to Expose
+
+| Tool | Description | Maps To |
+|------|-------------|---------|
+| `list_documents` | List all markdown files in the current folder | `read_directory_tree` Rust command |
+| `read_document` | Read a specific markdown file's contents | `read_file_contents` Rust command |
+| `write_document` | Write/update a markdown file | `write_file_contents` Rust command (from editor feature) |
+| `search_documents` | Full-text search across all docs | `search_files` Rust command (from search feature) |
+| `validate_mermaid` | Validate all mermaid blocks in a document | `mermaid.parse()` via the validation service |
+| `fix_mermaid` | Auto-fix common mermaid errors in a document | `fixMermaidInMarkdown()` from the fixer service |
+| `get_document_outline` | Return heading structure of a document | Parse headings from markdown |
+
+### Architecture Options
+
+#### Option A: Standalone MCP Server (Node.js process)
+
+A separate Node.js process that implements the MCP protocol and talks to Planning Central's backend via Tauri IPC or directly to the filesystem.
+
+```
+Claude Code  ←→  MCP Server (Node.js)  ←→  Filesystem (docs/)
+                                        ←→  Mermaid validation (in-process)
+```
+
+**Pros:** Independent of the Tauri app, can run headless, simpler to develop
+**Cons:** Duplicates filesystem logic, doesn't benefit from the running app's watcher state
+
+#### Option B: MCP Server Embedded in Tauri App
+
+The Tauri app itself hosts an MCP-compatible endpoint (local HTTP or stdio).
+
+```
+Claude Code  ←→  Tauri App (MCP endpoint)  ←→  Rust backend (existing commands)
+                                             ←→  Frontend (mermaid validation)
+```
+
+**Pros:** Reuses all existing commands, single source of truth, live sync with the UI
+**Cons:** App must be running, more complex Tauri integration
+
+#### Recommendation
+
+Start with **Option A** — a standalone Node.js MCP server. It's faster to build, doesn't require the Tauri app to be running, and can share the mermaid validation/fixing code from `src/lib/services/`. It can read/write directly to the docs folder.
+
+Later, Option B could be added for tighter integration (e.g., the MCP server tells the app to navigate to a specific file after writing it).
+
+### Implementation Plan
+
+**1. Create MCP Server package**
+
+New directory `mcp-server/` at project root with its own `package.json`:
+```
+mcp-server/
+  package.json
+  src/
+    index.ts          # MCP server entry point
+    tools.ts          # Tool definitions
+    filesystem.ts     # Direct filesystem operations (read/write/search)
+    mermaid.ts        # Import validation/fixing from main app's services
+```
+
+**2. Use the official MCP SDK**
+```bash
+npm install @modelcontextprotocol/sdk
+```
+
+**3. Tool Implementation**
+
+Each tool maps to a function. Example for `validate_mermaid`:
+```typescript
+server.tool("validate_mermaid", { path: z.string() }, async ({ path }) => {
+  const content = await fs.readFile(path, "utf-8");
+  const blocks = extractMermaidBlocks(content);
+  const results = [];
+  for (const block of blocks) {
+    try {
+      await mermaid.parse(block.text);
+      results.push({ line: block.line, status: "ok" });
+    } catch (e) {
+      results.push({ line: block.line, status: "error", message: e.message });
+    }
+  }
+  return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
+});
+```
+
+**4. Claude Code Configuration**
+
+Users add the server to their Claude Code MCP config:
+```json
+{
+  "mcpServers": {
+    "planning-central": {
+      "command": "node",
+      "args": ["./mcp-server/dist/index.js", "--docs-path", "./docs"]
+    }
+  }
+}
+```
+
+### Tests to Write (TDD)
+
+**mcp-server/src/tools.test.ts** (new file, ~6 tests):
+- `list_documents` returns markdown file paths
+- `read_document` returns file content
+- `write_document` creates/updates a file
+- `validate_mermaid` returns diagnostics for invalid blocks
+- `fix_mermaid` returns fixed content and change count
+- `search_documents` returns matching files and lines
+
+---
+
+## Suggested Implementation Order
+
+These features build on each other. Recommended sequence:
+
+1. **~~Folder Selector~~** — DONE. Native folder picker with persistence.
+2. **Auto-Select First File on Folder Open** — PRIORITY 1. Fix the empty-state UX bug. Small change, big impact. See top of this document.
+3. **Sort Controls** — small, self-contained, good warmup
+4. **Search & Filter Phase 1** (filename) — client-side only, quick win
+5. **Widescreen Layout** — fixes the most visible UX issue on ultrawides
+6. **Multi-File Viewing** — requires restructuring App.svelte's data model
+7. **Search & Filter Phase 2** (full-text) — needs Rust backend work
+8. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+9. **Markdown & Diagram Editor** — biggest feature, builds on everything above
+10. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+11. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+12. **MCP Server** — depends on write command + validation + search being built first
+
+Each feature is independently shippable and testable. Build, test, and verify after each one.
+
+---
+
+## Self-Documenting Requirement
+
+**`docs/How to Use Planning Central.md`** is the in-app user guide. A help button (?) in the sidebar header loads this file in the viewer regardless of what folder is currently open.
+
+**Rule:** Every time a new feature ships, update `How to Use Planning Central.md` to document it. This keeps the app self-documenting — users can always click the help button to see up-to-date instructions rendered inside Planning Central itself.
+
+---
+
+## Other Ideas for Future Iterations
+
+- **Split pane resizing** — draggable dividers between panes (after multi-file is built)
+- **Dark/light theme toggle** — currently dark only (Tokyo Night palette)
+- **Export to PDF** — print/export the rendered markdown
+- **Custom app icon** — replace the default Tauri icon with a branded one via `npx tauri icon <path-to-png>`
+- **Table of contents** — auto-generated from headings, shown in sidebar or as a floating panel
+- **Synchronized scroll** — in edit mode, scroll the editor and preview together
+- **Markdown toolbar** — bold, italic, heading, link, image buttons above editor for quick formatting
+- **Vim/Emacs keybindings** — CodeMirror 6 has extensions for these
+- **CLI linting script** — `npm run lint:mermaid -- docs/` for CI pipelines, validates all mermaid in all markdown files
