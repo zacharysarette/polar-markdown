@@ -2,9 +2,9 @@
 
 ## Project Context
 
-Desktop markdown viewer built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, last-selected-file persistence, and docs folder persistence via localStorage.
+Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, and state persistence via localStorage.
 
-### Current Test Count: 120 frontend (11 test files) + 20 Rust = 140 total
+### Current Test Count: 264 frontend (13 test files) + 23 Rust = 287 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -904,7 +904,11 @@ When multiple panes are open:
 
 ## Feature: Markdown & Diagram Editor
 
-### Problem
+### Status: DONE (v0.4.0)
+
+Shipped in v0.4.0 with: split-pane CodeMirror 6 editor + live preview, auto-save (1s debounce) + Ctrl+S, bidirectional scroll sync, active line highlighting with table cell targeting, search highlighting in editor, watcher feedback loop prevention, image layout shift fix.
+
+### Problem (original)
 Planning Central is currently read-only. Users have to edit markdown files in a separate text editor, then switch back to see the rendered result. For a planning tool, editing should be built-in.
 
 ### Solution
@@ -1113,6 +1117,106 @@ If multi-file viewing is implemented first, each pane can independently be in Vi
 - Editing a mermaid block updates the diagram in preview
 - File watcher doesn't reset editor on own writes
 - Cursor position preserved during auto-save
+
+---
+
+## Feature: New File Creation
+
+### Status: TODO
+
+### Problem
+Users can edit existing files but cannot create new markdown files from within Planning Central. They have to use a separate file manager or terminal to create files, then switch back.
+
+### Solution
+Add a "New File" button to the sidebar header. Clicking it creates a new `.md` file in the current directory and opens it in edit mode.
+
+### UX Flow
+
+1. User clicks the **+** (new file) button in the sidebar header
+2. An inline text input appears at the top of the file tree, pre-filled with `untitled.md`
+3. User types a filename (auto-appends `.md` if not present)
+4. Press **Enter** to create, **Escape** to cancel
+5. If the filename already exists, show an error inline (red text below input)
+6. On success: file is created on disk, sidebar refreshes, file opens in edit mode in the active pane
+
+### Keyboard Shortcut
+**Ctrl+N** — creates a new file (same flow as clicking the + button)
+
+### Rust Backend
+New command: `create_file(directory: String, filename: String) -> Result<String, String>`
+- Validates filename (no path separators, no special chars)
+- Checks if file already exists (returns error if so)
+- Creates the file with a default template: `# {Title}\n\n` (title derived from filename)
+- Returns the full path of the created file
+
+### Subdirectory Support
+If a directory is currently focused/selected in the file tree, the new file is created inside that directory rather than the root folder.
+
+---
+
+## Feature: Rename File
+
+### Status: TODO
+
+### Problem
+To rename a markdown file, users must leave the app and use a file manager. This breaks the editing flow.
+
+### Solution
+Add a rename action accessible via right-click context menu or keyboard shortcut on files in the sidebar.
+
+### UX Flow
+
+1. User right-clicks a file in the sidebar and selects **Rename**, or presses **F2** while a file is focused
+2. The file name in the tree becomes an editable text input, pre-filled with the current name
+3. User edits the name and presses **Enter** to confirm, **Escape** to cancel
+4. If the new name already exists, show an error inline
+5. On success: file is renamed on disk, sidebar refreshes, all open panes pointing to the old path update to the new path
+
+### Rust Backend
+New command: `rename_file(old_path: String, new_name: String) -> Result<String, String>`
+- Validates new name
+- Checks for conflicts
+- Renames via `std::fs::rename`
+- Returns the new full path
+
+### Edge Cases
+- File is open in edit mode with unsaved changes → save first, then rename
+- File is open in multiple panes → update all pane paths
+- File is the persisted "last selected file" → update persistence
+
+---
+
+## Feature: Save As
+
+### Status: TODO
+
+### Problem
+Users may want to save a copy of the current file under a different name or in a different location — for example, to create a template from an existing document.
+
+### Solution
+Add a **Save As** option that uses the native file save dialog to choose a destination, then writes the current content there.
+
+### UX Flow
+
+1. User presses **Ctrl+Shift+S** or selects Save As from a menu
+2. A native save dialog opens (via `tauri-plugin-dialog`), pre-filled with the current filename
+3. User picks a location and filename
+4. Content is written to the new path
+5. The active pane switches to the new file (new path, new title)
+6. If the new file is inside the currently open folder, the sidebar refreshes to show it
+
+### Rust Backend
+Reuses existing `write_file_contents` command — no new backend needed. The frontend just needs to call it with the new path from the dialog.
+
+### Dialog Integration
+Uses `tauri-plugin-dialog`'s `save` dialog:
+```typescript
+import { save } from '@tauri-apps/plugin-dialog';
+const path = await save({
+  defaultPath: currentFileName,
+  filters: [{ name: 'Markdown', extensions: ['md'] }],
+});
+```
 
 ---
 
@@ -1601,12 +1705,15 @@ These features build on each other. Recommended sequence:
 7. ~~**Search & Filter Phase 2**~~ (full-text) — DONE
 8. ~~**ASCII Art Diagram Rendering**~~ (svgbob) — DONE
 9. ~~**Search Result Line Highlighting**~~ — DONE
-10. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-11. **Line Numbers Toggle** — nice-to-have viewer enhancement
-12. **Markdown & Diagram Editor** — biggest feature, builds on everything above
-13. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-14. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-15. **MCP Server** — depends on write command + validation + search being built first
+10. ~~**Markdown & Diagram Editor**~~ — DONE (v0.4.0: split-pane CodeMirror + live preview, auto-save, scroll sync, active line highlight, table cell targeting)
+11. **New File** — create new markdown files from within the app
+12. **Rename File** — rename files/change titles without leaving the app
+13. **Save As** — save a copy of the current file to a new location/name
+14. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+15. **Line Numbers Toggle** — nice-to-have viewer enhancement
+16. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+17. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+18. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 
@@ -1622,12 +1729,15 @@ Each feature is independently shippable and testable. Build, test, and verify af
 
 ## Other Ideas for Future Iterations
 
-- **Split pane resizing** — draggable dividers between panes (after multi-file is built)
+- **Split pane resizing** — draggable dividers between panes
 - **Dark/light theme toggle** — currently dark only (Tokyo Night palette)
 - **Export to PDF** — print/export the rendered markdown
-- **Custom app icon** — replace the default Tauri icon with a branded one via `npx tauri icon <path-to-png>`
 - **Table of contents** — auto-generated from headings, shown in sidebar or as a floating panel
-- **Synchronized scroll** — in edit mode, scroll the editor and preview together
 - **Markdown toolbar** — bold, italic, heading, link, image buttons above editor for quick formatting
 - **Vim/Emacs keybindings** — CodeMirror 6 has extensions for these
 - **CLI linting script** — `npm run lint:mermaid -- docs/` for CI pipelines, validates all mermaid in all markdown files
+- **Delete file** — delete files from within the app (with confirmation dialog)
+- **Drag-and-drop file reordering** — move files between folders via drag
+- **Image paste/drop** — paste images from clipboard or drag into editor, auto-save to disk
+- **Markdown templates** — new file creation offers template choices (meeting notes, project plan, etc.)
+- **Word count / reading time** — status bar showing word count and estimated reading time

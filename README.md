@@ -5,7 +5,7 @@
 <h1 align="center">Planning Central</h1>
 
 <p align="center">
-  <strong>A desktop markdown viewer with Mermaid diagram support</strong><br>
+  <strong>A desktop markdown editor with live preview and Mermaid diagram support</strong><br>
   Built with <b>Tauri 2</b> + <b>Svelte 5</b> + <b>TypeScript</b>
 </p>
 
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <em>Browse, search, and read markdown documentation with live-rendered diagrams — all in a fast native app.</em>
+  <em>Write, edit, and view markdown documentation with live-rendered diagrams — all in a fast native app.</em>
 </p>
 
 ---
@@ -26,6 +26,10 @@
 
 | | Feature | Description |
 |---|---|---|
+| **Editor** | Split-pane | CodeMirror 6 editor with live preview side-by-side |
+| **Editor** | Auto-save | Saves automatically after 1s, or immediately with Ctrl+S |
+| **Editor** | Scroll sync | Editor and preview scroll together proportionally |
+| **Editor** | Active line | Cursor position highlights the matching element in the preview |
 | **Rendering** | Markdown | Syntax-highlighted code blocks, tables, and full formatting |
 | **Diagrams** | Mermaid | Live SVG flowcharts, sequence diagrams, ER diagrams, and more |
 | **Diagrams** | ASCII Art | svgbob renders box-drawing characters and `bob`/`svgbob` code blocks |
@@ -167,6 +171,7 @@ Both scripts are safe to run — they contain no secrets and rely on your local 
 | Bundler | Vite 6 |
 | Backend | Rust |
 | Markdown | marked + highlight.js |
+| Editor | CodeMirror 6 (markdown mode, one-dark theme) |
 | Diagrams | mermaid (flowcharts, etc.), svgbob (ASCII art) |
 | File watching | notify (Rust, native OS APIs) |
 | Testing | vitest + @testing-library/svelte, cargo test |
@@ -178,7 +183,8 @@ src/                        # Frontend (Svelte + TypeScript)
   App.svelte                # Root component — pane state, folder selection
   lib/
     components/             # Sidebar, FileTree, FileTreeItem, MarkdownViewer,
-                            # ContentArea, SearchResults
+                            # MarkdownEditor, EditablePane, ContentArea,
+                            # SearchResults
     services/               # filesystem, persistence, markdown, tree-utils,
                             # sort, highlight
     types.ts
@@ -187,7 +193,7 @@ src-tauri/                  # Rust backend
     lib.rs                  # Tauri app setup
     models.rs               # FileEntry model
     commands/
-      filesystem.rs         # Directory tree, file reading, search, help content
+      filesystem.rs         # Directory tree, file read/write, search, help content
       watcher.rs            # Native file system watcher
       diagram.rs            # svgbob ASCII → SVG conversion
 docs/                       # In-app documentation (viewable in Planning Central)
