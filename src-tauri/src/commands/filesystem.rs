@@ -85,6 +85,11 @@ pub fn read_file_contents(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| format!("Failed to read file {}: {}", path, e))
 }
 
+#[tauri::command]
+pub fn write_file_contents(path: String, content: String) -> Result<(), String> {
+    fs::write(&path, &content).map_err(|e| format!("Failed to write file {}: {}", path, e))
+}
+
 /// Returns the absolute path to the docs/ directory.
 /// In dev mode: navigates up from the exe in src-tauri/target/debug/
 /// In production: looks for docs/ next to the executable.
@@ -357,5 +362,34 @@ mod tests {
         let results = search_files(dir.path().to_string_lossy().to_string(), "keyword".into()).unwrap();
 
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_write_file_contents_creates_new_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("new_file.md");
+
+        write_file_contents(file_path.to_string_lossy().to_string(), "# New File".into()).unwrap();
+
+        let content = fs::read_to_string(&file_path).unwrap();
+        assert_eq!(content, "# New File");
+    }
+
+    #[test]
+    fn test_write_file_contents_overwrites_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("existing.md");
+        fs::write(&file_path, "old content").unwrap();
+
+        write_file_contents(file_path.to_string_lossy().to_string(), "new content".into()).unwrap();
+
+        let content = fs::read_to_string(&file_path).unwrap();
+        assert_eq!(content, "new content");
+    }
+
+    #[test]
+    fn test_write_file_contents_error_on_invalid_path() {
+        let result = write_file_contents("/nonexistent/dir/file.md".into(), "content".into());
+        assert!(result.is_err());
     }
 }

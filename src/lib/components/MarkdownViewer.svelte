@@ -1,6 +1,6 @@
 <script lang="ts">
   import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams } from "../services/markdown";
-  import { extractDiagramLabels, getCodeBlockLineOverlayPosition } from "../services/highlight";
+  import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex } from "../services/highlight";
   import type { LayoutMode } from "../types";
 
   let {
@@ -10,6 +10,11 @@
     onlayoutchange,
     highlightText = "",
     highlightKey = 0,
+    activeLineText = "",
+    activeLineNumber = 1,
+    activeTotalLines = 1,
+    activeColumn = 1,
+    showHeader = true,
   }: {
     content?: string;
     filePath?: string;
@@ -17,11 +22,19 @@
     onlayoutchange?: (mode: LayoutMode) => void;
     highlightText?: string;
     highlightKey?: number;
+    activeLineText?: string;
+    activeLineNumber?: number;
+    activeTotalLines?: number;
+    activeColumn?: number;
+    showHeader?: boolean;
   } = $props();
 
   let htmlContent = $state("");
   let articleEl: HTMLElement | undefined = $state();
   let diagramsReady = $state(0);
+  let imagesReady = $state(0);
+  // Timestamp of last search-driven scroll — active line scroll is suppressed briefly after
+  let lastSearchScrollTime = 0;
 
   $effect(() => {
     if (content) {
@@ -50,6 +63,34 @@
     }
   });
 
+  // After HTML updates, watch for image loads that cause layout shifts
+  $effect(() => {
+    const el = articleEl;
+    const _html = htmlContent;
+    if (!el || !_html) return;
+
+    const images = el.querySelectorAll('img');
+    if (images.length === 0) return;
+
+    const onLoad = () => { imagesReady++; };
+
+    const pending: HTMLImageElement[] = [];
+    images.forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', onLoad, { once: true });
+        img.addEventListener('error', onLoad, { once: true });
+        pending.push(img);
+      }
+    });
+
+    return () => {
+      pending.forEach(img => {
+        img.removeEventListener('load', onLoad);
+        img.removeEventListener('error', onLoad);
+      });
+    };
+  });
+
   // Highlight and scroll to matching text from search results
   $effect(() => {
     const text = highlightText;
@@ -57,6 +98,7 @@
     const _key = highlightKey; // depend on key to re-fire on repeated clicks
     const _html = htmlContent; // re-fire when content renders
     const _ready = diagramsReady; // re-fire after diagrams finish rendering
+    const _images = imagesReady; // re-fire when images load (layout shift)
     if (!text || !el || !_html) return;
 
     // Wait for DOM to be updated with the new content
@@ -81,6 +123,8 @@
     container.querySelectorAll(".search-highlight-line").forEach((el) => {
       el.classList.remove("search-highlight-line");
     });
+    // Remove block-level highlights
+    clearBlockHighlights(container, "search-highlight-block");
     // Remove line overlays
     container.querySelectorAll(".search-line-overlay").forEach((el) => {
       el.remove();
@@ -94,13 +138,24 @@
     if (!trimmedText) return;
 
     // Strategy 1: Exact text node match (paragraphs, headings, plain text)
-    if (tryTextNodeHighlight(container, trimmedText)) return;
+    if (tryTextNodeHighlight(container, trimmedText)) { lastSearchScrollTime = Date.now(); return; }
+
+    // Strategy 1b: Strip markdown syntax and try text node match again
+    const stripped = stripMarkdownSyntax(trimmedText);
+    if (stripped !== trimmedText && stripped.length >= 2) {
+      if (tryTextNodeHighlight(container, stripped)) { lastSearchScrollTime = Date.now(); return; }
+    }
+
+    // Strategy 1c: Block-level fallback — highlight the entire block element
+    if (stripped.length >= 2) {
+      if (tryBlockHighlight(container, stripped)) { lastSearchScrollTime = Date.now(); return; }
+    }
 
     // Strategy 2: Code block line highlight (syntax-highlighted code)
-    if (tryCodeBlockLineHighlight(container, trimmedText)) return;
+    if (tryCodeBlockLineHighlight(container, trimmedText)) { lastSearchScrollTime = Date.now(); return; }
 
     // Strategy 3: SVG/diagram container (svgbob, mermaid — original text gone)
-    if (tryDiagramContainerHighlight(container, trimmedText)) return;
+    if (tryDiagramContainerHighlight(container, trimmedText)) { lastSearchScrollTime = Date.now(); return; }
   }
 
   function tryTextNodeHighlight(container: HTMLElement, text: string): boolean {
@@ -126,6 +181,14 @@
       return true;
     }
     return false;
+  }
+
+  function tryBlockHighlight(container: HTMLElement, text: string): boolean {
+    const block = findMatchingBlockElement(container, text);
+    if (!block) return false;
+    block.classList.add("search-highlight-block");
+    block.scrollIntoView({ behavior: "smooth", block: "center" });
+    return true;
   }
 
   function tryCodeBlockLineHighlight(container: HTMLElement, text: string): boolean {
@@ -214,18 +277,99 @@
     return false;
   }
 
+  // Active line highlight: show which editor line corresponds to the preview
+  $effect(() => {
+    const text = activeLineText;
+    const lineNum = activeLineNumber;
+    const totalLines = activeTotalLines;
+    const col = activeColumn;
+    const el = articleEl;
+    const _html = htmlContent;
+    if (!el) return;
+
+    const frame = requestAnimationFrame(() => {
+      // Clear previous highlights and overlays
+      clearBlockHighlights(el, "active-line-block");
+      el.querySelectorAll(".active-line-overlay").forEach(o => o.remove());
+
+      if (!text.trim()) return;
+
+      // Don't scroll if a search highlight just happened (prevents fighting)
+      const shouldScroll = Date.now() - lastSearchScrollTime > 500;
+
+      // Calculate position ratio for disambiguation (0 = top, 1 = bottom)
+      const positionRatio = totalLines > 1 ? (lineNum - 1) / (totalLines - 1) : 0;
+
+      const stripped = stripMarkdownSyntax(text);
+
+      // Determine table cell index from cursor column (for table row lines)
+      const cellIndex = getTableCellIndex(text, col);
+
+      // Strategy 1: Match normal block elements (p, h1-h6, li, td, th, etc.)
+      // Uses positionRatio to pick the correct match when text appears multiple times
+      // For table rows, cellIndex targets the specific cell under the cursor
+      if (stripped.length >= 2) {
+        const block = findMatchingBlockElement(el, stripped, positionRatio, cellIndex >= 0 ? cellIndex : undefined);
+        if (block) {
+          block.classList.add("active-line-block");
+          if (shouldScroll) {
+            block.scrollIntoView({ behavior: "instant", block: "center" });
+          }
+          return;
+        }
+      }
+
+      // Strategy 2: Match code blocks and diagrams by raw line text
+      // Highlights the specific LINE within the code block, not the whole block
+      const rawTrimmed = text.trim();
+      if (rawTrimmed.length >= 2) {
+        const pre = findMatchingPreElement(el, rawTrimmed);
+        if (pre) {
+          // Try to highlight just the matching line within the code block
+          const pos = getCodeBlockLineOverlayPosition(pre as HTMLElement, rawTrimmed);
+          if (pos) {
+            pre.style.position = "relative";
+            const overlay = document.createElement("div");
+            overlay.className = "active-line-overlay";
+            overlay.style.position = "absolute";
+            overlay.style.left = "0";
+            overlay.style.right = "0";
+            overlay.style.top = `${pos.top}px`;
+            overlay.style.height = `${pos.height}px`;
+            overlay.style.pointerEvents = "none";
+            pre.appendChild(overlay);
+            if (shouldScroll) {
+              overlay.scrollIntoView({ behavior: "instant", block: "center" });
+            }
+          } else {
+            // Fallback: highlight entire block (e.g. mermaid where text is in SVG)
+            pre.classList.add("active-line-block");
+            if (shouldScroll) {
+              pre.scrollIntoView({ behavior: "instant", block: "center" });
+            }
+          }
+          return;
+        }
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  });
+
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");
 </script>
 
 <div class="viewer" role="main" aria-label="Markdown viewer">
   {#if content}
-    <header class="viewer-header">
-      <span class="file-name" title={filePath}>{fileName}</span>
-      <div class="layout-controls">
-        <button class:active={layoutMode === "centered"} onclick={() => onlayoutchange?.("centered")} title="Single column">&#x2261;</button>
-        <button class:active={layoutMode === "columns"} onclick={() => onlayoutchange?.("columns")} title="Multi-column">&#x229E;</button>
-      </div>
-    </header>
+    {#if showHeader}
+      <header class="viewer-header">
+        <span class="file-name" title={filePath}>{fileName}</span>
+        <div class="layout-controls">
+          <button class:active={layoutMode === "centered"} onclick={() => onlayoutchange?.("centered")} title="Single column">&#x2261;</button>
+          <button class:active={layoutMode === "columns"} onclick={() => onlayoutchange?.("columns")} title="Multi-column">&#x229E;</button>
+        </div>
+      </header>
+    {/if}
     <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} bind:this={articleEl}>
       {@html htmlContent}
     </article>

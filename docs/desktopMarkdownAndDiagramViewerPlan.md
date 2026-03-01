@@ -19,7 +19,7 @@ You want a central place to hold all your planning markdown files with the abili
 | File watching | **notify** crate (7.x) | Native OS events, cross-platform |
 | Styling | **Plain CSS + Svelte scoped styles** | ~5 components don't justify Tailwind |
 
-## Prerequisites
+## Prerequisitesssssss
 
 - Rust toolchain (`rustup`) — needed for Tauri
 - Node.js 18+

@@ -13,6 +13,7 @@
     sortMode = "name-asc" as SortMode,
     onsortchange,
     onhelp,
+    helpActive = false,
     filterQuery = "",
     onfilterchange,
     searchMode = false,
@@ -29,6 +30,7 @@
     sortMode?: SortMode;
     onsortchange?: () => void;
     onhelp?: () => void;
+    helpActive?: boolean;
     filterQuery?: string;
     onfilterchange?: (query: string) => void;
     searchMode?: boolean;
@@ -66,7 +68,7 @@
         </button>
       {/if}
       {#if onhelp}
-        <button class="help-btn" onclick={onhelp} title="Help">?</button>
+        <button class="help-btn" class:help-active={helpActive} onclick={onhelp} title="Help">?</button>
       {/if}
       {#if onchangefolder}
         <button class="change-folder-btn" onclick={onchangefolder} title="Change folder">
@@ -196,6 +198,13 @@
     background: rgba(122, 162, 247, 0.1);
     border-color: #7aa2f7;
     color: #7aa2f7;
+  }
+
+  .help-btn.help-active {
+    background: rgba(122, 162, 247, 0.25);
+    border-color: #7aa2f7;
+    color: #7aa2f7;
+    box-shadow: 0 0 6px rgba(122, 162, 247, 0.3);
   }
 
   .change-folder-btn {

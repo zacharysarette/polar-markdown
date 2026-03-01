@@ -321,3 +321,33 @@ mark.search-highlight {
   70% { background: rgba(224, 175, 104, 0.15); border-left-color: rgba(224, 175, 104, 0.7); }
   100% { background: rgba(224, 175, 104, 0.05); border-left-color: rgba(224, 175, 104, 0.3); }
 }
+
+/* Active line highlight — block-level blue background in preview when editing */
+.active-line-block {
+  background: rgba(122, 162, 247, 0.12) !important;
+  outline: 2px solid rgba(122, 162, 247, 0.4);
+  outline-offset: -2px;
+  border-radius: 2px;
+  transition: background 0.15s ease, outline-color 0.15s ease;
+}
+
+/* Active line highlight — single line within a code block */
+.active-line-overlay {
+  background: rgba(122, 162, 247, 0.15);
+  border-left: 3px solid rgba(122, 162, 247, 0.5);
+}
+
+/* Search highlight — block-level fallback when text spans multiple elements */
+.search-highlight-block {
+  background: rgba(224, 175, 104, 0.15) !important;
+  border-left: 3px solid rgba(224, 175, 104, 0.6);
+  padding-left: 8px;
+  border-radius: 2px;
+  animation: block-highlight-fade 3s ease-out forwards;
+}
+
+@keyframes block-highlight-fade {
+  0% { background: rgba(224, 175, 104, 0.2) !important; border-left-color: rgba(224, 175, 104, 0.7); }
+  70% { background: rgba(224, 175, 104, 0.15) !important; border-left-color: rgba(224, 175, 104, 0.5); }
+  100% { background: rgba(224, 175, 104, 0.08) !important; border-left-color: rgba(224, 175, 104, 0.3); }
+}

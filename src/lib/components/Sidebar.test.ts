@@ -150,6 +150,24 @@ describe("Sidebar", () => {
     expect(onsearchmodechange).toHaveBeenCalledOnce();
   });
 
+  it("highlights help button when helpActive is true", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), onhelp: vi.fn(), helpActive: true },
+    });
+
+    const helpBtn = screen.getByTitle("Help");
+    expect(helpBtn.classList.contains("help-active")).toBe(true);
+  });
+
+  it("does not highlight help button when helpActive is false", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), onhelp: vi.fn(), helpActive: false },
+    });
+
+    const helpBtn = screen.getByTitle("Help");
+    expect(helpBtn.classList.contains("help-active")).toBe(false);
+  });
+
   it("shows search results instead of file tree when searchMode is active with a query", () => {
     const searchResults = [
       { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },

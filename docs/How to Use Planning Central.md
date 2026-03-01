@@ -122,6 +122,44 @@ Supported diagram types include flowcharts, sequence diagrams, class diagrams, s
 
 ---
 
+## Editing Markdown
+
+Planning Central includes a built-in split-pane editor so you can edit files without leaving the app.
+
+### Entering Edit Mode
+
+Each pane header has a **view/edit toggle** — an eye icon (view) and a pencil icon (edit). The active mode is highlighted. Click the pencil to enter edit mode, or press **Ctrl+E** to toggle the active pane.
+
+### Split Editor
+
+In edit mode, the pane splits in two:
+
+- **Left side** — a CodeMirror text editor with syntax highlighting and line numbers
+- **Right side** — a live preview that updates as you type (including Mermaid diagrams)
+
+### Scroll Sync & Active Line
+
+The editor and preview panes stay in sync as you work:
+
+- **Scroll sync** — scrolling either pane (editor or preview) proportionally scrolls the other
+- **Active line highlight** — as you move your cursor in the editor, the corresponding rendered element in the preview is highlighted with a subtle blue border
+- **Table cell targeting** — when your cursor is on a table row, the preview highlights the specific cell under the cursor, not just the first cell in the row
+
+### Saving
+
+- **Auto-save** — changes are saved to disk automatically 1 second after you stop typing
+- **Ctrl+S** — saves immediately (and cancels the auto-save timer)
+
+### Navigating While Editing
+
+Clicking a file in the sidebar while in edit mode loads the new file into the editor — you stay in edit mode. Click the eye icon or press **Ctrl+E** to return to view mode.
+
+### Multi-Pane Editing
+
+Each pane toggles independently. You can have one pane in edit mode and another in view mode.
+
+---
+
 ## Live File Watching
 
 Planning Central watches your folder for changes in real time. If you edit a markdown file in another editor (or if a tool like Claude Code writes files), the sidebar and content area update automatically — no refresh needed.
@@ -135,6 +173,11 @@ Planning Central watches your folder for changes in real time. If you edit a mar
 | **Up/Down Arrow** | Navigate file tree (auto-selects files) |
 | **Enter** | Expand/collapse focused directory |
 | **Tab** | Move focus between sidebar and content |
+| **Ctrl+E** | Toggle edit/view mode on active pane |
+| **Ctrl+S** | Save immediately (in edit mode) |
+| **Ctrl+Click** | Open file in a new pane |
+| **Ctrl+W** | Close active pane |
+| **Ctrl+1/2/3/4** | Switch to pane 1, 2, 3, or 4 |
 
 ---
 

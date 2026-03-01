@@ -6,6 +6,7 @@
   import {
     readDirectoryTree,
     readFileContents,
+    writeFileContents,
     startWatching,
     getDocsPath,
     getHelpContent,
@@ -45,6 +46,8 @@
   let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
   let highlightText = $state("");
   let highlightKey = $state(0);
+  const recentOwnWrites = new Set<string>();
+  let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
 
   let sortedTree: FileEntry[] = $derived(sortEntries(rawTree, sortMode));
   let tree: FileEntry[] = $derived(filterEntries(sortedTree, filterQuery));
@@ -52,6 +55,9 @@
   // The "selected" path for sidebar highlighting is the active pane's path
   let selectedPath: string = $derived(
     panes.find((p) => p.id === activePaneId)?.path ?? ""
+  );
+  let helpActive: boolean = $derived(
+    panes.find((p) => p.id === activePaneId)?.readOnly === true
   );
 
   async function loadTree() {
@@ -76,7 +82,7 @@
         activePaneId = id;
       } else {
         panes = panes.map((p) =>
-          p.id === activePaneId ? { ...p, path, content } : p
+          p.id === activePaneId ? { ...p, path, content, readOnly: false } : p
         );
       }
       saveLastSelectedPath(path);
@@ -126,6 +132,45 @@
     activePaneId = id;
     const pane = panes.find((p) => p.id === id);
     if (pane) saveLastSelectedPath(pane.path);
+  }
+
+  async function handleToggleEdit(id: string) {
+    const pane = panes.find((p) => p.id === id);
+    if (!pane || pane.readOnly) return;
+
+    if (pane.editMode) {
+      // Switching from edit → view: reload from disk to show latest
+      try {
+        const content = await readFileContents(pane.path);
+        panes = panes.map((p) =>
+          p.id === id ? { ...p, editMode: false, content } : p
+        );
+      } catch {
+        panes = panes.map((p) =>
+          p.id === id ? { ...p, editMode: false } : p
+        );
+      }
+    } else {
+      // Switching from view → edit
+      panes = panes.map((p) =>
+        p.id === id ? { ...p, editMode: true } : p
+      );
+    }
+  }
+
+  async function handleSave(path: string, content: string) {
+    try {
+      recentOwnWrites.add(path);
+      await writeFileContents(path, content);
+      // Update pane content to reflect saved state
+      panes = panes.map((p) =>
+        p.path === path ? { ...p, content } : p
+      );
+      setTimeout(() => recentOwnWrites.delete(path), 500);
+    } catch (e) {
+      console.error("Failed to save file:", e);
+      recentOwnWrites.delete(path);
+    }
   }
 
   function findEntryByPath(items: FileEntry[], path: string): FileEntry | undefined {
@@ -214,16 +259,42 @@
   }
 
   async function handleHelp() {
+    // If already viewing help, restore the previous pane state
+    if (helpActive && savedPaneBeforeHelp) {
+      try {
+        const saved = savedPaneBeforeHelp;
+        const content = await readFileContents(saved.path);
+        panes = panes.map((p) =>
+          p.id === activePaneId
+            ? { ...p, path: saved.path, content, readOnly: false, editMode: saved.editMode }
+            : p
+        );
+        saveLastSelectedPath(saved.path);
+        savedPaneBeforeHelp = null;
+      } catch (e) {
+        console.error("Failed to restore previous file:", e);
+        savedPaneBeforeHelp = null;
+      }
+      return;
+    }
+
     try {
+      // Save current pane state before opening help
+      const activePane = panes.find((p) => p.id === activePaneId);
+      if (activePane && !activePane.readOnly) {
+        savedPaneBeforeHelp = { path: activePane.path, content: activePane.content, editMode: activePane.editMode };
+      }
+
       const content = await getHelpContent();
       if (panes.length === 0) {
         const id = createPaneId();
-        panes = [{ id, path: "How to Use Planning Central.md", content }];
+        panes = [{ id, path: "How to Use Planning Central.md", content, readOnly: true, editMode: false }];
         activePaneId = id;
+        savedPaneBeforeHelp = null;
       } else {
         panes = panes.map((p) =>
           p.id === activePaneId
-            ? { ...p, path: "How to Use Planning Central.md", content }
+            ? { ...p, path: "How to Use Planning Central.md", content, readOnly: true, editMode: false }
             : p
         );
       }
@@ -245,6 +316,11 @@
     if (event.ctrlKey && event.key === "w") {
       event.preventDefault();
       if (activePaneId) handleClosePane(activePaneId);
+    }
+    // Ctrl+E: toggle edit/view mode on active pane
+    if (event.ctrlKey && event.key === "e") {
+      event.preventDefault();
+      if (activePaneId) handleToggleEdit(activePaneId);
     }
     // Ctrl+1/2/3/4: switch panes
     if (event.ctrlKey && event.key >= "1" && event.key <= "4") {
@@ -312,10 +388,14 @@
         console.error("Failed to start file watcher:", e);
       }
 
-      // Listen for file changes — update ALL open panes with that file
+      // Listen for file changes — update open panes (skip own writes and edit-mode panes)
       unlistenFn = await listen<string[]>("file-changed", async (event) => {
         await loadTree();
         for (const pane of panes) {
+          // Skip panes in edit mode — don't overwrite the user's in-progress edits
+          if (pane.editMode) continue;
+          // Skip paths we just wrote ourselves (feedback loop prevention)
+          if (recentOwnWrites.has(pane.path)) continue;
           if (event.payload.some((p) => p === pane.path)) {
             try {
               const content = await readFileContents(pane.path);
@@ -338,8 +418,8 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} {highlightText} {highlightKey} />
+  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} {highlightText} {highlightKey} />
 </div>
 
 <style>

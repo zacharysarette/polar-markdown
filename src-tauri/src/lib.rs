@@ -22,6 +22,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::filesystem::read_directory_tree,
             commands::filesystem::read_file_contents,
+            commands::filesystem::write_file_contents,
             commands::filesystem::get_docs_path,
             commands::filesystem::get_help_content,
             commands::filesystem::search_files,

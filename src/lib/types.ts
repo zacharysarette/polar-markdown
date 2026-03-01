@@ -12,6 +12,8 @@ export interface OpenPane {
   id: string;
   path: string;
   content: string;
+  editMode?: boolean;
+  readOnly?: boolean;
 }
 
 export interface SearchMatch {

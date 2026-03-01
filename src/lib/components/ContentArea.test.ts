@@ -14,6 +14,58 @@ vi.mock("../services/filesystem", () => ({
   renderAsciiDiagram: vi.fn(),
 }));
 
+// Mock CodeMirror modules (needed by MarkdownEditor via EditablePane)
+vi.mock("@codemirror/view", () => ({
+  EditorView: Object.assign(
+    vi.fn().mockImplementation(function (this: any) {
+      this.destroy = vi.fn();
+      this.dispatch = vi.fn();
+    }),
+    {
+      updateListener: { of: vi.fn().mockReturnValue("updateListener") },
+      theme: vi.fn().mockReturnValue("customTheme"),
+      scrollIntoView: vi.fn().mockReturnValue({ type: "scrollIntoView" }),
+      decorations: { from: vi.fn().mockReturnValue("decorationsFrom") },
+    }
+  ),
+  Decoration: {
+    mark: vi.fn().mockReturnValue({ range: vi.fn().mockReturnValue({}) }),
+    set: vi.fn().mockReturnValue({}),
+    none: {},
+  },
+  keymap: { of: vi.fn().mockReturnValue("keymapExt") },
+  lineNumbers: vi.fn().mockReturnValue("lineNumbers"),
+  highlightActiveLine: vi.fn().mockReturnValue("highlightActiveLine"),
+  highlightActiveLineGutter: vi.fn().mockReturnValue("highlightActiveLineGutter"),
+}));
+
+vi.mock("@codemirror/state", () => ({
+  EditorState: {
+    create: vi.fn().mockImplementation((config: any) => ({
+      doc: config.doc,
+      extensions: config.extensions,
+    })),
+  },
+  StateField: {
+    define: vi.fn().mockReturnValue("searchHighlightField"),
+  },
+  StateEffect: {
+    define: vi.fn().mockReturnValue({ of: vi.fn().mockReturnValue({ type: "setSearchText" }) }),
+  },
+}));
+
+vi.mock("@codemirror/lang-markdown", () => ({
+  markdown: vi.fn().mockReturnValue("markdownLang"),
+}));
+
+vi.mock("@codemirror/theme-one-dark", () => ({
+  oneDark: "oneDarkTheme",
+}));
+
+vi.mock("codemirror", () => ({
+  basicSetup: "basicSetup",
+}));
+
 import ContentArea from "./ContentArea.svelte";
 import type { OpenPane, LayoutMode } from "../types";
 
@@ -83,10 +135,10 @@ describe("ContentArea", () => {
     });
 
     await vi.waitFor(() => {
-      expect(screen.getByTitle("Close pane")).toBeInTheDocument();
+      expect(screen.getByTitle("Close pane (Ctrl+W)")).toBeInTheDocument();
     });
 
-    await fireEvent.click(screen.getByTitle("Close pane"));
+    await fireEvent.click(screen.getByTitle("Close pane (Ctrl+W)"));
     expect(onclose).toHaveBeenCalledWith("1");
   });
 
@@ -133,5 +185,84 @@ describe("ContentArea", () => {
     const paneElements = document.querySelectorAll(".pane");
     await fireEvent.click(paneElements[1]);
     expect(onactivate).toHaveBeenCalledWith("2");
+  });
+
+  it("renders view and edit mode toggle buttons in pane header", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("View Mode (Ctrl+E)")).toBeInTheDocument();
+      expect(screen.getByTitle("Edit Mode (Ctrl+E)")).toBeInTheDocument();
+    });
+  });
+
+  it("calls ontoggleedit when edit mode button is clicked", async () => {
+    const ontoggleedit = vi.fn();
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+        ontoggleedit,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Edit Mode (Ctrl+E)")).toBeInTheDocument();
+    });
+
+    await fireEvent.click(screen.getByTitle("Edit Mode (Ctrl+E)"));
+    expect(ontoggleedit).toHaveBeenCalledWith("1");
+  });
+
+  it("renders MarkdownViewer for pane in view mode", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    // In view mode, should NOT have editable-pane class
+    await vi.waitFor(() => {
+      expect(document.querySelector(".editable-pane")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows read-only badge and hides edit toggle for readOnly pane", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [{ id: "1", path: "Help.md", content: "# Help", readOnly: true }],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Read Only")).toBeInTheDocument();
+      expect(screen.queryByTitle("Edit Mode (Ctrl+E)")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("View Mode (Ctrl+E)")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders EditablePane for pane in edit mode", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [{ id: "1", path: "/docs/readme.md", content: "# Hello", editMode: true }],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(document.querySelector(".editable-pane")).toBeInTheDocument();
+    });
   });
 });
