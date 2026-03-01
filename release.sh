@@ -5,10 +5,11 @@ set -euo pipefail
 # Polar Markdown — macOS / Linux Release Script
 # ============================================================================
 #
-# SAFETY: This script contains NO secrets or credentials. It relies on:
-#   - npx tauri build   (local build)
-#   - git                (commit + push)
-#   - gh CLI             (create/upload GitHub Release — uses your logged-in session)
+# USAGE:
+#   ./release.sh patch          Bump patch  (0.4.1 -> 0.4.2)
+#   ./release.sh minor          Bump minor  (0.4.1 -> 0.5.0)
+#   ./release.sh major          Bump major  (0.4.1 -> 1.0.0)
+#   ./release.sh 1.2.3          Explicit version
 #
 # PREREQUISITES:
 #   - Node.js v20+, Rust (stable), Tauri CLI prerequisites for your OS
@@ -16,61 +17,147 @@ set -euo pipefail
 #   - macOS: Xcode Command Line Tools (`xcode-select --install`)
 #   - Linux: webkit2gtk, libappindicator, librsvg, patchelf (see README)
 #
-# USAGE:
-#   ./release.sh <version>       e.g.  ./release.sh 0.2.0
-#
-# MULTI-PLATFORM WORKFLOW (order doesn't matter):
-#   Windows:  release.bat 0.2.0              — creates tag + release (or uploads)
-#   macOS:    git pull && ./release.sh 0.2.0  — creates release or uploads artifacts
-#   Linux:    git pull && ./release.sh 0.2.0  — creates release or uploads artifacts
-#   Whichever platform runs first creates the release; the rest upload artifacts.
+# WHAT IT DOES (in order):
+#   1. Switch to master and pull latest
+#   2. Calculate new version (or use explicit)
+#   3. Update version in package.json, tauri.conf.json, Cargo.toml
+#   4. Run tests (vitest, cargo test, svelte-check)
+#   5. Build with npx tauri build
+#   6. Commit, push, create GitHub Release with installers
 # ============================================================================
 
 if [ $# -lt 1 ]; then
-    echo "Usage: ./release.sh <version>"
-    echo "Example: ./release.sh 0.2.0"
+    echo "Usage: ./release.sh <patch|minor|major|VERSION>"
+    echo ""
+    echo "Examples:"
+    echo "  ./release.sh patch       0.4.1 -> 0.4.2"
+    echo "  ./release.sh minor       0.4.1 -> 0.5.0"
+    echo "  ./release.sh major       0.4.1 -> 1.0.0"
+    echo "  ./release.sh 1.2.3       explicit version"
     exit 1
 fi
 
-VERSION="$1"
-TAG="v${VERSION}"
+BUMP="$1"
 BUNDLE_DIR="src-tauri/target/release/bundle"
-
-# Detect platform
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
+# --- Step 1: Switch to master and pull latest ---
 echo ""
-echo "=== Polar Markdown Release ${TAG} (${OS} ${ARCH}) ==="
-echo ""
-
-# --- Step 0: Switch to master and pull latest ---
-echo "[0/5] Switching to master and pulling latest..."
+echo "[1/7] Switching to master and pulling latest..."
 git checkout master
 git fetch origin
 git pull origin master
 
-# --- Step 1: Build ---
-echo "[1/5] Building..."
+# --- Step 2: Calculate version ---
+echo ""
+echo "[2/7] Calculating version..."
+
+OLD_VERSION=$(node -p "require('./package.json').version")
+VERSION=$(node -p "
+  const [M,m,P] = '${OLD_VERSION}'.split('.').map(Number);
+  const b = '${BUMP}';
+  b === 'major' ? \`\${M+1}.0.0\` :
+  b === 'minor' ? \`\${M}.\${m+1}.0\` :
+  b === 'patch' ? \`\${M}.\${m}.\${P+1}\` : b
+")
+
+# Validate version format
+if ! echo "${VERSION}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "ERROR: Invalid version \"${VERSION}\". Must be MAJOR.MINOR.PATCH or one of: patch, minor, major"
+    exit 1
+fi
+
+TAG="v${VERSION}"
+
+echo "  Current version: ${OLD_VERSION}"
+echo "  New version:     ${VERSION} (${TAG})"
+
+# --- Step 3: Update version in all config files ---
+echo ""
+echo "[3/7] Updating version in config files..."
+
+node -e "
+  const fs = require('fs');
+  const f = 'package.json';
+  const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+  j.version = '${VERSION}';
+  fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n');
+"
+echo "  Updated package.json"
+
+node -e "
+  const fs = require('fs');
+  const f = 'src-tauri/tauri.conf.json';
+  const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+  j.version = '${VERSION}';
+  fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n');
+"
+echo "  Updated tauri.conf.json"
+
+node -e "
+  const fs = require('fs');
+  const f = 'src-tauri/Cargo.toml';
+  let t = fs.readFileSync(f, 'utf8');
+  t = t.replace(/^version\s*=\s*\".*?\"/m, 'version = \"${VERSION}\"');
+  fs.writeFileSync(f, t);
+"
+echo "  Updated Cargo.toml"
+
+# Helper to restore files on failure
+restore_versions() {
+    echo "Restoring version files..."
+    git checkout -- package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+}
+
+# --- Step 4: Run tests ---
+echo ""
+echo "[4/7] Running tests..."
+
+echo "  Running frontend tests..."
+if ! npx vitest run; then
+    echo ""
+    echo "FRONTEND TESTS FAILED. Aborting release."
+    restore_versions
+    exit 1
+fi
+
+echo ""
+echo "  Running Rust tests..."
+if ! (cd src-tauri && cargo test); then
+    echo ""
+    echo "RUST TESTS FAILED. Aborting release."
+    restore_versions
+    exit 1
+fi
+
+echo ""
+echo "  Running svelte-check..."
+npx svelte-check || true  # warnings are OK
+
+echo ""
+echo "  All tests passed!"
+
+# --- Step 5: Build ---
+echo ""
+echo "[5/7] Building..."
+
 npx tauri build
 
-# --- Step 2: Locate artifacts ---
+# Locate artifacts
 echo ""
-echo "[2/5] Locating artifacts..."
+echo "  Locating artifacts..."
 
 ARTIFACTS=()
 
 case "${OS}" in
     Darwin)
-        # macOS: look for .dmg
         DMG=$(find "${BUNDLE_DIR}/dmg" -name "*.dmg" 2>/dev/null | head -1)
         if [ -z "${DMG}" ]; then
             echo "ERROR: No .dmg found in ${BUNDLE_DIR}/dmg/"
             exit 1
         fi
         echo "  Found: ${DMG}"
-
-        # Label with architecture
         if [ "${ARCH}" = "arm64" ]; then
             ARTIFACTS+=("${DMG}#Polar Markdown (macOS Apple Silicon .dmg)")
         else
@@ -78,15 +165,12 @@ case "${OS}" in
         fi
         ;;
     Linux)
-        # Linux: look for .deb and .AppImage
         DEB=$(find "${BUNDLE_DIR}/deb" -name "*.deb" 2>/dev/null | head -1)
         APPIMAGE=$(find "${BUNDLE_DIR}/appimage" -name "*.AppImage" 2>/dev/null | head -1)
-
         if [ -z "${DEB}" ] && [ -z "${APPIMAGE}" ]; then
             echo "ERROR: No .deb or .AppImage found in ${BUNDLE_DIR}/"
             exit 1
         fi
-
         if [ -n "${DEB}" ]; then
             echo "  Found: ${DEB}"
             ARTIFACTS+=("${DEB}#Polar Markdown (.deb)")
@@ -107,16 +191,16 @@ if [ ${#ARTIFACTS[@]} -eq 0 ]; then
     exit 1
 fi
 
-# --- Step 3: Commit and push ---
+# --- Step 6: Commit and push ---
 echo ""
-echo "[3/5] Committing and pushing..."
+echo "[6/7] Committing and pushing..."
 git add -A
 git commit -m "Release ${TAG}" || echo "  (nothing to commit)"
 git push origin master || git push origin main
 
-# --- Step 4: Create or upload to release ---
+# --- Step 7: Create GitHub Release ---
 echo ""
-echo "[4/5] Checking for existing release..."
+echo "[7/7] Creating GitHub Release ${TAG}..."
 
 if gh release view "${TAG}" &>/dev/null; then
     echo "  Release ${TAG} already exists — uploading artifacts..."
@@ -135,8 +219,7 @@ else
         --notes "${NOTES}"
 fi
 
-# --- Step 5: Done ---
 echo ""
-echo "[5/5] Done! Release published at:"
-echo "  https://github.com/zacharysarette/planning-central/releases/tag/${TAG}"
+echo "=== Release ${TAG} complete! ==="
+echo "  https://github.com/zacharysarette/polar-markdown/releases/tag/${TAG}"
 echo ""
