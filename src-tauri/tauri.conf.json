@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Polar Markdown",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "identifier": "com.polarmarkdown.app",
   "build": {
     "frontendDist": "../dist",
@@ -25,7 +25,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["**/*"]
+        "scope": [
+          "**/*"
+        ]
       }
     }
   },

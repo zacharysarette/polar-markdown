@@ -197,6 +197,78 @@ describe("FileTree keyboard navigation", () => {
   });
 });
 
+describe("FileTree onfocuschange callback", () => {
+  it("ArrowDown calls onfocuschange with focused path", async () => {
+    const onfocuschange = vi.fn();
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), onfocuschange },
+    });
+
+    const tree = screen.getByRole("tree");
+    await fireEvent.keyDown(tree, { key: "ArrowDown" });
+
+    expect(onfocuschange).toHaveBeenCalledWith("/readme.md");
+  });
+
+  it("ArrowUp calls onfocuschange with focused path", async () => {
+    const onfocuschange = vi.fn();
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), onfocuschange },
+    });
+
+    const tree = screen.getByRole("tree");
+    await fireEvent.keyDown(tree, { key: "ArrowDown" });
+    await fireEvent.keyDown(tree, { key: "ArrowDown" });
+    await fireEvent.keyDown(tree, { key: "ArrowUp" });
+
+    expect(onfocuschange).toHaveBeenLastCalledWith("/readme.md");
+  });
+
+  it("works without onfocuschange prop", async () => {
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn() },
+    });
+
+    const tree = screen.getByRole("tree");
+    // Should not throw
+    await fireEvent.keyDown(tree, { key: "ArrowDown" });
+    await fireEvent.keyDown(tree, { key: "ArrowUp" });
+  });
+});
+
+describe("FileTree drag-and-drop", () => {
+  it("file items are draggable", () => {
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn() },
+    });
+
+    const buttons = document.querySelectorAll("button.tree-row");
+    expect(buttons[0].getAttribute("draggable")).toBe("true");
+  });
+
+  it("directory items are not draggable", () => {
+    render(FileTree, {
+      props: { entries: mixedEntries, selectedPath: "", onselect: vi.fn() },
+    });
+
+    // First button is the "docs" directory
+    const buttons = document.querySelectorAll("button.tree-row");
+    expect(buttons[0].getAttribute("draggable")).toBe("false");
+  });
+
+  it("dragstart sets text/plain data with file path", async () => {
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn() },
+    });
+
+    const button = document.querySelector("button.tree-row") as HTMLElement;
+    const dataTransfer = new DataTransfer();
+    await fireEvent.dragStart(button, { dataTransfer });
+
+    expect(dataTransfer.getData("text/plain")).toBe("/readme.md");
+  });
+});
+
 describe("FileTree focus initialization", () => {
   it("initializes focusedPath to selectedPath on focus when selectedPath is set", async () => {
     render(FileTree, {

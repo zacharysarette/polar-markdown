@@ -20,6 +20,7 @@ vi.mock("@codemirror/view", () => ({
     vi.fn().mockImplementation(function (this: any) {
       this.destroy = vi.fn();
       this.dispatch = vi.fn();
+      this.focus = vi.fn();
     }),
     {
       updateListener: { of: vi.fn().mockReturnValue("updateListener") },

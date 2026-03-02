@@ -22,6 +22,12 @@ pub struct SearchResult {
     pub matches: Vec<SearchMatch>,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct CreateFileResult {
+    pub path: String,
+    pub content: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,6 +66,17 @@ mod tests {
         assert!(dir.is_directory);
         assert_eq!(dir.children.len(), 1);
         assert_eq!(dir.children[0].name, "note.md");
+    }
+
+    #[test]
+    fn test_create_file_result_serializes_to_json() {
+        let result = CreateFileResult {
+            path: "/docs/test.md".into(),
+            content: "# Test\n\n".into(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"path\":\"/docs/test.md\""));
+        assert!(json.contains("\"content\":\"# Test\\n\\n\""));
     }
 
     #[test]

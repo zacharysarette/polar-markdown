@@ -103,6 +103,7 @@
       state,
       parent: containerEl,
     });
+    view.focus();
 
   });
 

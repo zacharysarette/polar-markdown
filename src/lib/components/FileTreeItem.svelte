@@ -30,6 +30,12 @@
     }
   }
 
+  function handleDragStart(event: DragEvent) {
+    if (entry.is_directory || !event.dataTransfer) return;
+    event.dataTransfer.setData("text/plain", entry.path);
+    event.dataTransfer.effectAllowed = "copy";
+  }
+
   const isSelected = $derived(entry.path === selectedPath);
   const isFocused = $derived(entry.path === focusedPath);
   const paddingLeft = $derived(`${depth * 16 + 8}px`);
@@ -43,6 +49,8 @@
     class:directory={entry.is_directory}
     style="padding-left: {paddingLeft}"
     onclick={handleClick}
+    draggable={!entry.is_directory}
+    ondragstart={handleDragStart}
     title={entry.path}
     data-path={entry.path}
   >

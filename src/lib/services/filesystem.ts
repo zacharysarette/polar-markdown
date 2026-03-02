@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { FileEntry, SearchResult } from "../types";
+import type { CreateFileResult, FileEntry, SearchResult } from "../types";
 
 export async function readDirectoryTree(path: string): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("read_directory_tree", { path });
@@ -32,6 +32,10 @@ export async function searchFiles(path: string, query: string): Promise<SearchRe
 
 export async function writeFileContents(path: string, content: string): Promise<void> {
   return invoke<void>("write_file_contents", { path, content });
+}
+
+export async function createFile(directory: string, filename: string): Promise<CreateFileResult> {
+  return invoke<CreateFileResult>("create_file", { directory, filename });
 }
 
 export async function pickFolder(): Promise<string | null> {

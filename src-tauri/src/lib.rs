@@ -26,6 +26,7 @@ pub fn run() {
             commands::filesystem::get_docs_path,
             commands::filesystem::get_help_content,
             commands::filesystem::search_files,
+            commands::filesystem::create_file,
             commands::watcher::start_watching,
             commands::diagram::render_ascii_diagram,
         ])

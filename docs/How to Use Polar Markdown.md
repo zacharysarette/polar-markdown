@@ -51,6 +51,21 @@ Click the **🔍** button next to the filter bar to switch to full-text search m
 - Click the **🔍** button again to return to filename filter mode
 - Hidden directories and non-markdown files are excluded from search
 
+### Creating New Files
+
+You can create new markdown files directly from within Polar Markdown:
+
+- Click the **+** button in the sidebar header, or press **Ctrl+N**
+- An inline input appears pre-filled with `untitled.md` — the "untitled" portion is selected so you can immediately type a new name
+- Press **Enter** or click the **checkmark button** next to the input to create the file, or **Escape** to cancel
+- The `.md` extension is added automatically if you omit it
+- The new file is created with a `# Title` heading derived from the filename (hyphens and underscores become spaces, words are title-cased)
+- After creation, the file opens immediately in **edit mode** so you can start writing
+
+**Target directory:** If you have a directory focused in the file tree (via arrow keys), the new file is created inside that directory. Otherwise, it's created in the root docs folder.
+
+If the filename already exists, a red error message appears below the input — fix the name and try again.
+
 ### Multi-File Viewing
 
 You can view multiple files side by side in split panes:
@@ -173,6 +188,7 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 | **Up/Down Arrow** | Navigate file tree (auto-selects files) |
 | **Enter** | Expand/collapse focused directory |
 | **Tab** | Move focus between sidebar and content |
+| **Ctrl+N** | Create a new markdown file |
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+S** | Save immediately (in edit mode) |
 | **Ctrl+Click** | Open file in a new pane |

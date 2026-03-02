@@ -7,10 +7,12 @@
     entries,
     selectedPath = "",
     onselect,
+    onfocuschange,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
     onselect: (path: string, event?: MouseEvent) => void;
+    onfocuschange?: (path: string) => void;
   } = $props();
 
   let focusedPath = $state("");
@@ -58,11 +60,13 @@
       event.preventDefault();
       const nextIndex = Math.min(currentIndex + 1, visiblePaths.length - 1);
       focusedPath = visiblePaths[nextIndex];
+      onfocuschange?.(focusedPath);
       autoSelectIfFile(focusedPath);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       const prevIndex = Math.max(currentIndex - 1, 0);
       focusedPath = visiblePaths[prevIndex];
+      onfocuschange?.(focusedPath);
       autoSelectIfFile(focusedPath);
     } else if (event.key === "Enter" && focusedPath) {
       event.preventDefault();

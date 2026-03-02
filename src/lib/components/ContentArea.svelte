@@ -26,6 +26,14 @@
     highlightText?: string;
     highlightKey?: number;
   } = $props();
+
+  let copiedPaneId = $state("");
+
+  function copyPath(paneId: string, path: string) {
+    navigator.clipboard.writeText(path);
+    copiedPaneId = paneId;
+    setTimeout(() => { copiedPaneId = ""; }, 1500);
+  }
 </script>
 
 {#if panes.length === 0}
@@ -74,6 +82,17 @@
                 </button>
               </div>
             {/if}
+            <button
+              class="copy-path-btn"
+              title="Copy file path"
+              onclick={(e) => { e.stopPropagation(); copyPath(pane.id, pane.path); }}
+            >
+              {#if copiedPaneId === pane.id}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              {:else}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              {/if}
+            </button>
             <button
               class="close-btn"
               title="Close pane (Ctrl+W)"
@@ -200,6 +219,24 @@
     border-radius: 4px;
     padding: 2px 8px;
     line-height: 1;
+  }
+
+  .copy-path-btn {
+    background: none;
+    border: none;
+    color: #565f89;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .copy-path-btn:hover {
+    color: #7aa2f7;
+    background: rgba(122, 162, 247, 0.1);
   }
 
   .close-btn {

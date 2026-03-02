@@ -60,8 +60,8 @@ echo [2/7] Calculating version...
 :: Use node to read current version and compute the new one
 for /f "delims=" %%V in ('node -p "const p=require('./package.json'); const [M,m,P]=p.version.split('.').map(Number); const b='%BUMP%'; b==='major'?`${M+1}.0.0`:b==='minor'?`${M}.${m+1}.0`:b==='patch'?`${M}.${m}.${P+1}`:b"') do set VERSION=%%V
 
-:: Validate version format
-echo !VERSION! | findstr /r "^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >nul
+:: Validate version format (avoid ! in node code due to delayed expansion)
+node -e "var ok=/^\d+[.]\d+[.]\d+$/.test('!VERSION!'); process.exit(ok?0:1)"
 if errorlevel 1 (
     echo ERROR: Invalid version "!VERSION!". Must be MAJOR.MINOR.PATCH or one of: patch, minor, major
     exit /b 1

@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 
@@ -128,5 +128,26 @@ describe("writeFileContents", () => {
       path: "/docs/test.md",
       content: "# Hello World",
     });
+  });
+});
+
+describe("createFile", () => {
+  it("calls invoke with correct command, directory and filename", async () => {
+    const mockResult = { path: "/docs/new-note.md", content: "# New Note\n\n" };
+    mockInvoke.mockResolvedValue(mockResult);
+
+    const result = await createFile("/docs", "new-note.md");
+
+    expect(mockInvoke).toHaveBeenCalledWith("create_file", {
+      directory: "/docs",
+      filename: "new-note.md",
+    });
+    expect(result).toEqual(mockResult);
+  });
+
+  it("propagates errors from invoke", async () => {
+    mockInvoke.mockRejectedValue(new Error("File already exists"));
+
+    await expect(createFile("/docs", "existing.md")).rejects.toThrow("File already exists");
   });
 });

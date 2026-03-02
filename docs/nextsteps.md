@@ -4,7 +4,7 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, and state persistence via localStorage.
 
-### Current Test Count: 264 frontend (13 test files) + 23 Rust = 287 total
+### Current Test Count: 278 frontend (13 test files) + 32 Rust = 310 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -1122,7 +1122,7 @@ If multi-file viewing is implemented first, each pane can independently be in Vi
 
 ## Feature: New File Creation
 
-### Status: TODO
+### Status: DONE
 
 ### Problem
 Users can edit existing files but cannot create new markdown files from within Polar Markdown. They have to use a separate file manager or terminal to create files, then switch back.

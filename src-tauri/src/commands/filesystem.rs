@@ -1,4 +1,4 @@
-use crate::models::{FileEntry, SearchMatch, SearchResult};
+use crate::models::{CreateFileResult, FileEntry, SearchMatch, SearchResult};
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
@@ -130,6 +130,68 @@ pub fn get_docs_path() -> Result<String, String> {
     }
 
     Err("Could not find docs/ directory".into())
+}
+
+/// Derives a title from a filename: strips .md, replaces - and _ with spaces, title-cases.
+fn title_from_filename(filename: &str) -> String {
+    let stem = filename.strip_suffix(".md").unwrap_or(filename);
+    stem.split(|c: char| c == '-' || c == '_')
+        .filter(|w| !w.is_empty())
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => {
+                    let upper: String = first.to_uppercase().collect();
+                    upper + &chars.collect::<String>()
+                }
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Creates a new markdown file in the given directory with a template heading.
+/// Auto-appends .md if missing. Refuses to overwrite existing files.
+/// Validates: non-empty filename, no path separators.
+#[tauri::command]
+pub fn create_file(directory: String, filename: String) -> Result<CreateFileResult, String> {
+    let filename = filename.trim().to_string();
+
+    if filename.is_empty() {
+        return Err("Filename cannot be empty".into());
+    }
+
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+        return Err("Filename cannot contain path separators".into());
+    }
+
+    let filename = if filename.ends_with(".md") {
+        filename
+    } else {
+        format!("{}.md", filename)
+    };
+
+    let dir = Path::new(&directory);
+    if !dir.exists() || !dir.is_dir() {
+        return Err(format!("Directory does not exist: {}", directory));
+    }
+
+    let file_path = dir.join(&filename);
+    if file_path.exists() {
+        return Err(format!("File already exists: {}", filename));
+    }
+
+    let title = title_from_filename(&filename);
+    let content = format!("# {}\n\n", title);
+
+    fs::write(&file_path, &content)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+
+    Ok(CreateFileResult {
+        path: file_path.to_string_lossy().to_string(),
+        content,
+    })
 }
 
 /// Returns the embedded help file content (compiled into the binary).
@@ -391,5 +453,101 @@ mod tests {
     fn test_write_file_contents_error_on_invalid_path() {
         let result = write_file_contents("/nonexistent/dir/file.md".into(), "content".into());
         assert!(result.is_err());
+    }
+
+    // create_file tests
+
+    #[test]
+    fn test_create_file_with_template() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_file(dir.path().to_string_lossy().to_string(), "notes.md".into());
+
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.content, "# Notes\n\n");
+        let on_disk = fs::read_to_string(dir.path().join("notes.md")).unwrap();
+        assert_eq!(on_disk, "# Notes\n\n");
+    }
+
+    #[test]
+    fn test_create_file_auto_appends_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_file(dir.path().to_string_lossy().to_string(), "ideas".into());
+
+        assert!(result.is_ok());
+        assert!(dir.path().join("ideas.md").exists());
+    }
+
+    #[test]
+    fn test_create_file_no_double_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_file(dir.path().to_string_lossy().to_string(), "ideas.md".into());
+
+        assert!(result.is_ok());
+        // Should NOT create ideas.md.md
+        assert!(!dir.path().join("ideas.md.md").exists());
+        assert!(dir.path().join("ideas.md").exists());
+    }
+
+    #[test]
+    fn test_create_file_reject_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_file(dir.path().to_string_lossy().to_string(), "".into());
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+    }
+
+    #[test]
+    fn test_create_file_reject_path_separators() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let result = create_file(dir.path().to_string_lossy().to_string(), "../evil.md".into());
+        assert!(result.is_err());
+
+        let result = create_file(dir.path().to_string_lossy().to_string(), "sub/file.md".into());
+        assert!(result.is_err());
+
+        let result = create_file(dir.path().to_string_lossy().to_string(), "sub\\file.md".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_file_reject_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("existing.md"), "already here").unwrap();
+
+        let result = create_file(dir.path().to_string_lossy().to_string(), "existing.md".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+    }
+
+    #[test]
+    fn test_create_file_returns_full_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_file(dir.path().to_string_lossy().to_string(), "test.md".into());
+
+        let result = result.unwrap();
+        assert!(result.path.ends_with("test.md"));
+        assert!(result.path.contains(&dir.path().to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn test_create_file_nonexistent_directory() {
+        let result = create_file("/nonexistent/dir".into(), "test.md".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_create_file_hyphenated_title() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_file(dir.path().to_string_lossy().to_string(), "my-cool-notes.md".into());
+
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.content, "# My Cool Notes\n\n");
+        let on_disk = fs::read_to_string(dir.path().join("my-cool-notes.md")).unwrap();
+        assert_eq!(on_disk, "# My Cool Notes\n\n");
     }
 }

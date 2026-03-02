@@ -5,6 +5,7 @@ import { render } from "@testing-library/svelte";
 const {
   mockDestroy,
   mockDispatch,
+  mockFocus,
   MockEditorView,
   mockUpdateListenerOf,
   captured,
@@ -18,11 +19,13 @@ const {
   } = {};
 
   // Must use regular function (not arrow) so it can be called with `new`
+  const mockFocus = vi.fn();
   const MockEditorView = vi.fn().mockImplementation(function (this: any, config: any) {
     captured.parent = config.parent;
     captured.doc = config.state?.doc;
     this.destroy = mockDestroy;
     this.dispatch = mockDispatch;
+    this.focus = mockFocus;
   });
 
   const mockUpdateListenerOf = vi.fn().mockImplementation((cb: any) => {
@@ -30,7 +33,7 @@ const {
     return "updateListener";
   });
 
-  return { mockDestroy, mockDispatch, MockEditorView, mockUpdateListenerOf, captured };
+  return { mockDestroy, mockDispatch, mockFocus, MockEditorView, mockUpdateListenerOf, captured };
 });
 
 vi.mock("@codemirror/view", () => ({
@@ -170,6 +173,7 @@ describe("MarkdownEditor", () => {
       captured.doc = config.state?.doc;
       this.destroy = mockDestroy;
       this.dispatch = mockDispatch;
+      this.focus = mockFocus;
       this.state = { doc: mockDoc };
     });
 

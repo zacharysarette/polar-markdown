@@ -168,6 +168,110 @@ describe("Sidebar", () => {
     expect(helpBtn.classList.contains("help-active")).toBe(false);
   });
 
+  // New file creation tests
+  it("renders + button when onnewfile is provided", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), onnewfile: vi.fn() },
+    });
+
+    expect(screen.getByTitle("New file")).toBeInTheDocument();
+  });
+
+  it("does not render + button without onnewfile prop", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn() },
+    });
+
+    expect(screen.queryByTitle("New file")).not.toBeInTheDocument();
+  });
+
+  it("calls onnewfile when + button is clicked", async () => {
+    const onnewfile = vi.fn();
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), onnewfile },
+    });
+
+    await fireEvent.click(screen.getByTitle("New file"));
+    expect(onnewfile).toHaveBeenCalledOnce();
+  });
+
+  it("shows input when creatingFile is true", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true },
+    });
+
+    expect(screen.getByTestId("new-file-input")).toBeInTheDocument();
+  });
+
+  it("hides input when creatingFile is false", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: false },
+    });
+
+    expect(screen.queryByTestId("new-file-input")).not.toBeInTheDocument();
+  });
+
+  it("calls oncreatenewfile on Enter in input", async () => {
+    const oncreatenewfile = vi.fn();
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true, oncreatenewfile },
+    });
+
+    const input = screen.getByTestId("new-file-input");
+    await fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(oncreatenewfile).toHaveBeenCalledWith("untitled.md");
+  });
+
+  it("calls oncancelcreate on Escape in input", async () => {
+    const oncancelcreate = vi.fn();
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true, oncancelcreate },
+    });
+
+    const input = screen.getByTestId("new-file-input");
+    await fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(oncancelcreate).toHaveBeenCalledOnce();
+  });
+
+  it("shows error message when newFileError is set", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true, newFileError: "File already exists" },
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("File already exists");
+  });
+
+  it("hides error message when newFileError is empty", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true, newFileError: "" },
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("renders confirm button when creatingFile is true", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true },
+    });
+
+    expect(screen.getByTitle("Create file")).toBeInTheDocument();
+  });
+
+  it("calls oncreatenewfile when confirm button is clicked", async () => {
+    const oncreatenewfile = vi.fn();
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), creatingFile: true, oncreatenewfile },
+    });
+
+    const button = screen.getByTitle("Create file");
+    await fireEvent.click(button);
+
+    expect(oncreatenewfile).toHaveBeenCalledWith("untitled.md");
+  });
+
   it("shows search results instead of file tree when searchMode is active with a query", () => {
     const searchResults = [
       { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },

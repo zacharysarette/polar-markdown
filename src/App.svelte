@@ -12,6 +12,7 @@
     getHelpContent,
     pickFolder,
     searchFiles,
+    createFile,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -46,6 +47,9 @@
   let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
   let highlightText = $state("");
   let highlightKey = $state(0);
+  let creatingFile = $state(false);
+  let newFileError = $state("");
+  let focusedTreePath = $state("");
   const recentOwnWrites = new Set<string>();
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
 
@@ -73,16 +77,16 @@
     return String(nextPaneId++);
   }
 
-  async function openInActivePane(path: string) {
+  async function openInActivePane(path: string, editMode = false, initialContent?: string) {
     try {
-      const content = await readFileContents(path);
+      const content = initialContent ?? await readFileContents(path);
       if (panes.length === 0) {
         const id = createPaneId();
-        panes = [{ id, path, content }];
+        panes = [{ id, path, content, editMode }];
         activePaneId = id;
       } else {
         panes = panes.map((p) =>
-          p.id === activePaneId ? { ...p, path, content, readOnly: false } : p
+          p.id === activePaneId ? { ...p, path, content, readOnly: false, editMode } : p
         );
       }
       saveLastSelectedPath(path);
@@ -311,7 +315,47 @@
     }
   }
 
+  function handleNewFile() {
+    creatingFile = true;
+    newFileError = "";
+  }
+
+  function handleCancelCreate() {
+    creatingFile = false;
+    newFileError = "";
+  }
+
+  async function handleCreateNewFile(filename: string) {
+    // Determine target directory: focused directory, or docsPath
+    let targetDir = docsPath;
+    if (focusedTreePath) {
+      const entry = findEntryByPath(rawTree, focusedTreePath);
+      if (entry?.is_directory) {
+        targetDir = focusedTreePath;
+      }
+    }
+
+    try {
+      const { path: newPath, content } = await createFile(targetDir, filename);
+      creatingFile = false;
+      newFileError = "";
+      openInActivePane(newPath, true, content);
+      loadTree();
+    } catch (e: any) {
+      newFileError = typeof e === "string" ? e : e?.message || String(e);
+    }
+  }
+
+  function handleFocusChange(path: string) {
+    focusedTreePath = path;
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
+    // Ctrl+N: new file
+    if (event.ctrlKey && event.key === "n") {
+      event.preventDefault();
+      handleNewFile();
+    }
     // Ctrl+W: close active pane
     if (event.ctrlKey && event.key === "w") {
       event.preventDefault();
@@ -418,7 +462,7 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} />
+  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} {creatingFile} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} {newFileError} onfocuschange={handleFocusChange} />
   <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} {highlightText} {highlightKey} />
 </div>
 

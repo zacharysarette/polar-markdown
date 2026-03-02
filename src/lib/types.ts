@@ -16,6 +16,11 @@ export interface OpenPane {
   readOnly?: boolean;
 }
 
+export interface CreateFileResult {
+  path: string;
+  content: string;
+}
+
 export interface SearchMatch {
   line_number: number;
   line_content: string;

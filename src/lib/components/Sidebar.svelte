@@ -22,6 +22,12 @@
     searchQuery = "",
     onsearchchange,
     isSearching = false,
+    onnewfile,
+    creatingFile = false,
+    oncreatenewfile,
+    oncancelcreate,
+    newFileError = "",
+    onfocuschange,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -39,6 +45,12 @@
     searchQuery?: string;
     onsearchchange?: (query: string) => void;
     isSearching?: boolean;
+    onnewfile?: () => void;
+    creatingFile?: boolean;
+    oncreatenewfile?: (filename: string) => void;
+    oncancelcreate?: () => void;
+    newFileError?: string;
+    onfocuschange?: (path: string) => void;
   } = $props();
 
   const sortLabels: Record<SortMode, string> = {
@@ -53,6 +65,32 @@
     tree?.focus();
   }
 
+  let newFilename = $state("untitled.md");
+
+  // Reset filename before DOM update so input mounts with correct value
+  $effect.pre(() => {
+    if (creatingFile) {
+      newFilename = "untitled.md";
+    }
+  });
+
+  // Svelte action: synchronously focuses and selects on mount (no async hop)
+  function autofocusSelect(node: HTMLInputElement) {
+    node.focus();
+    const dot = node.value.lastIndexOf('.');
+    node.setSelectionRange(0, dot >= 0 ? dot : node.value.length);
+  }
+
+  function handleNewFileKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      oncreatenewfile?.(newFilename);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      oncancelcreate?.();
+    }
+  }
+
   function handleSearchSelect(path: string, lineContent?: string) {
     onselect(path, undefined, lineContent);
   }
@@ -62,6 +100,9 @@
   <header class="sidebar-header">
     <h2>Files</h2>
     <div class="header-actions">
+      {#if onnewfile}
+        <button class="new-file-btn" onclick={onnewfile} title="New file">+</button>
+      {/if}
       {#if onsortchange}
         <button class="sort-btn" onclick={onsortchange} title="Sort files">
           {sortLabels[sortMode]}
@@ -119,10 +160,33 @@
       {/if}
     </div>
   {:else}
+    {#if creatingFile}
+      <div class="new-file-input">
+        <div class="new-file-row">
+          <input
+            type="text"
+            bind:value={newFilename}
+            onkeydown={handleNewFileKeyDown}
+            class="filter-input"
+            placeholder="filename.md"
+            data-testid="new-file-input"
+            use:autofocusSelect
+          />
+          <button
+            class="create-file-btn"
+            onclick={() => oncreatenewfile?.(newFilename)}
+            title="Create file"
+          >✓</button>
+        </div>
+        {#if newFileError}
+          <p class="new-file-error" role="alert">{newFileError}</p>
+        {/if}
+      </div>
+    {/if}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <nav class="sidebar-content" onclick={handleNavClick}>
-      <FileTree {entries} {selectedPath} {onselect} />
+      <FileTree {entries} {selectedPath} {onselect} {onfocuschange} />
     </nav>
   {/if}
 </aside>
@@ -287,5 +351,60 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+  }
+
+  .new-file-btn {
+    background: none;
+    border: 1px solid #2f3146;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    color: #a9b1d6;
+  }
+
+  .new-file-btn:hover {
+    background: rgba(122, 162, 247, 0.1);
+    border-color: #7aa2f7;
+    color: #7aa2f7;
+  }
+
+  .new-file-input {
+    padding: 8px 12px;
+    border-bottom: 1px solid #2f3146;
+    flex-shrink: 0;
+  }
+
+  .new-file-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .create-file-btn {
+    background: none;
+    border: 1px solid #2f3146;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    color: #9ece6a;
+    flex-shrink: 0;
+  }
+
+  .create-file-btn:hover {
+    background: rgba(158, 206, 106, 0.1);
+    border-color: #9ece6a;
+    box-shadow: 0 0 6px rgba(158, 206, 106, 0.3);
+  }
+
+  .new-file-error {
+    margin: 4px 0 0;
+    color: #f7768e;
+    font-size: 12px;
   }
 </style>

@@ -20,6 +20,7 @@ vi.mock("@codemirror/view", () => ({
     vi.fn().mockImplementation(function (this: any) {
       this.destroy = vi.fn();
       this.dispatch = vi.fn();
+      this.focus = vi.fn();
     }),
     {
       updateListener: { of: vi.fn().mockReturnValue("updateListener") },
@@ -264,5 +265,79 @@ describe("ContentArea", () => {
     await vi.waitFor(() => {
       expect(document.querySelector(".editable-pane")).toBeInTheDocument();
     });
+  });
+
+  it("renders copy path button in pane header", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Copy file path")).toBeInTheDocument();
+    });
+  });
+
+  it("calls navigator.clipboard.writeText when copy button clicked", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, writable: true, configurable: true });
+
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Copy file path")).toBeInTheDocument();
+    });
+
+    await fireEvent.click(screen.getByTitle("Copy file path"));
+    expect(writeText).toHaveBeenCalledWith("/docs/readme.md");
+  });
+
+  it("shows checkmark SVG after copy and reverts after timeout", async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, writable: true, configurable: true });
+
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Copy file path")).toBeInTheDocument();
+    });
+
+    const btn = screen.getByTitle("Copy file path");
+    // Before click: clipboard icon (rect element)
+    expect(btn.querySelector("rect")).toBeTruthy();
+    expect(btn.querySelector("polyline")).toBeFalsy();
+
+    await fireEvent.click(btn);
+
+    // After click: checkmark icon (polyline element)
+    await vi.waitFor(() => {
+      expect(btn.querySelector("polyline")).toBeTruthy();
+      expect(btn.querySelector("rect")).toBeFalsy();
+    });
+
+    // After timeout: reverts to clipboard icon
+    vi.advanceTimersByTime(1500);
+    await vi.waitFor(() => {
+      expect(btn.querySelector("rect")).toBeTruthy();
+      expect(btn.querySelector("polyline")).toBeFalsy();
+    });
+
+    vi.useRealTimers();
   });
 });

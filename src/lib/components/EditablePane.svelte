@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import MarkdownViewer from "./MarkdownViewer.svelte";
 
@@ -61,23 +61,13 @@
     };
   }
 
-  // Set up scroll sync after mount and whenever content changes (DOM may rebuild)
+  // Set up scroll sync after mount (RAF ensures child onMount runs first)
   onMount(() => {
-    // Delay slightly to let CodeMirror mount its .cm-scroller
-    const timer = setTimeout(setupScrollSync, 100);
-    return () => clearTimeout(timer);
-  });
-
-  $effect(() => {
-    // Re-setup when editContent changes (preview re-renders)
-    const _content = editContent;
-    // Small delay to let DOM update
-    const timer = setTimeout(setupScrollSync, 100);
-    return () => clearTimeout(timer);
-  });
-
-  onDestroy(() => {
-    cleanupScrollSync?.();
+    const frame = requestAnimationFrame(setupScrollSync);
+    return () => {
+      cancelAnimationFrame(frame);
+      cleanupScrollSync?.();
+    };
   });
 
   // When the file changes (navigation), sync editContent from the new prop value
