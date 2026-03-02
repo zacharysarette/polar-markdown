@@ -74,7 +74,7 @@ if [ "${CURRENT_BRANCH}" != "master" ] && [ "${CURRENT_BRANCH}" != "main" ]; the
     echo "  PR: ${PR_URL}"
 
     echo "  Merging PR via GitHub..."
-    if ! gh pr merge "${CURRENT_BRANCH}" --merge --delete-branch; then
+    if ! gh pr merge "${CURRENT_BRANCH}" --merge --delete-branch --admin; then
         echo "Failed to merge PR. Check GitHub for details."
         exit 1
     fi
