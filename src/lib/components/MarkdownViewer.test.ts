@@ -144,8 +144,8 @@ describe("MarkdownViewer", () => {
       // Fire the image load event
       img.dispatchEvent(new Event("load"));
 
-      // Allow the effect to re-run after imagesReady increments
-      await vi.advanceTimersByTimeAsync(100);
+      // Allow the debounced contentReady signal (200ms) and effect to re-run
+      await vi.advanceTimersByTimeAsync(300);
 
       // The search effect should have re-fired after image load,
       // causing a new scrollIntoView on the highlighted element

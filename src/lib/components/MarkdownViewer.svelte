@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams } from "../services/markdown";
-  import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex } from "../services/highlight";
+  import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex, clearLineHeightCache } from "../services/highlight";
   import type { LayoutMode } from "../types";
 
   let {
@@ -31,35 +32,57 @@
 
   let htmlContent = $state("");
   let articleEl: HTMLElement | undefined = $state();
-  let diagramsReady = $state(0);
-  let imagesReady = $state(0);
+  let contentReady = $state(0);
+  let contentReadyTimer: ReturnType<typeof setTimeout> | undefined;
+  let diagramDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  // Cached block elements for active line highlight (invalidated when htmlContent changes)
+  let cachedBlocks: HTMLElement[] | undefined;
   // Timestamp of last search-driven scroll — active line scroll is suppressed briefly after
   let lastSearchScrollTime = 0;
 
+  function signalContentReady() {
+    if (contentReadyTimer) clearTimeout(contentReadyTimer);
+    contentReadyTimer = setTimeout(() => { contentReady++; }, 200);
+  }
+
   $effect(() => {
     if (content) {
-      renderMarkdown(content, filePath).then((html) => {
+      renderMarkdown(content, filePath).then(async (html) => {
         htmlContent = html;
+        cachedBlocks = undefined; // Invalidate block cache on content change
+        clearLineHeightCache();
+        // Re-apply active line highlight immediately after DOM update.
+        // tick() resolves after Svelte updates the DOM but before the browser paints,
+        // so the highlight is applied in the same frame — no visible flicker.
+        await tick();
+        applyActiveLineToDOM(false);
       });
     } else {
       htmlContent = "";
+      cachedBlocks = undefined;
     }
   });
 
-  // After HTML updates, render any mermaid and svgbob diagrams
+  // After HTML updates, render any mermaid and svgbob diagrams (debounced at 1000ms)
   $effect(() => {
     if (htmlContent) {
-      // Use requestAnimationFrame to wait for DOM update
-      requestAnimationFrame(async () => {
-        try { await renderMermaidDiagrams(); } catch {
-          // Mermaid errors are non-fatal (e.g. invalid diagram syntax)
-        }
-        try { await renderBobDiagrams(); } catch {
-          // Bob diagram errors are non-fatal
-        }
-        // Signal that diagrams are ready so highlight effect re-fires
-        diagramsReady++;
-      });
+      if (diagramDebounceTimer) clearTimeout(diagramDebounceTimer);
+      diagramDebounceTimer = setTimeout(() => {
+        requestAnimationFrame(async () => {
+          try { await renderMermaidDiagrams(); } catch {
+            // Mermaid errors are non-fatal (e.g. invalid diagram syntax)
+          }
+          try { await renderBobDiagrams(); } catch {
+            // Bob diagram errors are non-fatal
+          }
+          // Signal that content is ready so highlight effect re-fires
+          signalContentReady();
+        });
+      }, 1000);
+
+      return () => {
+        if (diagramDebounceTimer) clearTimeout(diagramDebounceTimer);
+      };
     }
   });
 
@@ -72,7 +95,7 @@
     const images = el.querySelectorAll('img');
     if (images.length === 0) return;
 
-    const onLoad = () => { imagesReady++; };
+    const onLoad = () => { signalContentReady(); };
 
     const pending: HTMLImageElement[] = [];
     images.forEach(img => {
@@ -97,8 +120,7 @@
     const el = articleEl;
     const _key = highlightKey; // depend on key to re-fire on repeated clicks
     const _html = htmlContent; // re-fire when content renders
-    const _ready = diagramsReady; // re-fire after diagrams finish rendering
-    const _images = imagesReady; // re-fire when images load (layout shift)
+    const _ready = contentReady; // re-fire after diagrams/images are ready (unified, debounced)
     if (!text || !el || !_html) return;
 
     // Wait for DOM to be updated with the new content
@@ -277,80 +299,81 @@
     return false;
   }
 
-  // Active line highlight: show which editor line corresponds to the preview
-  $effect(() => {
-    const text = activeLineText;
-    const lineNum = activeLineNumber;
-    const totalLines = activeTotalLines;
-    const col = activeColumn;
+  function getBlockCache(): HTMLElement[] {
+    if (!cachedBlocks && articleEl) {
+      const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dd, dt';
+      const allBlocks = Array.from(articleEl.querySelectorAll(blockSelectors));
+      cachedBlocks = allBlocks.filter(b => !b.closest('pre')) as HTMLElement[];
+    }
+    return cachedBlocks ?? [];
+  }
+
+  // Shared function to apply active line highlight to the preview DOM.
+  // Called from two places: (1) the cursor-movement $effect, (2) after markdown re-render.
+  // When scroll=false (after re-render), we only re-apply the class without scrolling.
+  function applyActiveLineToDOM(scroll: boolean) {
     const el = articleEl;
-    const _html = htmlContent;
     if (!el) return;
 
+    // Clear previous highlights and overlays
+    clearBlockHighlights(el, "active-line-block");
+    el.querySelectorAll(".active-line-overlay").forEach(o => o.remove());
+
+    const text = activeLineText;
+    if (!text.trim()) return;
+
+    const shouldScroll = scroll && Date.now() - lastSearchScrollTime > 500;
+    const positionRatio = activeTotalLines > 1 ? (activeLineNumber - 1) / (activeTotalLines - 1) : 0;
+    const stripped = stripMarkdownSyntax(text);
+    const cellIndex = getTableCellIndex(text, activeColumn);
+
+    // Strategy 1: Match normal block elements (p, h1-h6, li, td, th, etc.)
+    if (stripped.length >= 2) {
+      const block = findMatchingBlockElement(el, stripped, positionRatio, cellIndex >= 0 ? cellIndex : undefined, getBlockCache());
+      if (block) {
+        block.classList.add("active-line-block");
+        if (shouldScroll) block.scrollIntoView({ behavior: "instant", block: "center" });
+        return;
+      }
+    }
+
+    // Strategy 2: Match code blocks and diagrams by raw line text
+    const rawTrimmed = text.trim();
+    if (rawTrimmed.length >= 2) {
+      const pre = findMatchingPreElement(el, rawTrimmed);
+      if (pre) {
+        const pos = getCodeBlockLineOverlayPosition(pre as HTMLElement, rawTrimmed);
+        if (pos) {
+          pre.style.position = "relative";
+          const overlay = document.createElement("div");
+          overlay.className = "active-line-overlay";
+          overlay.style.position = "absolute";
+          overlay.style.left = "0";
+          overlay.style.right = "0";
+          overlay.style.top = `${pos.top}px`;
+          overlay.style.height = `${pos.height}px`;
+          overlay.style.pointerEvents = "none";
+          pre.appendChild(overlay);
+          if (shouldScroll) overlay.scrollIntoView({ behavior: "instant", block: "center" });
+        } else {
+          pre.classList.add("active-line-block");
+          if (shouldScroll) pre.scrollIntoView({ behavior: "instant", block: "center" });
+        }
+      }
+    }
+  }
+
+  // Active line highlight on cursor movement — does NOT depend on htmlContent
+  $effect(() => {
+    const _text = activeLineText;
+    const _lineNum = activeLineNumber;
+    const _totalLines = activeTotalLines;
+    const _col = activeColumn;
+    const _el = articleEl;
+    if (!_el) return;
+
     const frame = requestAnimationFrame(() => {
-      // Clear previous highlights and overlays
-      clearBlockHighlights(el, "active-line-block");
-      el.querySelectorAll(".active-line-overlay").forEach(o => o.remove());
-
-      if (!text.trim()) return;
-
-      // Don't scroll if a search highlight just happened (prevents fighting)
-      const shouldScroll = Date.now() - lastSearchScrollTime > 500;
-
-      // Calculate position ratio for disambiguation (0 = top, 1 = bottom)
-      const positionRatio = totalLines > 1 ? (lineNum - 1) / (totalLines - 1) : 0;
-
-      const stripped = stripMarkdownSyntax(text);
-
-      // Determine table cell index from cursor column (for table row lines)
-      const cellIndex = getTableCellIndex(text, col);
-
-      // Strategy 1: Match normal block elements (p, h1-h6, li, td, th, etc.)
-      // Uses positionRatio to pick the correct match when text appears multiple times
-      // For table rows, cellIndex targets the specific cell under the cursor
-      if (stripped.length >= 2) {
-        const block = findMatchingBlockElement(el, stripped, positionRatio, cellIndex >= 0 ? cellIndex : undefined);
-        if (block) {
-          block.classList.add("active-line-block");
-          if (shouldScroll) {
-            block.scrollIntoView({ behavior: "instant", block: "center" });
-          }
-          return;
-        }
-      }
-
-      // Strategy 2: Match code blocks and diagrams by raw line text
-      // Highlights the specific LINE within the code block, not the whole block
-      const rawTrimmed = text.trim();
-      if (rawTrimmed.length >= 2) {
-        const pre = findMatchingPreElement(el, rawTrimmed);
-        if (pre) {
-          // Try to highlight just the matching line within the code block
-          const pos = getCodeBlockLineOverlayPosition(pre as HTMLElement, rawTrimmed);
-          if (pos) {
-            pre.style.position = "relative";
-            const overlay = document.createElement("div");
-            overlay.className = "active-line-overlay";
-            overlay.style.position = "absolute";
-            overlay.style.left = "0";
-            overlay.style.right = "0";
-            overlay.style.top = `${pos.top}px`;
-            overlay.style.height = `${pos.height}px`;
-            overlay.style.pointerEvents = "none";
-            pre.appendChild(overlay);
-            if (shouldScroll) {
-              overlay.scrollIntoView({ behavior: "instant", block: "center" });
-            }
-          } else {
-            // Fallback: highlight entire block (e.g. mermaid where text is in SVG)
-            pre.classList.add("active-line-block");
-            if (shouldScroll) {
-              pre.scrollIntoView({ behavior: "instant", block: "center" });
-            }
-          }
-          return;
-        }
-      }
+      applyActiveLineToDOM(true);
     });
 
     return () => cancelAnimationFrame(frame);

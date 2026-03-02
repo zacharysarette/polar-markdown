@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import FileTree from "./FileTree.svelte";
 import type { FileEntry } from "../types";
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 const fileEntries: FileEntry[] = [
   { name: "readme.md", path: "/readme.md", is_directory: false, children: [] },
@@ -189,10 +193,15 @@ describe("FileTree keyboard navigation", () => {
     const tree = screen.getByRole("tree");
     await fireEvent.keyDown(tree, { key: "ArrowDown" }); // focus docs dir
 
-    // docs starts expanded (depth 0), so Enter should collapse it
-    await fireEvent.keyDown(tree, { key: "Enter" });
+    // docs starts collapsed, so note.md should not be visible
+    expect(screen.queryByText("note.md")).not.toBeInTheDocument();
 
-    // After collapsing, "note.md" should not be visible
+    // Enter should expand it
+    await fireEvent.keyDown(tree, { key: "Enter" });
+    expect(screen.getByText("note.md")).toBeInTheDocument();
+
+    // Enter again should collapse it
+    await fireEvent.keyDown(tree, { key: "Enter" });
     expect(screen.queryByText("note.md")).not.toBeInTheDocument();
   });
 });
@@ -313,5 +322,217 @@ describe("FileTree focus initialization", () => {
     // Should still be on second item, not reset to first
     const buttons = tree.querySelectorAll("button.tree-row");
     expect(buttons[1].classList.contains("focused")).toBe(true);
+  });
+});
+
+describe("FileTree F2 rename", () => {
+  it("F2 calls onstartrename with focused file path", async () => {
+    const onstartrename = vi.fn();
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), onstartrename },
+    });
+
+    const tree = screen.getByRole("tree");
+    await fireEvent.keyDown(tree, { key: "ArrowDown" }); // focus readme.md
+    await fireEvent.keyDown(tree, { key: "F2" });
+
+    expect(onstartrename).toHaveBeenCalledWith("/readme.md");
+  });
+
+  it("F2 does not call onstartrename for directories", async () => {
+    const onstartrename = vi.fn();
+    render(FileTree, {
+      props: { entries: mixedEntries, selectedPath: "", onselect: vi.fn(), onstartrename },
+    });
+
+    const tree = screen.getByRole("tree");
+    await fireEvent.keyDown(tree, { key: "ArrowDown" }); // focus docs (directory)
+    await fireEvent.keyDown(tree, { key: "F2" });
+
+    expect(onstartrename).not.toHaveBeenCalled();
+  });
+
+  it("F2 does nothing when no file is focused", async () => {
+    const onstartrename = vi.fn();
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), onstartrename },
+    });
+
+    const tree = screen.getByRole("tree");
+    await fireEvent.keyDown(tree, { key: "F2" });
+
+    expect(onstartrename).not.toHaveBeenCalled();
+  });
+});
+
+describe("FileTree inline rename", () => {
+  it("shows rename input when renamingPath matches a file", () => {
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "/readme.md",
+      },
+    });
+
+    expect(screen.getByTestId("rename-input")).toBeInTheDocument();
+  });
+
+  it("does not show rename input when renamingPath does not match", () => {
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "",
+      },
+    });
+
+    expect(screen.queryByTestId("rename-input")).not.toBeInTheDocument();
+  });
+
+  it("calls onconfirmrename on Enter in rename input", async () => {
+    const onconfirmrename = vi.fn();
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "/readme.md",
+        onconfirmrename,
+      },
+    });
+
+    const input = screen.getByTestId("rename-input");
+    await fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onconfirmrename).toHaveBeenCalledWith("/readme.md", "readme.md");
+  });
+
+  it("calls oncancelrename on Escape in rename input", async () => {
+    const oncancelrename = vi.fn();
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "/readme.md",
+        oncancelrename,
+      },
+    });
+
+    const input = screen.getByTestId("rename-input");
+    await fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(oncancelrename).toHaveBeenCalledOnce();
+  });
+
+  it("shows rename error when renameError is set", () => {
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "/readme.md",
+        renameError: "File already exists",
+      },
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("File already exists");
+  });
+
+  it("does not show rename error when renameError is empty", () => {
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "/readme.md",
+        renameError: "",
+      },
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("FileTree context menu", () => {
+  it("shows context menu on right-click of a file item", async () => {
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        onstartrename: vi.fn(),
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/readme.md"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+  });
+
+  it("calls onstartrename when Rename menu item is clicked", async () => {
+    const onstartrename = vi.fn();
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        onstartrename,
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/readme.md"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    const renameBtn = screen.getByText("Rename");
+    await fireEvent.click(renameBtn);
+
+    expect(onstartrename).toHaveBeenCalledWith("/readme.md");
+  });
+
+  it("does not show context menu for directories", async () => {
+    render(FileTree, {
+      props: {
+        entries: mixedEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        onstartrename: vi.fn(),
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/docs"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    expect(screen.queryByText("Rename")).not.toBeInTheDocument();
+  });
+});
+
+describe("FileTree expansion persistence", () => {
+  it("directories start collapsed by default", () => {
+    render(FileTree, {
+      props: { entries: mixedEntries, selectedPath: "", onselect: vi.fn() },
+    });
+
+    // Children of collapsed directory should not be visible
+    expect(screen.queryByText("note.md")).not.toBeInTheDocument();
+  });
+
+  it("restores expansion state from localStorage", () => {
+    localStorage.setItem(
+      "polar-markdown:expanded-paths",
+      JSON.stringify(["/docs"])
+    );
+
+    render(FileTree, {
+      props: { entries: mixedEntries, selectedPath: "", onselect: vi.fn() },
+    });
+
+    // docs was saved as expanded, so its child should be visible
+    expect(screen.getByText("note.md")).toBeInTheDocument();
   });
 });

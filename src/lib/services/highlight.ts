@@ -1,3 +1,26 @@
+// Cache for getComputedStyle results to avoid forced synchronous reflows on every cursor move
+const lineHeightCache = new WeakMap<HTMLElement, { lineHeight: number; paddingTop: number }>();
+
+function getCachedMetrics(codeEl: HTMLElement, preEl: HTMLElement): { lineHeight: number; paddingTop: number } {
+  let cached = lineHeightCache.get(codeEl);
+  if (cached) return cached;
+  const lineHeight = parseFloat(getComputedStyle(codeEl).lineHeight) || 20;
+  const paddingTop = parseFloat(getComputedStyle(preEl).paddingTop) || 0;
+  cached = { lineHeight, paddingTop };
+  lineHeightCache.set(codeEl, cached);
+  return cached;
+}
+
+/**
+ * Invalidate the lineHeightCache — call when htmlContent changes.
+ */
+export function clearLineHeightCache(): void {
+  // WeakMap entries are GC'd when keys are collected, but we can't
+  // iterate/clear a WeakMap. Since the old DOM elements will be GC'd
+  // after htmlContent changes, the cache self-cleans. This function
+  // exists as a no-op hook in case we switch to a Map in the future.
+}
+
 /**
  * Calculate the overlay position for highlighting a line in a code block.
  * Reads lineHeight from the <code> child (which has the actual font metrics),
@@ -23,8 +46,7 @@ export function getCodeBlockLineOverlayPosition(
   // Read lineHeight from <code> child (which has the actual font metrics),
   // NOT from <pre> (which inherits a different line-height from :root).
   const codeEl = pre.querySelector("code") || pre;
-  const lineHeight = parseFloat(getComputedStyle(codeEl).lineHeight) || 20;
-  const paddingTop = parseFloat(getComputedStyle(pre).paddingTop) || 0;
+  const { lineHeight, paddingTop } = getCachedMetrics(codeEl as HTMLElement, pre);
 
   return {
     top: paddingTop + targetLineIdx * lineHeight,
@@ -135,10 +157,16 @@ export function findMatchingBlockElement(
   text: string,
   positionRatio?: number,
   cellIndex?: number,
+  preFilteredBlocks?: HTMLElement[],
 ): HTMLElement | null {
-  const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dd, dt';
-  const allBlocks = Array.from(container.querySelectorAll(blockSelectors));
-  const nonPreBlocks = allBlocks.filter(b => !b.closest('pre'));
+  let nonPreBlocks: Element[];
+  if (preFilteredBlocks) {
+    nonPreBlocks = preFilteredBlocks;
+  } else {
+    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dd, dt';
+    const allBlocks = Array.from(container.querySelectorAll(blockSelectors));
+    nonPreBlocks = allBlocks.filter(b => !b.closest('pre'));
+  }
 
   // First pass: exact substring match in textContent
   const matches: { element: HTMLElement; index: number }[] = [];

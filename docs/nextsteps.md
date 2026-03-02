@@ -1156,7 +1156,7 @@ If a directory is currently focused/selected in the file tree, the new file is c
 
 ## Feature: Rename File
 
-### Status: TODO
+### Status: DONE
 
 ### Problem
 To rename a markdown file, users must leave the app and use a file manager. This breaks the editing flow.

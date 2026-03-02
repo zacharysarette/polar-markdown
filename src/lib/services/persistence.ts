@@ -6,6 +6,7 @@ const DOCS_FOLDER_KEY = "polar-markdown:docs-folder";
 const SORT_MODE_KEY = "polar-markdown:sort-mode";
 const LAYOUT_MODE_KEY = "polar-markdown:layout-mode";
 const OPEN_PANES_KEY = "polar-markdown:open-panes";
+const EXPANDED_PATHS_KEY = "polar-markdown:expanded-paths";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -45,6 +46,20 @@ export function saveOpenPanes(paths: string[]): void {
 
 export function getOpenPanes(): string[] {
   const stored = localStorage.getItem(OPEN_PANES_KEY);
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
+}
+
+export function saveExpandedPaths(paths: string[]): void {
+  localStorage.setItem(EXPANDED_PATHS_KEY, JSON.stringify(paths));
+}
+
+export function getExpandedPaths(): string[] {
+  const stored = localStorage.getItem(EXPANDED_PATHS_KEY);
   if (!stored) return [];
   try {
     return JSON.parse(stored);

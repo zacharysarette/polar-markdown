@@ -2,28 +2,42 @@
   import type { FileEntry } from "../types";
   import FileTreeItem from "./FileTreeItem.svelte";
   import { flattenVisibleEntries } from "../services/tree-utils";
+  import { saveExpandedPaths, getExpandedPaths } from "../services/persistence";
 
   let {
     entries,
     selectedPath = "",
     onselect,
     onfocuschange,
+    renamingPath = "",
+    renameError = "",
+    onstartrename,
+    onconfirmrename,
+    oncancelrename,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
     onselect: (path: string, event?: MouseEvent) => void;
     onfocuschange?: (path: string) => void;
+    renamingPath?: string;
+    renameError?: string;
+    onstartrename?: (path: string) => void;
+    onconfirmrename?: (oldPath: string, newName: string) => void;
+    oncancelrename?: () => void;
   } = $props();
 
   let focusedPath = $state("");
-  let expandedPaths: Set<string> = $state(new Set());
+  let expandedPaths: Set<string> = $state(new Set(getExpandedPaths()));
+  let contextMenu: { x: number; y: number; path: string } | null = $state(null);
 
-  // Initialize expanded paths: top-level directories start expanded
+  // Click-outside dismissal for context menu
   $effect(() => {
-    const topDirs = entries
-      .filter((e) => e.is_directory)
-      .map((e) => e.path);
-    expandedPaths = new Set(topDirs);
+    if (!contextMenu) return;
+    function handleDocumentClick() {
+      contextMenu = null;
+    }
+    document.addEventListener("click", handleDocumentClick);
+    return () => document.removeEventListener("click", handleDocumentClick);
   });
 
   const visiblePaths = $derived(flattenVisibleEntries(entries, expandedPaths));
@@ -50,13 +64,25 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape" && contextMenu) {
+      event.preventDefault();
+      contextMenu = null;
+      return;
+    }
+
     if (visiblePaths.length === 0) return;
 
     const currentIndex = focusedPath
       ? visiblePaths.indexOf(focusedPath)
       : -1;
 
-    if (event.key === "ArrowDown") {
+    if (event.key === "F2" && focusedPath) {
+      event.preventDefault();
+      const entry = findEntryByPath(entries, focusedPath);
+      if (entry && !entry.is_directory) {
+        onstartrename?.(focusedPath);
+      }
+    } else if (event.key === "ArrowDown") {
       event.preventDefault();
       const nextIndex = Math.min(currentIndex + 1, visiblePaths.length - 1);
       focusedPath = visiblePaths[nextIndex];
@@ -89,6 +115,7 @@
       next.add(path);
     }
     expandedPaths = next;
+    saveExpandedPaths([...next]);
   }
 
   function handleToggle(path: string) {
@@ -101,6 +128,17 @@
       focusedPath = selectedPath;
     } else if (visiblePaths.length > 0) {
       focusedPath = visiblePaths[0];
+    }
+  }
+
+  function handleContextMenu(path: string, x: number, y: number) {
+    contextMenu = { x, y, path };
+  }
+
+  function handleContextMenuRename() {
+    if (contextMenu) {
+      onstartrename?.(contextMenu.path);
+      contextMenu = null;
     }
   }
 </script>
@@ -123,6 +161,11 @@
       {onselect}
       ontoggle={handleToggle}
       {expandedPaths}
+      {renamingPath}
+      {renameError}
+      {onconfirmrename}
+      {oncancelrename}
+      oncontextmenu={handleContextMenu}
     />
   {/each}
 
@@ -130,6 +173,18 @@
     <p class="empty">No markdown files found.</p>
   {/if}
 </div>
+
+{#if contextMenu}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div
+    class="context-menu"
+    style="left: {contextMenu.x}px; top: {contextMenu.y}px"
+    onclick={(e) => e.stopPropagation()}
+  >
+    <button class="context-menu-item" onclick={handleContextMenuRename}>Rename</button>
+  </div>
+{/if}
 
 <style>
   .file-tree {
@@ -142,5 +197,34 @@
     color: #565f89;
     font-size: 13px;
     font-style: italic;
+  }
+
+  .context-menu {
+    position: fixed;
+    background: #1e1f2e;
+    border: 1px solid #2f3146;
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 120px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+  }
+
+  .context-menu-item {
+    display: block;
+    width: 100%;
+    padding: 6px 16px;
+    border: none;
+    background: none;
+    color: #c0caf5;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .context-menu-item:hover {
+    background: rgba(122, 162, 247, 0.15);
+    color: #7aa2f7;
   }
 </style>

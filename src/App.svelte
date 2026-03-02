@@ -13,6 +13,7 @@
     pickFolder,
     searchFiles,
     createFile,
+    renameFile,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -50,6 +51,8 @@
   let creatingFile = $state(false);
   let newFileError = $state("");
   let focusedTreePath = $state("");
+  let renamingPath = $state("");
+  let renameError = $state("");
   const recentOwnWrites = new Set<string>();
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
 
@@ -350,6 +353,54 @@
     focusedTreePath = path;
   }
 
+  function handleStartRename(path: string) {
+    renamingPath = path;
+    renameError = "";
+  }
+
+  function handleCancelRename() {
+    renamingPath = "";
+    renameError = "";
+  }
+
+  async function handleConfirmRename(oldPath: string, newName: string) {
+    try {
+      const { new_path: newPath } = await renameFile(oldPath, newName);
+
+      // Clear rename UI
+      renamingPath = "";
+      renameError = "";
+
+      // No-op if same name
+      if (oldPath === newPath) return;
+
+      // Add newPath to recentOwnWrites to prevent watcher re-read
+      recentOwnWrites.add(newPath);
+      setTimeout(() => recentOwnWrites.delete(newPath), 500);
+
+      // Update all pane paths: oldPath → newPath
+      panes = panes.map((p) =>
+        p.path === oldPath ? { ...p, path: newPath } : p
+      );
+      persistPanes();
+
+      // Update last selected path if it was the renamed file
+      if (selectedPath === newPath) {
+        saveLastSelectedPath(newPath);
+      }
+
+      // Update focusedTreePath if it was the renamed file
+      if (focusedTreePath === oldPath) {
+        focusedTreePath = newPath;
+      }
+
+      // Refresh tree in background
+      loadTree();
+    } catch (e: any) {
+      renameError = typeof e === "string" ? e : e?.message || String(e);
+    }
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
@@ -432,25 +483,41 @@
         console.error("Failed to start file watcher:", e);
       }
 
-      // Listen for file changes — update open panes (skip own writes and edit-mode panes)
-      unlistenFn = await listen<string[]>("file-changed", async (event) => {
-        await loadTree();
-        for (const pane of panes) {
-          // Skip panes in edit mode — don't overwrite the user's in-progress edits
-          if (pane.editMode) continue;
-          // Skip paths we just wrote ourselves (feedback loop prevention)
-          if (recentOwnWrites.has(pane.path)) continue;
-          if (event.payload.some((p) => p === pane.path)) {
-            try {
-              const content = await readFileContents(pane.path);
-              panes = panes.map((p) =>
-                p.id === pane.id ? { ...p, content } : p
-              );
-            } catch {
-              // Non-fatal
+      // Listen for file changes — batch events at 300ms to prevent flooding
+      let pendingChangedPaths = new Set<string>();
+      let watcherBatchTimer: ReturnType<typeof setTimeout> | undefined;
+
+      unlistenFn = await listen<string[]>("file-changed", (event) => {
+        for (const p of event.payload) {
+          pendingChangedPaths.add(p);
+        }
+        if (watcherBatchTimer) clearTimeout(watcherBatchTimer);
+        watcherBatchTimer = setTimeout(async () => {
+          const changedPaths = new Set(pendingChangedPaths);
+          pendingChangedPaths.clear();
+
+          // If ALL changed paths are our own recent writes, skip tree reload entirely
+          const allOwnWrites = [...changedPaths].every((p) => recentOwnWrites.has(p));
+          if (!allOwnWrites) {
+            await loadTree();
+          }
+
+          // Reload affected panes (skip edit-mode and own-write panes)
+          for (const pane of panes) {
+            if (pane.editMode) continue;
+            if (recentOwnWrites.has(pane.path)) continue;
+            if (changedPaths.has(pane.path)) {
+              try {
+                const content = await readFileContents(pane.path);
+                panes = panes.map((p) =>
+                  p.id === pane.id ? { ...p, content } : p
+                );
+              } catch {
+                // Non-fatal
+              }
             }
           }
-        }
+        }, 300);
       });
     })();
 
@@ -462,7 +529,7 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} {creatingFile} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} {newFileError} onfocuschange={handleFocusChange} />
+  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} {creatingFile} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} {newFileError} onfocuschange={handleFocusChange} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} />
   <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} {highlightText} {highlightKey} />
 </div>
 

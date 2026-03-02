@@ -28,6 +28,11 @@
     oncancelcreate,
     newFileError = "",
     onfocuschange,
+    renamingPath = "",
+    renameError = "",
+    onstartrename,
+    onconfirmrename,
+    oncancelrename,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -51,6 +56,11 @@
     oncancelcreate?: () => void;
     newFileError?: string;
     onfocuschange?: (path: string) => void;
+    renamingPath?: string;
+    renameError?: string;
+    onstartrename?: (path: string) => void;
+    onconfirmrename?: (oldPath: string, newName: string) => void;
+    oncancelrename?: () => void;
   } = $props();
 
   const sortLabels: Record<SortMode, string> = {
@@ -186,7 +196,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <nav class="sidebar-content" onclick={handleNavClick}>
-      <FileTree {entries} {selectedPath} {onselect} {onfocuschange} />
+      <FileTree {entries} {selectedPath} {onselect} {onfocuschange} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} />
     </nav>
   {/if}
 </aside>

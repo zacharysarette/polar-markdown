@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 
@@ -149,5 +149,26 @@ describe("createFile", () => {
     mockInvoke.mockRejectedValue(new Error("File already exists"));
 
     await expect(createFile("/docs", "existing.md")).rejects.toThrow("File already exists");
+  });
+});
+
+describe("renameFile", () => {
+  it("calls invoke with correct command, oldPath and newName", async () => {
+    const mockResult = { old_path: "/docs/old.md", new_path: "/docs/new.md" };
+    mockInvoke.mockResolvedValue(mockResult);
+
+    const result = await renameFile("/docs/old.md", "new.md");
+
+    expect(mockInvoke).toHaveBeenCalledWith("rename_file", {
+      oldPath: "/docs/old.md",
+      newName: "new.md",
+    });
+    expect(result).toEqual(mockResult);
+  });
+
+  it("propagates errors from invoke", async () => {
+    mockInvoke.mockRejectedValue(new Error("Source file does not exist"));
+
+    await expect(renameFile("/docs/missing.md", "new.md")).rejects.toThrow("Source file does not exist");
   });
 });

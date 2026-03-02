@@ -18,7 +18,9 @@
   } = $props();
 
   let editContent = $state(content);
+  let previewContent = $state(content);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let previewDebounce: ReturnType<typeof setTimeout> | undefined;
   let activeLineDebounce: ReturnType<typeof setTimeout> | undefined;
   let activeLineText = $state("");
   let activeLineNumber = $state(1);
@@ -70,22 +72,33 @@
     };
   });
 
-  // When the file changes (navigation), sync editContent from the new prop value
+  // When the file changes (navigation), sync editContent and previewContent from the new prop value
   $effect(() => {
     filePath;
     editContent = content;
+    previewContent = content;
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = undefined;
+    }
+    if (previewDebounce) {
+      clearTimeout(previewDebounce);
+      previewDebounce = undefined;
     }
   });
 
   function handleEdit(newContent: string) {
     editContent = newContent;
+    // Debounce preview update at 300ms to avoid re-rendering markdown/diagrams on every keystroke
+    if (previewDebounce) clearTimeout(previewDebounce);
+    previewDebounce = setTimeout(() => {
+      previewContent = editContent;
+    }, 300);
+    // Debounce auto-save at 2000ms to reduce disk writes and watcher events
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       onsave?.(filePath, editContent);
-    }, 1000);
+    }, 2000);
   }
 
   function handleKeyDown(event: KeyboardEvent) {
@@ -103,7 +116,7 @@
       activeLineNumber = lineNumber;
       activeTotalLines = totalLines;
       activeColumn = column;
-    }, 50);
+    }, 150);
   }
 
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");
@@ -125,7 +138,7 @@
       <span class="preview-label">Preview</span>
       <span class="preview-file" title={filePath}>{fileName}</span>
     </header>
-    <MarkdownViewer content={editContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} />
+    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} />
   </div>
 </div>
 

@@ -28,6 +28,12 @@ pub struct CreateFileResult {
     pub content: String,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct RenameFileResult {
+    pub old_path: String,
+    pub new_path: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,6 +83,17 @@ mod tests {
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("\"path\":\"/docs/test.md\""));
         assert!(json.contains("\"content\":\"# Test\\n\\n\""));
+    }
+
+    #[test]
+    fn test_rename_file_result_serializes_to_json() {
+        let result = RenameFileResult {
+            old_path: "/docs/old.md".into(),
+            new_path: "/docs/new.md".into(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"old_path\":\"/docs/old.md\""));
+        assert!(json.contains("\"new_path\":\"/docs/new.md\""));
     }
 
     #[test]

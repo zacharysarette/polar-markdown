@@ -272,6 +272,24 @@ describe("Sidebar", () => {
     expect(oncreatenewfile).toHaveBeenCalledWith("untitled.md");
   });
 
+  it("passes renamingPath through to FileTree", () => {
+    const entries = [
+      { name: "test.md", path: "/docs/test.md", is_directory: false, children: [] },
+    ];
+
+    render(Sidebar, {
+      props: {
+        entries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        renamingPath: "/docs/test.md",
+      },
+    });
+
+    // The rename input should appear because renamingPath matches the file
+    expect(screen.getByTestId("rename-input")).toBeInTheDocument();
+  });
+
   it("shows search results instead of file tree when searchMode is active with a query", () => {
     const searchResults = [
       { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },

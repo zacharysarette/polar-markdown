@@ -10,6 +10,8 @@ import {
   getLayoutMode,
   saveOpenPanes,
   getOpenPanes,
+  saveExpandedPaths,
+  getExpandedPaths,
 } from "./persistence";
 
 const STORAGE_KEY = "polar-markdown:last-selected-path";
@@ -108,5 +110,27 @@ describe("saveOpenPanes / getOpenPanes", () => {
 
   it("returns empty array when nothing stored", () => {
     expect(getOpenPanes()).toEqual([]);
+  });
+});
+
+describe("saveExpandedPaths / getExpandedPaths", () => {
+  it("round-trips an array of expanded paths", () => {
+    saveExpandedPaths(["/docs", "/notes"]);
+    expect(getExpandedPaths()).toEqual(["/docs", "/notes"]);
+  });
+
+  it("returns empty array when nothing stored", () => {
+    expect(getExpandedPaths()).toEqual([]);
+  });
+
+  it("overwrites previously saved paths", () => {
+    saveExpandedPaths(["/docs"]);
+    saveExpandedPaths(["/notes", "/archive"]);
+    expect(getExpandedPaths()).toEqual(["/notes", "/archive"]);
+  });
+
+  it("returns empty array for corrupt JSON", () => {
+    localStorage.setItem("polar-markdown:expanded-paths", "not-json");
+    expect(getExpandedPaths()).toEqual([]);
   });
 });

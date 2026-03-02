@@ -66,6 +66,18 @@ You can create new markdown files directly from within Polar Markdown:
 
 If the filename already exists, a red error message appears below the input — fix the name and try again.
 
+### Renaming Files
+
+You can rename markdown files directly from the sidebar:
+
+- **F2** — press while a file is focused in the tree to start renaming
+- **Right-click** a file — a context menu appears with a "Rename" option
+- The filename turns into an editable input with the name selected (before `.md`)
+- Type the new name and press **Enter** to confirm, or **Escape** to cancel
+- The `.md` extension is added automatically if you omit it
+- If a file with that name already exists, a red error message appears inline — fix the name and try again
+- All open panes showing the renamed file update automatically
+
 ### Multi-File Viewing
 
 You can view multiple files side by side in split panes:
@@ -188,6 +200,7 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 | **Up/Down Arrow** | Navigate file tree (auto-selects files) |
 | **Enter** | Expand/collapse focused directory |
 | **Tab** | Move focus between sidebar and content |
+| **F2** | Rename focused file |
 | **Ctrl+N** | Create a new markdown file |
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+S** | Save immediately (in edit mode) |

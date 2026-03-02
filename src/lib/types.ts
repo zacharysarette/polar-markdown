@@ -21,6 +21,11 @@ export interface CreateFileResult {
   content: string;
 }
 
+export interface RenameFileResult {
+  old_path: string;
+  new_path: string;
+}
+
 export interface SearchMatch {
   line_number: number;
   line_content: string;

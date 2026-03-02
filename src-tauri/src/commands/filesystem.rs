@@ -1,4 +1,4 @@
-use crate::models::{CreateFileResult, FileEntry, SearchMatch, SearchResult};
+use crate::models::{CreateFileResult, FileEntry, RenameFileResult, SearchMatch, SearchResult};
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
@@ -191,6 +191,58 @@ pub fn create_file(directory: String, filename: String) -> Result<CreateFileResu
     Ok(CreateFileResult {
         path: file_path.to_string_lossy().to_string(),
         content,
+    })
+}
+
+/// Renames a markdown file. Takes the full old path and a new filename (not path).
+/// Auto-appends .md if missing. Validates like create_file.
+/// No-op if renaming to the same name. Refuses if target already exists.
+#[tauri::command]
+pub fn rename_file(old_path: String, new_name: String) -> Result<RenameFileResult, String> {
+    let new_name = new_name.trim().to_string();
+
+    if new_name.is_empty() {
+        return Err("Filename cannot be empty".into());
+    }
+
+    if new_name.contains('/') || new_name.contains('\\') || new_name.contains("..") {
+        return Err("Filename cannot contain path separators".into());
+    }
+
+    let new_name = if new_name.ends_with(".md") {
+        new_name
+    } else {
+        format!("{}.md", new_name)
+    };
+
+    let old = Path::new(&old_path);
+    if !old.exists() {
+        return Err(format!("Source file does not exist: {}", old_path));
+    }
+
+    let parent = old.parent()
+        .ok_or_else(|| "Cannot determine parent directory".to_string())?;
+
+    let new_path = parent.join(&new_name);
+
+    // No-op if renaming to the same name
+    if old == new_path {
+        return Ok(RenameFileResult {
+            old_path: old_path.clone(),
+            new_path: old_path,
+        });
+    }
+
+    if new_path.exists() {
+        return Err(format!("File already exists: {}", new_name));
+    }
+
+    fs::rename(&old, &new_path)
+        .map_err(|e| format!("Failed to rename file: {}", e))?;
+
+    Ok(RenameFileResult {
+        old_path,
+        new_path: new_path.to_string_lossy().to_string(),
     })
 }
 
@@ -537,6 +589,129 @@ mod tests {
         let result = create_file("/nonexistent/dir".into(), "test.md".into());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    // rename_file tests
+
+    #[test]
+    fn test_rename_file_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "# Old").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "new.md".into());
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.new_path.ends_with("new.md"));
+        assert!(!old.exists());
+        assert!(dir.path().join("new.md").exists());
+    }
+
+    #[test]
+    fn test_rename_file_preserves_content() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "# Important Content\n\nSome text here.").unwrap();
+
+        rename_file(old.to_string_lossy().to_string(), "new.md".into()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("new.md")).unwrap();
+        assert_eq!(content, "# Important Content\n\nSome text here.");
+    }
+
+    #[test]
+    fn test_rename_file_auto_appends_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "new".into()).unwrap();
+        assert!(result.new_path.ends_with("new.md"));
+        assert!(dir.path().join("new.md").exists());
+    }
+
+    #[test]
+    fn test_rename_file_no_double_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "new.md".into()).unwrap();
+        assert!(result.new_path.ends_with("new.md"));
+        assert!(!dir.path().join("new.md.md").exists());
+    }
+
+    #[test]
+    fn test_rename_file_reject_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+    }
+
+    #[test]
+    fn test_rename_file_reject_path_separators() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "../evil.md".into());
+        assert!(result.is_err());
+
+        let result = rename_file(old.to_string_lossy().to_string(), "sub/file.md".into());
+        assert!(result.is_err());
+
+        let result = rename_file(old.to_string_lossy().to_string(), "sub\\file.md".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rename_file_nonexistent_source() {
+        let result = rename_file("/nonexistent/old.md".into(), "new.md".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_rename_file_existing_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        let target = dir.path().join("existing.md");
+        fs::write(&old, "old content").unwrap();
+        fs::write(&target, "existing content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "existing.md".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+    }
+
+    #[test]
+    fn test_rename_file_same_name_noop() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("same.md");
+        fs::write(&old, "content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "same.md".into());
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.old_path, result.new_path);
+        assert!(old.exists());
+    }
+
+    #[test]
+    fn test_rename_file_returns_full_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.md");
+        fs::write(&old, "content").unwrap();
+
+        let result = rename_file(old.to_string_lossy().to_string(), "new.md".into()).unwrap();
+        assert!(result.old_path.contains(&dir.path().to_string_lossy().to_string()));
+        assert!(result.new_path.contains(&dir.path().to_string_lossy().to_string()));
+        assert!(result.old_path.ends_with("old.md"));
+        assert!(result.new_path.ends_with("new.md"));
     }
 
     #[test]
