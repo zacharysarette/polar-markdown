@@ -14,6 +14,8 @@
     searchFiles,
     createFile,
     renameFile,
+    deleteFile,
+    confirmDelete,
     getInitialFile,
   } from "./lib/services/filesystem";
   import {
@@ -425,6 +427,45 @@
     }
   }
 
+  async function handleDeleteFile(path: string) {
+    // Extract filename from path
+    const sep = path.includes("\\") ? "\\" : "/";
+    const parts = path.split(sep);
+    const filename = parts[parts.length - 1];
+
+    // Confirm with user via native dialog
+    const confirmed = await confirmDelete(filename);
+    if (!confirmed) return;
+
+    try {
+      // Prevent watcher double-refresh
+      recentOwnWrites.add(path);
+
+      await deleteFile(path);
+
+      // Close any panes showing this file
+      const wasActive = panes.find((p) => p.id === activePaneId)?.path === path;
+      panes = panes.filter((p) => p.path !== path);
+      if (wasActive) {
+        activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+      }
+      persistPanes();
+
+      // Refresh tree
+      await loadTree();
+
+      // Clear focused path if it was the deleted file
+      if (focusedTreePath === path) {
+        focusedTreePath = "";
+      }
+
+      setTimeout(() => recentOwnWrites.delete(path), 500);
+    } catch (e) {
+      console.error("Failed to delete file:", e);
+      recentOwnWrites.delete(path);
+    }
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
@@ -566,7 +607,7 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} {creatingFile} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} {newFileError} onfocuschange={handleFocusChange} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} />
+  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} {creatingFile} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} {newFileError} onfocuschange={handleFocusChange} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} />
   <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} {highlightText} {highlightKey} />
 </div>
 

@@ -4,7 +4,7 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`polarmd file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
-### Current Test Count: 309 frontend (13 test files) + 49 Rust = 358 total
+### Current Test Count: 312 frontend (13 test files) + 53 Rust = 365 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs` (InitialFileState, extract_file_arg, single-instance plugin), `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -1187,6 +1187,32 @@ New command: `rename_file(old_path: String, new_name: String) -> Result<String, 
 
 ---
 
+## Feature: Delete File
+
+### Status: DONE
+
+### Problem
+Users must leave the app to delete files via File Explorer, breaking the workflow. Delete is the most obvious CRUD gap — Create, Rename, and Open exist but not Delete.
+
+### Solution
+- **Delete key** while a file is focused in the tree triggers deletion
+- **Right-click context menu** includes a "Delete" option (red hover styling for visual warning)
+- **Native OS confirmation dialog** via `tauri-plugin-dialog` `ask()` before deletion
+- Rust `delete_file` command validates: file exists, is a file (not directory), is `.md`, no path traversal
+- After deletion: close all panes showing the file, refresh tree, clear focused path if needed
+- `recentOwnWrites` prevents watcher double-refresh
+
+### Files Changed
+- `src-tauri/src/commands/filesystem.rs` — `delete_file` command + 4 tests
+- `src-tauri/src/lib.rs` — registered in invoke_handler
+- `src/lib/services/filesystem.ts` — `deleteFile()` + `confirmDelete()` wrappers
+- `src/lib/services/filesystem.test.ts` — 3 tests (deleteFile x2, confirmDelete x1)
+- `src/App.svelte` — `handleDeleteFile` orchestration, `ondelete` prop to Sidebar
+- `src/lib/components/FileTree.svelte` — Delete key handler, context menu "Delete" item, `ondelete` prop
+- `src/lib/components/Sidebar.svelte` — pass-through `ondelete` prop
+
+---
+
 ## Feature: Save As
 
 ### Status: TODO
@@ -1710,12 +1736,13 @@ These features build on each other. Recommended sequence:
 11. ~~**New File**~~ — DONE (Ctrl+N, + button, inline input, auto .md, title template, opens in edit mode)
 12. ~~**Rename File**~~ — DONE (F2, right-click context menu, inline input, auto .md, updates open panes)
 13. ~~**Open Files from OS & CLI**~~ — DONE (file associations, `polarmd file.md` CLI, single-instance, NSIS PATH registration)
-14. **Save As** — save a copy of the current file to a new location/name
-15. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-16. **Line Numbers Toggle** — nice-to-have viewer enhancement
-17. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-18. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-19. **MCP Server** — depends on write command + validation + search being built first
+14. ~~**Delete File**~~ — DONE (Delete key, right-click menu, native confirm dialog, closes affected panes)
+15. **Save As** — save a copy of the current file to a new location/name
+16. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+17. **Line Numbers Toggle** — nice-to-have viewer enhancement
+18. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+19. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+20. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 
@@ -1738,7 +1765,6 @@ Each feature is independently shippable and testable. Build, test, and verify af
 - **Markdown toolbar** — bold, italic, heading, link, image buttons above editor for quick formatting
 - **Vim/Emacs keybindings** — CodeMirror 6 has extensions for these
 - **CLI linting script** — `npm run lint:mermaid -- docs/` for CI pipelines, validates all mermaid in all markdown files
-- **Delete file** — delete files from within the app (with confirmation dialog)
 - **Drag-and-drop file reordering** — move files between folders via drag
 - **Image paste/drop** — paste images from clipboard or drag into editor, auto-save to disk
 - **Markdown templates** — new file creation offers template choices (meeting notes, project plan, etc.)

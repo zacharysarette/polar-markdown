@@ -14,6 +14,7 @@
     onstartrename,
     onconfirmrename,
     oncancelrename,
+    ondelete,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -24,6 +25,7 @@
     onstartrename?: (path: string) => void;
     onconfirmrename?: (oldPath: string, newName: string) => void;
     oncancelrename?: () => void;
+    ondelete?: (path: string) => void;
   } = $props();
 
   let focusedPath = $state("");
@@ -76,7 +78,13 @@
       ? visiblePaths.indexOf(focusedPath)
       : -1;
 
-    if (event.key === "F2" && focusedPath) {
+    if (event.key === "Delete" && focusedPath) {
+      event.preventDefault();
+      const entry = findEntryByPath(entries, focusedPath);
+      if (entry && !entry.is_directory) {
+        ondelete?.(focusedPath);
+      }
+    } else if (event.key === "F2" && focusedPath) {
       event.preventDefault();
       const entry = findEntryByPath(entries, focusedPath);
       if (entry && !entry.is_directory) {
@@ -141,6 +149,13 @@
       contextMenu = null;
     }
   }
+
+  function handleContextMenuDelete() {
+    if (contextMenu) {
+      ondelete?.(contextMenu.path);
+      contextMenu = null;
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -183,6 +198,7 @@
     onclick={(e) => e.stopPropagation()}
   >
     <button class="context-menu-item" onclick={handleContextMenuRename}>Rename</button>
+    <button class="context-menu-item delete" onclick={handleContextMenuDelete}>Delete</button>
   </div>
 {/if}
 
@@ -226,5 +242,10 @@
   .context-menu-item:hover {
     background: rgba(122, 162, 247, 0.15);
     color: #7aa2f7;
+  }
+
+  .context-menu-item.delete:hover {
+    background: rgba(247, 118, 142, 0.15);
+    color: #f7768e;
   }
 </style>

@@ -78,6 +78,7 @@ pub fn run() {
             commands::filesystem::search_files,
             commands::filesystem::create_file,
             commands::filesystem::rename_file,
+            commands::filesystem::delete_file,
             commands::filesystem::get_initial_file,
             commands::watcher::start_watching,
             commands::diagram::render_ascii_diagram,

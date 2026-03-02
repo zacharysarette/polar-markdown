@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
 import type { CreateFileResult, FileEntry, RenameFileResult, SearchResult } from "../types";
 
 export async function readDirectoryTree(path: string): Promise<FileEntry[]> {
@@ -44,6 +44,17 @@ export async function renameFile(oldPath: string, newName: string): Promise<Rena
 
 export async function getInitialFile(): Promise<string | null> {
   return invoke<string | null>("get_initial_file");
+}
+
+export async function deleteFile(path: string): Promise<void> {
+  return invoke<void>("delete_file", { path });
+}
+
+export async function confirmDelete(filename: string): Promise<boolean> {
+  return ask(`Are you sure you want to delete "${filename}"? This cannot be undone.`, {
+    title: "Delete File",
+    kind: "warning",
+  });
 }
 
 export async function pickFolder(): Promise<string | null> {

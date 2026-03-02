@@ -18,7 +18,9 @@ set -euo pipefail
 #   - Linux: webkit2gtk, libappindicator, librsvg, patchelf (see README)
 #
 # WHAT IT DOES (in order):
-#   1. Switch to master and pull latest
+#   1. If on a feature branch: check status, commit, push, create GitHub PR,
+#      merge via gh, switch to master and pull
+#      If already on master: pull latest
 #   2. Calculate new version (or use explicit)
 #   3. Update version in package.json, tauri.conf.json, Cargo.toml
 #   4. Run tests (vitest, cargo test, svelte-check)
@@ -42,12 +44,52 @@ BUNDLE_DIR="src-tauri/target/release/bundle"
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
-# --- Step 1: Switch to master and pull latest ---
+# --- Step 1: Merge feature branch (if any) into master via GitHub PR ---
 echo ""
-echo "[1/7] Switching to master and pulling latest..."
-git checkout master
-git fetch origin
-git pull origin master
+echo "[1/7] Preparing master branch..."
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "${CURRENT_BRANCH}" != "master" ] && [ "${CURRENT_BRANCH}" != "main" ]; then
+    echo "  On feature branch: ${CURRENT_BRANCH}"
+
+    # Check git status for uncommitted changes
+    echo "  Checking for uncommitted changes..."
+    git status --short
+
+    if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+        echo "  Committing uncommitted changes..."
+        git add -A
+        git commit -m "feat: ${CURRENT_BRANCH}"
+    fi
+
+    # Push feature branch
+    echo "  Pushing feature branch..."
+    git push -u origin "${CURRENT_BRANCH}" 2>/dev/null || git push origin "${CURRENT_BRANCH}"
+
+    # Create PR and merge via GitHub
+    echo "  Creating PR on GitHub..."
+    PR_URL=$(gh pr create --base master --head "${CURRENT_BRANCH}" --title "${CURRENT_BRANCH}" --body "Automated release PR" --fill 2>/dev/null) || \
+        PR_URL=$(gh pr view "${CURRENT_BRANCH}" --json url --jq .url 2>/dev/null)
+    echo "  PR: ${PR_URL}"
+
+    echo "  Merging PR via GitHub..."
+    if ! gh pr merge "${CURRENT_BRANCH}" --merge --delete-branch; then
+        echo "Failed to merge PR. Check GitHub for details."
+        exit 1
+    fi
+
+    # Switch to master and pull merged changes
+    echo "  Switching to master and pulling..."
+    git checkout master
+    git pull origin master
+    # Clean up local feature branch if it still exists
+    git branch -d "${CURRENT_BRANCH}" 2>/dev/null || true
+else
+    echo "  Already on master."
+    git fetch origin
+    git pull origin master
+fi
 
 # --- Step 2: Calculate version ---
 echo ""

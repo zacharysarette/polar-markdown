@@ -17,7 +17,9 @@ setlocal enabledelayedexpansion
 ::   - Working directory is the repo root
 ::
 :: WHAT IT DOES (in order):
-::   1. Switch to master and pull latest
+::   1. If on a feature branch: check status, commit, push, create GitHub PR,
+::      merge via gh, switch to master and pull
+::      If already on master: pull latest
 ::   2. Calculate new version (or use explicit)
 ::   3. Update version in package.json, tauri.conf.json, Cargo.toml
 ::   4. Run tests (vitest, cargo test, svelte-check)
@@ -38,20 +40,77 @@ if "%~1"=="" (
 
 set BUMP=%~1
 
-:: --- Step 0: Switch to master and pull latest ---
+:: --- Step 0: Merge feature branch (if any) into master via GitHub PR ---
 echo.
-echo [1/7] Switching to master and pulling latest...
-git checkout master
+echo [1/7] Preparing master branch...
+
+for /f "delims=" %%B in ('git rev-parse --abbrev-ref HEAD') do set CURRENT_BRANCH=%%B
+
+if "!CURRENT_BRANCH!"=="master" goto :on_master
+if "!CURRENT_BRANCH!"=="main" goto :on_master
+
+echo   On feature branch: !CURRENT_BRANCH!
+
+:: Check git status for uncommitted changes
+echo   Checking for uncommitted changes...
+git status --short
+git diff --quiet 2>nul
+set HAS_UNSTAGED=%errorlevel%
+git diff --cached --quiet 2>nul
+set HAS_STAGED=%errorlevel%
+for /f %%U in ('git ls-files --others --exclude-standard') do set HAS_UNTRACKED=1
+if not defined HAS_UNTRACKED set HAS_UNTRACKED=0
+
+if !HAS_UNSTAGED! neq 0 goto :do_commit
+if !HAS_STAGED! neq 0 goto :do_commit
+if !HAS_UNTRACKED! neq 0 goto :do_commit
+goto :skip_commit
+
+:do_commit
+echo   Committing uncommitted changes...
+git add -A
+git commit -m "feat: !CURRENT_BRANCH!"
+
+:skip_commit
+:: Push feature branch
+echo   Pushing feature branch...
+git push -u origin "!CURRENT_BRANCH!" 2>nul
+if errorlevel 1 git push origin "!CURRENT_BRANCH!"
+
+:: Create PR and merge via GitHub
+echo   Creating PR on GitHub...
+for /f "delims=" %%P in ('gh pr create --base master --head "!CURRENT_BRANCH!" --title "!CURRENT_BRANCH!" --body "Automated release PR" --fill 2^>nul') do set PR_URL=%%P
 if errorlevel 1 (
-    echo Failed to checkout master.
+    :: PR may already exist — try to find it
+    for /f "delims=" %%P in ('gh pr view "!CURRENT_BRANCH!" --json url --jq .url 2^>nul') do set PR_URL=%%P
+)
+echo   PR: !PR_URL!
+
+echo   Merging PR via GitHub...
+gh pr merge "!CURRENT_BRANCH!" --merge --delete-branch
+if errorlevel 1 (
+    echo Failed to merge PR. Check GitHub for details.
     exit /b 1
 )
+
+:: Switch to master and pull merged changes
+echo   Switching to master and pulling...
+git checkout master
+git pull origin master
+:: Clean up local feature branch if it still exists
+git branch -d "!CURRENT_BRANCH!" 2>nul
+goto :after_master
+
+:on_master
+echo   Already on master.
 git fetch origin
 git pull origin master
 if errorlevel 1 (
     echo Failed to pull latest master.
     exit /b 1
 )
+
+:after_master
 
 :: --- Step 1: Read current version and calculate new version ---
 echo.

@@ -246,6 +246,25 @@ pub fn rename_file(old_path: String, new_name: String) -> Result<RenameFileResul
     })
 }
 
+/// Deletes a markdown file. Validates existence, type, and extension before removing.
+#[tauri::command]
+pub fn delete_file(path: String) -> Result<(), String> {
+    let file = Path::new(&path);
+    if !file.exists() {
+        return Err(format!("File does not exist: {}", path));
+    }
+    if !file.is_file() {
+        return Err("Can only delete files, not directories".into());
+    }
+    if !path.to_lowercase().ends_with(".md") {
+        return Err("Can only delete markdown (.md) files".into());
+    }
+    if path.contains("..") {
+        return Err("Invalid file path".into());
+    }
+    fs::remove_file(file).map_err(|e| format!("Failed to delete file: {}", e))
+}
+
 /// Returns the file path passed via CLI args (if any), consuming it so subsequent calls return None.
 #[tauri::command]
 pub fn get_initial_file(state: tauri::State<'_, crate::InitialFileState>) -> Option<String> {
@@ -718,6 +737,49 @@ mod tests {
         assert!(result.new_path.contains(&dir.path().to_string_lossy().to_string()));
         assert!(result.old_path.ends_with("old.md"));
         assert!(result.new_path.ends_with("new.md"));
+    }
+
+    // delete_file tests
+
+    #[test]
+    fn test_delete_file_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("to-delete.md");
+        fs::write(&file_path, "# Delete me").unwrap();
+        assert!(file_path.exists());
+
+        let result = delete_file(file_path.to_string_lossy().to_string());
+        assert!(result.is_ok());
+        assert!(!file_path.exists());
+    }
+
+    #[test]
+    fn test_delete_file_nonexistent() {
+        let result = delete_file("/nonexistent/file.md".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_delete_file_rejects_non_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("readme.txt");
+        fs::write(&file_path, "hello").unwrap();
+
+        let result = delete_file(file_path.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("markdown"));
+    }
+
+    #[test]
+    fn test_delete_file_rejects_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("subdir.md");
+        fs::create_dir(&sub).unwrap();
+
+        let result = delete_file(sub.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not directories"));
     }
 
     #[test]

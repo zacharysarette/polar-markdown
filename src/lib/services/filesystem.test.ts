@@ -8,19 +8,22 @@ vi.mock("@tauri-apps/api/core", () => ({
 // Mock @tauri-apps/plugin-dialog
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
+  ask: vi.fn(),
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile } from "./filesystem";
+import { ask, open } from "@tauri-apps/plugin-dialog";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, confirmDelete } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
+const mockAsk = vi.mocked(ask);
 
 const mockInvoke = vi.mocked(invoke);
 
 beforeEach(() => {
   mockInvoke.mockReset();
   mockOpen.mockReset();
+  mockAsk.mockReset();
 });
 
 describe("readDirectoryTree", () => {
@@ -189,5 +192,37 @@ describe("renameFile", () => {
     mockInvoke.mockRejectedValue(new Error("Source file does not exist"));
 
     await expect(renameFile("/docs/missing.md", "new.md")).rejects.toThrow("Source file does not exist");
+  });
+});
+
+describe("deleteFile", () => {
+  it("calls invoke with correct command and path", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+
+    await deleteFile("/docs/old-note.md");
+
+    expect(mockInvoke).toHaveBeenCalledWith("delete_file", {
+      path: "/docs/old-note.md",
+    });
+  });
+
+  it("propagates errors from invoke", async () => {
+    mockInvoke.mockRejectedValue(new Error("File does not exist"));
+
+    await expect(deleteFile("/docs/missing.md")).rejects.toThrow("File does not exist");
+  });
+});
+
+describe("confirmDelete", () => {
+  it("calls ask with correct message and options", async () => {
+    mockAsk.mockResolvedValue(true);
+
+    const result = await confirmDelete("notes.md");
+
+    expect(mockAsk).toHaveBeenCalledWith(
+      'Are you sure you want to delete "notes.md"? This cannot be undone.',
+      { title: "Delete File", kind: "warning" }
+    );
+    expect(result).toBe(true);
   });
 });

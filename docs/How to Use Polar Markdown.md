@@ -90,6 +90,15 @@ You can rename markdown files directly from the sidebar:
 - If a file with that name already exists, a red error message appears inline — fix the name and try again
 - All open panes showing the renamed file update automatically
 
+### Deleting Files
+
+You can delete markdown files directly from the sidebar:
+
+- **Delete key** — press while a file is focused in the tree to delete it
+- **Right-click** a file — a context menu appears with a "Delete" option
+- A native OS confirmation dialog asks you to confirm before the file is removed
+- Any open panes showing the deleted file are automatically closed
+
 ### Multi-File Viewing
 
 You can view multiple files side by side in split panes:
@@ -213,6 +222,7 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 | **Enter** | Expand/collapse focused directory |
 | **Tab** | Move focus between sidebar and content |
 | **F2** | Rename focused file |
+| **Delete** | Delete focused file (with confirmation) |
 | **Ctrl+N** | Create a new markdown file |
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+S** | Save immediately (in edit mode) |
