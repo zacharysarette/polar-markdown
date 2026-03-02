@@ -14,6 +14,7 @@
     searchFiles,
     createFile,
     renameFile,
+    getInitialFile,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -211,6 +212,29 @@
     // Restart file watcher on the new folder
     try {
       await startWatching(docsPath);
+    } catch (e) {
+      console.error("Failed to start file watcher:", e);
+    }
+  }
+
+  async function openFileFromOS(filePath: string) {
+    // Extract parent directory from the file path
+    const sep = filePath.includes("\\") ? "\\" : "/";
+    const parts = filePath.split(sep);
+    parts.pop();
+    const parentDir = parts.join(sep);
+
+    // Set docs path to the parent directory
+    docsPath = parentDir;
+    saveDocsFolder(parentDir);
+    await loadTree();
+
+    // Open the file in the active pane
+    await openInActivePane(filePath);
+
+    // Start watcher on the new directory
+    try {
+      await startWatching(parentDir);
     } catch (e) {
       console.error("Failed to start file watcher:", e);
     }
@@ -428,66 +452,78 @@
   }
 
   onMount(() => {
-    let unlistenFn: (() => void) | undefined;
+    let unlistenFileChanged: (() => void) | undefined;
+    let unlistenOpenFile: (() => void) | undefined;
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
 
     (async () => {
-      // Check for a saved folder first, then fall back to Rust backend default
-      const savedFolder = getDocsFolder();
-      if (savedFolder) {
-        docsPath = savedFolder;
+      // Check if a file was passed via CLI args or OS file association
+      const initialFile = await getInitialFile();
+      if (initialFile) {
+        await openFileFromOS(initialFile);
       } else {
-        try {
-          docsPath = await getDocsPath();
-        } catch (e) {
-          console.error("Failed to get docs path:", e);
-          return;
-        }
-      }
-
-      await loadTree();
-
-      // Restore saved panes, or fall back to last selected file, or auto-select first
-      const savedPanes = getOpenPanes();
-      const validPanes = savedPanes.filter((p) => findEntryByPath(sortedTree, p));
-
-      if (validPanes.length > 0) {
-        for (const path of validPanes) {
-          try {
-            const content = await readFileContents(path);
-            const id = createPaneId();
-            panes = [...panes, { id, path, content }];
-            activePaneId = id; // Last one becomes active
-          } catch {
-            // Skip files that can't be read
-          }
-        }
-      } else {
-        const lastPath = getLastSelectedPath();
-        if (lastPath && findEntryByPath(sortedTree, lastPath)) {
-          await openInActivePane(lastPath);
+        // Normal startup: check for a saved folder, then fall back to Rust backend default
+        const savedFolder = getDocsFolder();
+        if (savedFolder) {
+          docsPath = savedFolder;
         } else {
-          const firstFile = findFirstFile(sortedTree);
-          if (firstFile) {
-            await openInActivePane(firstFile.path);
+          try {
+            docsPath = await getDocsPath();
+          } catch (e) {
+            console.error("Failed to get docs path:", e);
+            return;
           }
+        }
+
+        await loadTree();
+
+        // Restore saved panes, or fall back to last selected file, or auto-select first
+        const savedPanes = getOpenPanes();
+        const validPanes = savedPanes.filter((p) => findEntryByPath(sortedTree, p));
+
+        if (validPanes.length > 0) {
+          for (const path of validPanes) {
+            try {
+              const content = await readFileContents(path);
+              const id = createPaneId();
+              panes = [...panes, { id, path, content }];
+              activePaneId = id; // Last one becomes active
+            } catch {
+              // Skip files that can't be read
+            }
+          }
+        } else {
+          const lastPath = getLastSelectedPath();
+          if (lastPath && findEntryByPath(sortedTree, lastPath)) {
+            await openInActivePane(lastPath);
+          } else {
+            const firstFile = findFirstFile(sortedTree);
+            if (firstFile) {
+              await openInActivePane(firstFile.path);
+            }
+          }
+        }
+
+        // Start file watcher
+        try {
+          await startWatching(docsPath);
+        } catch (e) {
+          console.error("Failed to start file watcher:", e);
         }
       }
 
-      // Start file watcher
-      try {
-        await startWatching(docsPath);
-      } catch (e) {
-        console.error("Failed to start file watcher:", e);
-      }
+      // Listen for file opens from second instances (single-instance plugin)
+      unlistenOpenFile = await listen<string>("open-file", (event) => {
+        openFileFromOS(event.payload);
+      });
 
       // Listen for file changes — batch events at 300ms to prevent flooding
       let pendingChangedPaths = new Set<string>();
       let watcherBatchTimer: ReturnType<typeof setTimeout> | undefined;
 
-      unlistenFn = await listen<string[]>("file-changed", (event) => {
+      unlistenFileChanged = await listen<string[]>("file-changed", (event) => {
         for (const p of event.payload) {
           pendingChangedPaths.add(p);
         }
@@ -522,7 +558,8 @@
     })();
 
     return () => {
-      unlistenFn?.();
+      unlistenFileChanged?.();
+      unlistenOpenFile?.();
       document.removeEventListener("keydown", handleKeyDown);
     };
   });

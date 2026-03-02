@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 
@@ -149,6 +149,25 @@ describe("createFile", () => {
     mockInvoke.mockRejectedValue(new Error("File already exists"));
 
     await expect(createFile("/docs", "existing.md")).rejects.toThrow("File already exists");
+  });
+});
+
+describe("getInitialFile", () => {
+  it("calls invoke with correct command", async () => {
+    mockInvoke.mockResolvedValue("C:\\docs\\readme.md");
+
+    const result = await getInitialFile();
+
+    expect(mockInvoke).toHaveBeenCalledWith("get_initial_file");
+    expect(result).toBe("C:\\docs\\readme.md");
+  });
+
+  it("returns null when no file was passed", async () => {
+    mockInvoke.mockResolvedValue(null);
+
+    const result = await getInitialFile();
+
+    expect(result).toBeNull();
   });
 });
 

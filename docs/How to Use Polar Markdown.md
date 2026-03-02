@@ -10,6 +10,18 @@ When you first launch the app, it opens the default `docs/` folder and automatic
 
 To open a different folder, click the **folder button** in the sidebar header. A native file picker dialog will let you choose any directory on your system. The app remembers your last selected folder across sessions.
 
+### Opening Files from Outside the App
+
+You can open `.md` files directly from Windows:
+
+- **Right-click** a `.md` file in File Explorer → **Open with** → choose **Polar Markdown**
+- **Command line:** run `polarmd path\to\file.md` from any terminal (after installing via the NSIS installer, which adds `polarmd` to your PATH)
+- **Drag-and-drop** a `.md` file onto `polarmd.exe`
+
+When you open a file this way, the app automatically sets the file's parent directory as the active folder in the sidebar.
+
+If Polar Markdown is already running and you open another file (via right-click, CLI, etc.), the existing window receives the file — no duplicate windows are created.
+
 ---
 
 ## Sidebar
@@ -214,4 +226,5 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 
 - **Widescreen monitors:** Use the layout toggle (top-right of the content area) to switch between centered and multi-column modes.
 - **Multiple folders:** Use the folder button to switch between different documentation directories. Each folder's state is independent.
+- **CLI usage:** After installing with the NSIS installer, run `polarmd` from any terminal to launch the app, or `polarmd file.md` to open a specific file.
 - **Dogfooding:** Polar Markdown's own documentation lives in the `docs/` folder — you're reading it right now!

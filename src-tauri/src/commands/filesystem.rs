@@ -246,6 +246,12 @@ pub fn rename_file(old_path: String, new_name: String) -> Result<RenameFileResul
     })
 }
 
+/// Returns the file path passed via CLI args (if any), consuming it so subsequent calls return None.
+#[tauri::command]
+pub fn get_initial_file(state: tauri::State<'_, crate::InitialFileState>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut guard| guard.take())
+}
+
 /// Returns the embedded help file content (compiled into the binary).
 #[tauri::command]
 pub fn get_help_content() -> String {

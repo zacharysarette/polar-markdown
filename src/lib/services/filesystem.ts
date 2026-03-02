@@ -42,6 +42,10 @@ export async function renameFile(oldPath: string, newName: string): Promise<Rena
   return invoke<RenameFileResult>("rename_file", { oldPath, newName });
 }
 
+export async function getInitialFile(): Promise<string | null> {
+  return invoke<string | null>("get_initial_file");
+}
+
 export async function pickFolder(): Promise<string | null> {
   const selected = await open({
     directory: true,

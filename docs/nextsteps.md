@@ -2,15 +2,16 @@
 
 ## Project Context
 
-Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, and state persistence via localStorage.
+Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`polarmd file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
-### Current Test Count: 278 frontend (13 test files) + 32 Rust = 310 total
+### Current Test Count: 309 frontend (13 test files) + 49 Rust = 358 total
 
 ### Key Files
-- **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
-- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer, ContentArea), `src/lib/services/` (filesystem, persistence, markdown, tree-utils, sort), `src/lib/types.ts`
-- **Config:** `tauri.conf.json`, `vitest.config.ts`, `src-tauri/Cargo.toml`, `src-tauri/capabilities/default.json`
-- **Tests:** 9 `.test.ts` files in `src/lib/`, Rust tests in `commands/{filesystem,diagram}.rs`
+- **Rust backend:** `src-tauri/src/` — `lib.rs` (InitialFileState, extract_file_arg, single-instance plugin), `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
+- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer, ContentArea, EditablePane, MarkdownEditor, SearchResults), `src/lib/services/` (filesystem, persistence, markdown, tree-utils, sort, highlight), `src/lib/types.ts`
+- **Config:** `tauri.conf.json` (mainBinaryName, fileAssociations, NSIS hooks), `vitest.config.ts`, `src-tauri/Cargo.toml`, `src-tauri/capabilities/default.json`
+- **Installer:** `src-tauri/windows/installer-hooks.nsh` (NSIS hooks for PATH add/remove)
+- **Tests:** 13 `.test.ts` files in `src/lib/`, Rust tests in `lib.rs` + `commands/{filesystem,diagram}.rs`
 
 ### Environment Notes
 - **Node v20.11.1** — too old for Vite 7 / @sveltejs/vite-plugin-svelte v6. Use Vite 6 + plugin v5.
@@ -273,21 +274,21 @@ unlistenFn = await listen<string[]>("file-changed", async (event) => {
 
 ### Option A: Standalone EXE (simplest)
 ```
-src-tauri\target\release\app.exe
+src-tauri\target\release\polarmd.exe
 ```
-Copy this file to your Desktop. Double-click to run. **Caveat:** it will look for `docs/` relative to where the exe lives, so either:
-- Put a `docs/` folder next to it on the Desktop, OR
-- Implement the folder selector above first so it doesn't need a hardcoded path
+Copy this file to your Desktop. Double-click to run. You can also pass a file path: `polarmd.exe path\to\file.md`.
 
 ### Option B: NSIS Installer (recommended for distribution)
 ```
-src-tauri\target\release\bundle\nsis\Polar Markdown_0.1.0_x64-setup.exe
+src-tauri\target\release\bundle\nsis\Polar Markdown_0.5.1_x64-setup.exe
 ```
-Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller.
+Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller. The installer also:
+- Registers `.md` file associations (right-click → "Open with Polar Markdown")
+- Adds the install directory to your PATH so you can run `polarmd` from any terminal
 
 ### Option C: MSI Installer (enterprise/IT deployment)
 ```
-src-tauri\target\release\bundle\msi\Polar Markdown_0.1.0_x64_en-US.msi
+src-tauri\target\release\bundle\msi\Polar Markdown_0.5.1_x64_en-US.msi
 ```
 Standard Windows Installer package, good for Group Policy deployment.
 
@@ -548,21 +549,21 @@ Or detect automatically: if the query starts with `/` or a special prefix, do fu
 
 ### Option A: Standalone EXE (simplest)
 ```
-src-tauri\target\release\app.exe
+src-tauri\target\release\polarmd.exe
 ```
-Copy this file to your Desktop. Double-click to run. **Caveat:** it will look for `docs/` relative to where the exe lives, so either:
-- Put a `docs/` folder next to it on the Desktop, OR
-- Implement the folder selector above first so it doesn't need a hardcoded path
+Copy this file to your Desktop. Double-click to run. You can also pass a file path: `polarmd.exe path\to\file.md`.
 
 ### Option B: NSIS Installer (recommended for distribution)
 ```
-src-tauri\target\release\bundle\nsis\Polar Markdown_0.1.0_x64-setup.exe
+src-tauri\target\release\bundle\nsis\Polar Markdown_0.5.1_x64-setup.exe
 ```
-Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller.
+Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller. The installer also:
+- Registers `.md` file associations (right-click → "Open with Polar Markdown")
+- Adds the install directory to your PATH so you can run `polarmd` from any terminal
 
 ### Option C: MSI Installer (enterprise/IT deployment)
 ```
-src-tauri\target\release\bundle\msi\Polar Markdown_0.1.0_x64_en-US.msi
+src-tauri\target\release\bundle\msi\Polar Markdown_0.5.1_x64_en-US.msi
 ```
 Standard Windows Installer package, good for Group Policy deployment.
 
@@ -1706,14 +1707,15 @@ These features build on each other. Recommended sequence:
 8. ~~**ASCII Art Diagram Rendering**~~ (svgbob) — DONE
 9. ~~**Search Result Line Highlighting**~~ — DONE
 10. ~~**Markdown & Diagram Editor**~~ — DONE (v0.4.0: split-pane CodeMirror + live preview, auto-save, scroll sync, active line highlight, table cell targeting)
-11. **New File** — create new markdown files from within the app
-12. **Rename File** — rename files/change titles without leaving the app
-13. **Save As** — save a copy of the current file to a new location/name
-14. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-15. **Line Numbers Toggle** — nice-to-have viewer enhancement
-16. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-17. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-18. **MCP Server** — depends on write command + validation + search being built first
+11. ~~**New File**~~ — DONE (Ctrl+N, + button, inline input, auto .md, title template, opens in edit mode)
+12. ~~**Rename File**~~ — DONE (F2, right-click context menu, inline input, auto .md, updates open panes)
+13. ~~**Open Files from OS & CLI**~~ — DONE (file associations, `polarmd file.md` CLI, single-instance, NSIS PATH registration)
+14. **Save As** — save a copy of the current file to a new location/name
+15. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+16. **Line Numbers Toggle** — nice-to-have viewer enhancement
+17. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+18. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+19. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 
