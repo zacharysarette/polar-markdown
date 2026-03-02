@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Polar Markdown",
   "mainBinaryName": "polarmd",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "identifier": "com.polarmarkdown.app",
   "build": {
     "frontendDist": "../dist",
