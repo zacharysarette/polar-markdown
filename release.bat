@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: ============================================================================
-:: Polar Markdown — Windows Release Script
+:: Polar Markdown -- Windows Release Script
 :: ============================================================================
 ::
 :: USAGE:
@@ -81,7 +81,7 @@ if errorlevel 1 git push origin "!CURRENT_BRANCH!"
 echo   Creating PR on GitHub...
 for /f "delims=" %%P in ('gh pr create --base master --head "!CURRENT_BRANCH!" --title "!CURRENT_BRANCH!" --body "Automated release PR" --fill 2^>nul') do set PR_URL=%%P
 if errorlevel 1 (
-    :: PR may already exist — try to find it
+    :: PR may already exist -- try to find it
     for /f "delims=" %%P in ('gh pr view "!CURRENT_BRANCH!" --json url --jq .url 2^>nul') do set PR_URL=%%P
 )
 echo   PR: !PR_URL!
@@ -234,7 +234,7 @@ echo [7/7] Creating GitHub Release !TAG!...
 
 gh release view !TAG! >nul 2>&1
 if not errorlevel 1 (
-    echo Release !TAG! already exists — uploading Windows artifacts...
+    echo Release !TAG! already exists -- uploading Windows artifacts...
     gh release upload !TAG! "!NSIS!#Polar Markdown Installer (NSIS)" "!MSI!#Polar Markdown Installer (MSI)" --clobber
     if errorlevel 1 (
         echo Upload failed.
@@ -247,7 +247,7 @@ gh release create !TAG! ^
     "!NSIS!#Polar Markdown Installer (NSIS)" ^
     "!MSI!#Polar Markdown Installer (MSI)" ^
     --title "Polar Markdown !TAG!" ^
-    --notes "Polar Markdown !TAG! — Windows x64 installers. Run the NSIS .exe (recommended) or MSI to install."
+    --notes "Polar Markdown !TAG! -- Windows x64 installers. Run the NSIS .exe (recommended) or MSI to install."
 
 if errorlevel 1 (
     echo Release creation failed.
