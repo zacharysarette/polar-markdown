@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { FileEntry } from "../types";
-  import FileTreeItem from "./FileTreeItem.svelte";
+  import FileTreeItem, { dragSourcePath, resetDragSource } from "./FileTreeItem.svelte";
   import { flattenVisibleEntries } from "../services/tree-utils";
   import { saveExpandedPaths, getExpandedPaths } from "../services/persistence";
 
@@ -8,6 +8,7 @@
     entries,
     selectedPath = "",
     selectedFolderPath = "",
+    docsPath = "",
     onselect,
     onfocuschange,
     onfolderselect,
@@ -23,6 +24,7 @@
     entries: FileEntry[];
     selectedPath?: string;
     selectedFolderPath?: string;
+    docsPath?: string;
     onselect: (path: string, event?: MouseEvent) => void;
     onfocuschange?: (path: string) => void;
     onfolderselect?: (path: string) => void;
@@ -168,6 +170,34 @@
       contextMenu = null;
     }
   }
+
+  let activeGap: number | null = $state(null);
+
+  function handleGapDragOver(e: DragEvent, index: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer!.dropEffect = "move";
+    activeGap = index;
+  }
+
+  function handleGapDragLeave(e: DragEvent, index: number) {
+    e.stopPropagation();
+    if (activeGap === index) activeGap = null;
+  }
+
+  function handleGapDrop(e: DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    activeGap = null;
+    const sourcePath = dragSourcePath ?? e.dataTransfer?.getData("text/plain");
+    resetDragSource();
+    if (!sourcePath || !docsPath) return;
+    // Don't move if already at root level
+    const sep = sourcePath.includes("\\") ? "\\" : "/";
+    const parentDir = sourcePath.substring(0, sourcePath.lastIndexOf(sep));
+    if (parentDir === docsPath) return;
+    onmovefile?.(sourcePath, docsPath);
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -179,7 +209,15 @@
   onkeydown={handleKeyDown}
   onfocus={handleFocus}
 >
-  {#each entries as entry (entry.path)}
+  {#each entries as entry, i (entry.path)}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="root-drop-gap"
+      class:active={activeGap === i}
+      ondragover={(e) => handleGapDragOver(e, i)}
+      ondragleave={(e) => handleGapDragLeave(e, i)}
+      ondrop={(e) => handleGapDrop(e)}
+    ></div>
     <FileTreeItem
       {entry}
       depth={0}
@@ -198,6 +236,14 @@
       oncontextmenu={handleContextMenu}
     />
   {/each}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="root-drop-gap"
+    class:active={activeGap === entries.length}
+    ondragover={(e) => handleGapDragOver(e, entries.length)}
+    ondragleave={(e) => handleGapDragLeave(e, entries.length)}
+    ondrop={(e) => handleGapDrop(e)}
+  ></div>
 
   {#if entries.length === 0}
     <p class="empty">No markdown files found.</p>
@@ -224,6 +270,28 @@
   .file-tree {
     padding: 4px 0;
     outline: none;
+  }
+
+  .root-drop-gap {
+    height: 4px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .root-drop-gap.active {
+    height: 8px;
+  }
+
+  .root-drop-gap.active::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 50%;
+    height: 2px;
+    background: #9ece6a;
+    border-radius: 1px;
+    transform: translateY(-50%);
   }
 
   .empty {

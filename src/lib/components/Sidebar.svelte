@@ -2,6 +2,7 @@
   import type { FileEntry, SearchResult } from "../types";
   import FileTree from "./FileTree.svelte";
   import SearchResults from "./SearchResults.svelte";
+  import { dragSourcePath, resetDragSource } from "./FileTreeItem.svelte";
 
   import type { SortMode } from "../services/sort";
 
@@ -148,6 +149,28 @@
   function handleSearchSelect(path: string, lineContent?: string) {
     onselect(path, undefined, lineContent);
   }
+
+  let navDragOver = $state(false);
+
+  function handleNavDragOver(e: DragEvent) {
+    e.preventDefault();
+    navDragOver = true;
+  }
+
+  function handleNavDragLeave(e: DragEvent) {
+    const related = e.relatedTarget as Node | null;
+    if (related && (e.currentTarget as Node).contains(related)) return;
+    navDragOver = false;
+  }
+
+  function handleNavDrop(e: DragEvent) {
+    e.preventDefault();
+    navDragOver = false;
+    const sourcePath = dragSourcePath ?? e.dataTransfer?.getData("text/plain");
+    resetDragSource();
+    if (!sourcePath || !docsPath) return;
+    onmovefile?.(sourcePath, docsPath);
+  }
 </script>
 
 <aside class="sidebar" aria-label="File browser">
@@ -271,8 +294,8 @@
     {/if}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <nav class="sidebar-content" onclick={handleNavClick} ondragover={(e) => e.preventDefault()} ondrop={(e) => e.preventDefault()}>
-      <FileTree {entries} {selectedPath} {selectedFolderPath} {onselect} {onfocuschange} {onfolderselect} {onmovefile} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} {ondelete} {onsaveas} />
+    <nav class="sidebar-content" class:nav-drag-over={navDragOver} onclick={handleNavClick} ondragover={handleNavDragOver} ondragleave={handleNavDragLeave} ondrop={handleNavDrop}>
+      <FileTree {entries} {selectedPath} {selectedFolderPath} {onselect} {onfocuschange} {onfolderselect} {onmovefile} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} {ondelete} {onsaveas} docsPath={docsPath} />
     </nav>
   {/if}
   {#if docsPath}
@@ -445,6 +468,10 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+  }
+
+  .sidebar-content.nav-drag-over {
+    border-bottom: 2px solid #9ece6a;
   }
 
   .new-file-btn {

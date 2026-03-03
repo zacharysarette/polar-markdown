@@ -871,6 +871,82 @@ describe("FileTree Delete key", () => {
   });
 });
 
+describe("FileTree root drop gaps", () => {
+  it("renders gap elements between root-level items", () => {
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), docsPath: "/root" },
+    });
+
+    const gaps = document.querySelectorAll(".root-drop-gap");
+    // One gap before each item + one after the last = entries.length + 1
+    expect(gaps.length).toBe(fileEntries.length + 1);
+  });
+
+  it("dropping on a gap calls onmovefile with docsPath as target", async () => {
+    const nestedEntries: FileEntry[] = [
+      {
+        name: "sub",
+        path: "/root/sub",
+        is_directory: true,
+        children: [
+          { name: "nested.md", path: "/root/sub/nested.md", is_directory: false, children: [] },
+        ],
+      },
+      { name: "readme.md", path: "/root/readme.md", is_directory: false, children: [] },
+    ];
+    const onmovefile = vi.fn();
+    render(FileTree, {
+      props: { entries: nestedEntries, selectedPath: "", onselect: vi.fn(), onmovefile, docsPath: "/root" },
+    });
+
+    const gaps = document.querySelectorAll(".root-drop-gap");
+    const dropTransfer = new DataTransfer();
+    dropTransfer.setData("text/plain", "/root/sub/nested.md");
+    await fireEvent.drop(gaps[0], { dataTransfer: dropTransfer });
+
+    expect(onmovefile).toHaveBeenCalledWith("/root/sub/nested.md", "/root");
+  });
+
+  it("dropping a root-level item on a gap is a no-op", async () => {
+    const onmovefile = vi.fn();
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), onmovefile, docsPath: "" },
+    });
+
+    const gaps = document.querySelectorAll(".root-drop-gap");
+    const dropTransfer = new DataTransfer();
+    dropTransfer.setData("text/plain", "/readme.md");
+    await fireEvent.drop(gaps[0], { dataTransfer: dropTransfer });
+
+    // Parent dir of /readme.md is "" which equals docsPath, so no-op
+    expect(onmovefile).not.toHaveBeenCalled();
+  });
+
+  it("gap shows active class on dragOver", async () => {
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), docsPath: "/root" },
+    });
+
+    const gaps = document.querySelectorAll(".root-drop-gap");
+    await fireEvent.dragOver(gaps[0], { dataTransfer: { dropEffect: "" } });
+
+    expect(gaps[0].classList.contains("active")).toBe(true);
+  });
+
+  it("gap removes active class on dragLeave", async () => {
+    render(FileTree, {
+      props: { entries: fileEntries, selectedPath: "", onselect: vi.fn(), docsPath: "/root" },
+    });
+
+    const gaps = document.querySelectorAll(".root-drop-gap");
+    await fireEvent.dragOver(gaps[0], { dataTransfer: { dropEffect: "" } });
+    expect(gaps[0].classList.contains("active")).toBe(true);
+
+    await fireEvent.dragLeave(gaps[0]);
+    expect(gaps[0].classList.contains("active")).toBe(false);
+  });
+});
+
 describe("FileTree expansion persistence", () => {
   it("directories start collapsed by default", () => {
     render(FileTree, {
