@@ -267,6 +267,54 @@ describe("ContentArea", () => {
     });
   });
 
+  it("renders Save As button for non-readOnly pane", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Save As (Ctrl+Shift+S)")).toBeInTheDocument();
+    });
+  });
+
+  it("does not render Save As button for readOnly pane", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [{ id: "1", path: "Help.md", content: "# Help", readOnly: true }],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Read Only")).toBeInTheDocument();
+    });
+    expect(screen.queryByTitle("Save As (Ctrl+Shift+S)")).not.toBeInTheDocument();
+  });
+
+  it("calls onsaveas with pane id when Save As button clicked", async () => {
+    const onsaveas = vi.fn();
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+        onsaveas,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Save As (Ctrl+Shift+S)")).toBeInTheDocument();
+    });
+
+    await fireEvent.click(screen.getByTitle("Save As (Ctrl+Shift+S)"));
+    expect(onsaveas).toHaveBeenCalledWith("1");
+  });
+
   it("renders copy path button in pane header", async () => {
     render(ContentArea, {
       props: {

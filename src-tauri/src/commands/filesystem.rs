@@ -1,4 +1,4 @@
-use crate::models::{CreateFileResult, FileEntry, RenameFileResult, SearchMatch, SearchResult};
+use crate::models::{CreateFileResult, FileEntry, MoveFileResult, RenameFileResult, SearchMatch, SearchResult};
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
@@ -35,16 +35,14 @@ fn build_tree(dir_path: &Path) -> Vec<FileEntry> {
 
         if path.is_dir() {
             let children = build_tree(&path);
-            // Only include directories that contain .md files (directly or nested)
-            if !children.is_empty() {
-                entries.push(FileEntry {
-                    name,
-                    path: path.to_string_lossy().to_string(),
-                    is_directory: true,
-                    children,
-                    modified,
-                });
-            }
+            // Include all directories (even empty ones, so users can see newly created folders)
+            entries.push(FileEntry {
+                name,
+                path: path.to_string_lossy().to_string(),
+                is_directory: true,
+                children,
+                modified,
+            });
         } else if name.ends_with(".md") {
             entries.push(FileEntry {
                 name,
@@ -265,6 +263,143 @@ pub fn delete_file(path: String) -> Result<(), String> {
     fs::remove_file(file).map_err(|e| format!("Failed to delete file: {}", e))
 }
 
+/// Deletes a directory and all its contents recursively.
+/// Validates existence, type (must be directory), and rejects path traversal.
+#[tauri::command]
+pub fn delete_directory(path: String) -> Result<(), String> {
+    let dir = Path::new(&path);
+    if !dir.exists() {
+        return Err(format!("Directory does not exist: {}", path));
+    }
+    if !dir.is_dir() {
+        return Err("Can only delete directories, not files".into());
+    }
+    if path.contains("..") {
+        return Err("Invalid directory path".into());
+    }
+    fs::remove_dir_all(dir).map_err(|e| format!("Failed to delete directory: {}", e))
+}
+
+/// Creates a new directory inside the given parent directory.
+/// Validates: non-empty name, no path separators, parent exists, no duplicates.
+#[tauri::command]
+pub fn create_directory(parent: String, name: String) -> Result<String, String> {
+    let name = name.trim().to_string();
+
+    if name.is_empty() {
+        return Err("Folder name cannot be empty".into());
+    }
+
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err("Folder name cannot contain path separators".into());
+    }
+
+    let parent_dir = Path::new(&parent);
+    if !parent_dir.exists() || !parent_dir.is_dir() {
+        return Err(format!("Parent directory does not exist: {}", parent));
+    }
+
+    let new_dir = parent_dir.join(&name);
+    if new_dir.exists() {
+        return Err(format!("'{}' already exists", name));
+    }
+
+    fs::create_dir(&new_dir)
+        .map_err(|e| format!("Failed to create folder: {}", e))?;
+
+    Ok(new_dir.to_string_lossy().to_string())
+}
+
+/// Moves a markdown file to a different directory.
+/// Validates: source exists, is a file, is .md, target dir exists, no name collision.
+#[tauri::command]
+pub fn move_file(source_path: String, target_dir: String) -> Result<MoveFileResult, String> {
+    let source = Path::new(&source_path);
+    let target = Path::new(&target_dir);
+
+    if !source.exists() {
+        return Err(format!("Source file does not exist: {}", source_path));
+    }
+    if !source.is_file() {
+        return Err("Can only move files, not directories".into());
+    }
+    if !source_path.to_lowercase().ends_with(".md") {
+        return Err("Can only move markdown (.md) files".into());
+    }
+    if !target.exists() || !target.is_dir() {
+        return Err(format!("Target directory does not exist: {}", target_dir));
+    }
+    if source_path.contains("..") || target_dir.contains("..") {
+        return Err("Invalid path".into());
+    }
+
+    let filename = source.file_name()
+        .ok_or("Cannot determine filename")?;
+    let new_path = target.join(filename);
+
+    if new_path.exists() {
+        return Err(format!("A file named '{}' already exists in the target folder",
+            filename.to_string_lossy()));
+    }
+
+    fs::rename(&source, &new_path)
+        .map_err(|e| format!("Failed to move file: {}", e))?;
+
+    Ok(MoveFileResult {
+        old_path: source_path,
+        new_path: new_path.to_string_lossy().into_owned(),
+    })
+}
+
+/// Moves a directory into another directory.
+/// Validates: source exists, is a dir, target exists, is a dir, no path traversal,
+/// not moving into self or descendant.
+#[tauri::command]
+pub fn move_directory(source_path: String, target_dir: String) -> Result<MoveFileResult, String> {
+    let source = Path::new(&source_path);
+    let target = Path::new(&target_dir);
+
+    if !source.exists() {
+        return Err(format!("Source directory does not exist: {}", source_path));
+    }
+    if !source.is_dir() {
+        return Err("Source is not a directory".into());
+    }
+    if !target.exists() || !target.is_dir() {
+        return Err(format!("Target directory does not exist: {}", target_dir));
+    }
+    if source_path.contains("..") || target_dir.contains("..") {
+        return Err("Invalid path".into());
+    }
+
+    // Prevent moving a directory into itself or a descendant
+    let source_canonical = fs::canonicalize(source)
+        .map_err(|e| format!("Failed to resolve source path: {}", e))?;
+    let target_canonical = fs::canonicalize(target)
+        .map_err(|e| format!("Failed to resolve target path: {}", e))?;
+
+    if target_canonical == source_canonical || target_canonical.starts_with(&source_canonical) {
+        return Err("Cannot move a directory into itself or its own subdirectory".into());
+    }
+
+    let dir_name = source.file_name()
+        .ok_or("Cannot determine directory name")?;
+    let new_path = target.join(dir_name);
+
+    if new_path.exists() {
+        return Err(format!("'{}' already exists in the target folder",
+            dir_name.to_string_lossy()));
+    }
+
+    fs::rename(&source, &new_path)
+        .map_err(|e| format!("Failed to move directory: {}", e))?;
+
+    Ok(MoveFileResult {
+        old_path: source_path,
+        new_path: new_path.to_string_lossy().into_owned(),
+    })
+}
+
 /// Returns the file path passed via CLI args (if any), consuming it so subsequent calls return None.
 #[tauri::command]
 pub fn get_initial_file(state: tauri::State<'_, crate::InitialFileState>) -> Option<String> {
@@ -422,6 +557,19 @@ mod tests {
 
         let hidden = tree.iter().find(|e| e.name == ".hidden");
         assert!(hidden.is_none());
+    }
+
+    #[test]
+    fn test_empty_directories_included() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("empty-folder")).unwrap();
+        fs::write(dir.path().join("file.md"), "# File").unwrap();
+
+        let tree = read_directory_tree(dir.path().to_string_lossy().to_string()).unwrap();
+        let empty = tree.iter().find(|e| e.name == "empty-folder");
+        assert!(empty.is_some());
+        assert!(empty.unwrap().is_directory);
+        assert!(empty.unwrap().children.is_empty());
     }
 
     #[test]
@@ -792,5 +940,317 @@ mod tests {
         assert_eq!(result.content, "# My Cool Notes\n\n");
         let on_disk = fs::read_to_string(dir.path().join("my-cool-notes.md")).unwrap();
         assert_eq!(on_disk, "# My Cool Notes\n\n");
+    }
+
+    // create_directory tests
+
+    #[test]
+    fn test_create_directory_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "subfolder".into());
+
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        assert!(path.ends_with("subfolder"));
+        assert!(dir.path().join("subfolder").is_dir());
+    }
+
+    #[test]
+    fn test_create_directory_trims_whitespace() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "  notes  ".into());
+
+        assert!(result.is_ok());
+        assert!(dir.path().join("notes").is_dir());
+    }
+
+    #[test]
+    fn test_create_directory_reject_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "".into());
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+    }
+
+    #[test]
+    fn test_create_directory_reject_path_separators() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "../evil".into());
+        assert!(result.is_err());
+
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "sub/dir".into());
+        assert!(result.is_err());
+
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "sub\\dir".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_directory_reject_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("existing")).unwrap();
+
+        let result = create_directory(dir.path().to_string_lossy().to_string(), "existing".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+    }
+
+    #[test]
+    fn test_create_directory_nonexistent_parent() {
+        let result = create_directory("/nonexistent/dir".into(), "test".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    // move_file tests
+
+    #[test]
+    fn test_move_file_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.md");
+        fs::write(&file, "# Test").unwrap();
+        let subdir = dir.path().join("sub");
+        fs::create_dir(&subdir).unwrap();
+
+        let result = move_file(
+            file.to_string_lossy().to_string(),
+            subdir.to_string_lossy().to_string(),
+        );
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.new_path.ends_with("test.md"));
+        assert!(!file.exists());
+        assert!(subdir.join("test.md").exists());
+        assert_eq!(fs::read_to_string(subdir.join("test.md")).unwrap(), "# Test");
+    }
+
+    #[test]
+    fn test_move_file_returns_correct_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("doc.md");
+        fs::write(&file, "content").unwrap();
+        let subdir = dir.path().join("target");
+        fs::create_dir(&subdir).unwrap();
+
+        let result = move_file(
+            file.to_string_lossy().to_string(),
+            subdir.to_string_lossy().to_string(),
+        ).unwrap();
+        assert!(result.old_path.ends_with("doc.md"));
+        assert!(result.new_path.ends_with("doc.md"));
+        assert!(result.new_path.contains("target"));
+    }
+
+    #[test]
+    fn test_move_file_reject_nonexistent_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let subdir = dir.path().join("sub");
+        fs::create_dir(&subdir).unwrap();
+
+        let result = move_file("/nonexistent/file.md".into(), subdir.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_move_file_reject_non_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("readme.txt");
+        fs::write(&file, "hello").unwrap();
+        let subdir = dir.path().join("sub");
+        fs::create_dir(&subdir).unwrap();
+
+        let result = move_file(file.to_string_lossy().to_string(), subdir.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("markdown"));
+    }
+
+    #[test]
+    fn test_move_file_reject_nonexistent_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.md");
+        fs::write(&file, "content").unwrap();
+
+        let result = move_file(file.to_string_lossy().to_string(), "/nonexistent/dir".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_move_file_reject_name_collision() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.md");
+        fs::write(&file, "content").unwrap();
+        let subdir = dir.path().join("sub");
+        fs::create_dir(&subdir).unwrap();
+        fs::write(subdir.join("test.md"), "existing").unwrap();
+
+        let result = move_file(file.to_string_lossy().to_string(), subdir.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+    }
+
+    #[test]
+    fn test_move_file_reject_directory_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let subdir = dir.path().join("source.md");
+        fs::create_dir(&subdir).unwrap();
+        let target = dir.path().join("target");
+        fs::create_dir(&target).unwrap();
+
+        let result = move_file(subdir.to_string_lossy().to_string(), target.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not directories"));
+    }
+
+    // delete_directory tests
+
+    #[test]
+    fn test_delete_directory_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("empty-folder");
+        fs::create_dir(&sub).unwrap();
+        assert!(sub.exists());
+
+        let result = delete_directory(sub.to_string_lossy().to_string());
+        assert!(result.is_ok());
+        assert!(!sub.exists());
+    }
+
+    #[test]
+    fn test_delete_directory_with_contents() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("folder");
+        let nested = sub.join("nested");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(sub.join("file.md"), "# File").unwrap();
+        fs::write(nested.join("deep.md"), "# Deep").unwrap();
+
+        let result = delete_directory(sub.to_string_lossy().to_string());
+        assert!(result.is_ok());
+        assert!(!sub.exists());
+    }
+
+    #[test]
+    fn test_delete_directory_nonexistent() {
+        let result = delete_directory("/nonexistent/folder".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_delete_directory_rejects_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("file.md");
+        fs::write(&file, "content").unwrap();
+
+        let result = delete_directory(file.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not files"));
+    }
+
+    // move_directory tests
+
+    #[test]
+    fn test_move_directory_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source-folder");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("file.md"), "# File").unwrap();
+        let target = dir.path().join("target-folder");
+        fs::create_dir(&target).unwrap();
+
+        let result = move_directory(
+            source.to_string_lossy().to_string(),
+            target.to_string_lossy().to_string(),
+        );
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.new_path.contains("target-folder"));
+        assert!(result.new_path.ends_with("source-folder"));
+        assert!(!source.exists());
+        assert!(target.join("source-folder").exists());
+        assert!(target.join("source-folder").join("file.md").exists());
+    }
+
+    #[test]
+    fn test_move_directory_nonexistent_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("target");
+        fs::create_dir(&target).unwrap();
+
+        let result = move_directory("/nonexistent/dir".into(), target.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_move_directory_rejects_file_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("file.md");
+        fs::write(&file, "content").unwrap();
+        let target = dir.path().join("target");
+        fs::create_dir(&target).unwrap();
+
+        let result = move_directory(file.to_string_lossy().to_string(), target.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a directory"));
+    }
+
+    #[test]
+    fn test_move_directory_nonexistent_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+
+        let result = move_directory(source.to_string_lossy().to_string(), "/nonexistent/dir".into());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_move_directory_name_collision() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("folder");
+        fs::create_dir(&source).unwrap();
+        let target = dir.path().join("target");
+        fs::create_dir(&target).unwrap();
+        // Create a same-named dir inside target
+        fs::create_dir(target.join("folder")).unwrap();
+
+        let result = move_directory(source.to_string_lossy().to_string(), target.to_string_lossy().to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+    }
+
+    #[test]
+    fn test_move_directory_rejects_move_into_self_or_descendant() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = dir.path().join("parent");
+        let child = parent.join("child");
+        fs::create_dir_all(&child).unwrap();
+
+        // Try to move parent into child (descendant) — should fail
+        let result = move_directory(
+            parent.to_string_lossy().to_string(),
+            child.to_string_lossy().to_string(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Cannot move a directory into itself"));
+    }
+
+    #[test]
+    fn test_delete_directory_rejects_path_traversal() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("folder");
+        fs::create_dir(&sub).unwrap();
+
+        // Construct a path with .. in it
+        let evil_path = format!("{}/../folder", sub.to_string_lossy());
+        let result = delete_directory(evil_path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid"));
     }
 }

@@ -1215,7 +1215,7 @@ Users must leave the app to delete files via File Explorer, breaking the workflo
 
 ## Feature: Save As
 
-### Status: TODO
+### Status: DONE
 
 ### Problem
 Users may want to save a copy of the current file under a different name or in a different location — for example, to create a template from an existing document.
@@ -1244,6 +1244,608 @@ const path = await save({
   filters: [{ name: 'Markdown', extensions: ['md'] }],
 });
 ```
+
+---
+
+## Feature: Folder Selection & Targeted File Creation
+
+### Problem
+When users click the "+" button to create a new file, they expect it to appear in whatever folder they're looking at. But clicking a folder only toggles its expand/collapse — it doesn't "select" the folder. The existing `focusedTreePath` variable (used by `handleCreateNewFile` to pick a target directory) only updates on arrow-key navigation, not mouse clicks. So the workflow **click folder → click "+"** creates the file in the root instead of the clicked folder.
+
+Additionally, folders have no visual "selected" state. Files get a blue highlight when selected (`.selected` class), but folders only get green text (`.directory`) and a keyboard focus outline (`.focused`). There's no way for the user to see which folder is targeted for operations like "new file here."
+
+Folders also lack a folder icon — files show 📄 but directories only show a chevron (▶/▼) with no icon, making it hard to visually distinguish folders from files at a glance.
+
+### Current State (What Exists)
+
+**`App.svelte` lines 411-419** — `handleCreateNewFile` already checks `focusedTreePath`:
+```typescript
+async function handleCreateNewFile(filename: string) {
+  let targetDir = docsPath;
+  if (focusedTreePath) {
+    const entry = findEntryByPath(rawTree, focusedTreePath);
+    if (entry?.is_directory) {
+      targetDir = focusedTreePath;
+    }
+  }
+  // ... creates file in targetDir
+}
+```
+
+**`FileTreeItem.svelte` line 51-56** — clicking a directory only toggles:
+```typescript
+function handleClick(event: MouseEvent) {
+  if (entry.is_directory) {
+    ontoggle(entry.path);  // Only expands/collapses — never updates focusedTreePath
+  } else {
+    onselect(entry.path, event);
+  }
+}
+```
+
+**`FileTreeItem.svelte` line 139-143** — directories show only a chevron, no folder icon:
+```svelte
+{#if entry.is_directory}
+  <span class="chevron">{expanded ? "▼" : "▶"}</span>
+{:else}
+  <span class="file-icon">📄</span>
+{/if}
+```
+
+**`App.svelte` line 432-434** — `focusedTreePath` only set from keyboard:
+```typescript
+function handleFocusChange(path: string) {
+  focusedTreePath = path;  // Called from FileTree keyboard nav, never from mouse clicks
+}
+```
+
+### Solution
+
+#### 1. Add `onfolderselect` callback to FileTreeItem
+When a directory is clicked, call both `ontoggle` (expand/collapse) AND a new `onfolderselect` callback that propagates up to App.svelte:
+
+```typescript
+// FileTreeItem.svelte
+function handleClick(event: MouseEvent) {
+  if (entry.is_directory) {
+    ontoggle(entry.path);
+    onfolderselect?.(entry.path);  // NEW: also "select" the folder
+  } else {
+    onselect(entry.path, event);
+  }
+}
+```
+
+#### 2. Track `selectedFolderPath` in App.svelte
+Add a new `selectedFolderPath` state variable. Set it when a folder is clicked, clear it when a file is selected:
+
+```typescript
+let selectedFolderPath = $state("");
+
+function handleFolderSelect(path: string) {
+  selectedFolderPath = path;
+}
+
+function handleSelectFile(path: string, event?: MouseEvent) {
+  selectedFolderPath = "";  // Clear folder selection when a file is clicked
+  // ... existing file selection logic
+}
+```
+
+#### 3. Update `handleCreateNewFile` to use `selectedFolderPath`
+Check `selectedFolderPath` first (mouse click), then `focusedTreePath` (keyboard nav):
+
+```typescript
+async function handleCreateNewFile(filename: string) {
+  let targetDir = docsPath;
+  // Mouse-clicked folder takes priority
+  if (selectedFolderPath) {
+    targetDir = selectedFolderPath;
+  } else if (focusedTreePath) {
+    const entry = findEntryByPath(rawTree, focusedTreePath);
+    if (entry?.is_directory) {
+      targetDir = focusedTreePath;
+    }
+  }
+  // ...
+}
+```
+
+#### 4. Add folder icon next to chevron
+Directories currently only show a chevron. Add a 📁 folder icon between the chevron and the folder name so folders are immediately recognizable:
+
+```svelte
+<!-- FileTreeItem.svelte -->
+{#if entry.is_directory}
+  <span class="chevron">{expanded ? "▼" : "▶"}</span>
+  <span class="folder-icon">📁</span>
+{:else}
+  <span class="file-icon">📄</span>
+{/if}
+```
+
+```css
+.folder-icon {
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+```
+
+This matches the existing `.file-icon` style so files and folders align consistently.
+
+#### 6. Visual folder selection
+Pass `selectedFolderPath` down through FileTree → FileTreeItem. Apply a CSS class:
+
+```svelte
+<!-- FileTreeItem.svelte -->
+<button
+  class="tree-row"
+  class:selected={isSelected}
+  class:folder-selected={entry.is_directory && entry.path === selectedFolderPath}
+  class:directory={entry.is_directory}
+  ...
+>
+```
+
+```css
+.tree-row.folder-selected {
+  background: rgba(158, 206, 106, 0.15);  /* Green tint to match directory color */
+  outline: 1px solid rgba(158, 206, 106, 0.4);
+}
+```
+
+#### 7. Breadcrumb hint in the new-file input area
+When `selectedFolderPath` is set and the user clicks "+", show the target folder name above the filename input:
+
+```svelte
+{#if creatingFile}
+  {#if selectedFolderPath}
+    <span class="create-target-hint">in {selectedFolderPath.split('/').pop()}/</span>
+  {/if}
+  <input ... />
+{/if}
+```
+
+### Files to Modify
+- `src/lib/components/FileTreeItem.svelte` — add `onfolderselect` prop + call on directory click, add `selectedFolderPath` prop + CSS class
+- `src/lib/components/FileTree.svelte` — pass `onfolderselect` and `selectedFolderPath` through
+- `src/lib/components/Sidebar.svelte` — pass `onfolderselect` and `selectedFolderPath` through
+- `src/App.svelte` — add `selectedFolderPath` state, `handleFolderSelect`, update `handleCreateNewFile`, pass props
+- `src/lib/components/Sidebar.svelte` — show breadcrumb hint when creating file in a specific folder
+
+### Tests
+
+**FileTreeItem.test.ts:**
+- Clicking a directory calls `onfolderselect` with the directory path
+- Clicking a directory still calls `ontoggle` (existing behavior preserved)
+- Clicking a file does NOT call `onfolderselect`
+- `folder-selected` CSS class applied when `selectedFolderPath` matches a directory entry
+- Directory entries render a folder icon (📁) alongside the chevron
+- File entries render a file icon (📄) but no folder icon
+
+**FileTree.test.ts:**
+- `onfolderselect` callback propagates from nested items
+
+**Sidebar.test.ts:**
+- Target folder hint shown when `selectedFolderPath` is set and creating file
+- Target folder hint hidden when `selectedFolderPath` is empty
+
+**App.svelte (integration):**
+- Clicking a folder sets `selectedFolderPath`
+- Selecting a file clears `selectedFolderPath`
+- Creating a file with `selectedFolderPath` set uses that folder as target directory
+- Creating a file with no `selectedFolderPath` falls back to `focusedTreePath` → `docsPath`
+
+---
+
+## Feature: Drag-and-Drop File Moving
+
+### Problem
+Users can't reorganize files by moving them between folders. The only way to move a file is to rename it (which only changes the filename, not its directory). The sidebar already has `ondragstart` on files (sets `text/plain` with the file path), but there are no drop targets — dragging a file does nothing.
+
+### Current State (What Exists)
+
+**`FileTreeItem.svelte` lines 59-63** — files are draggable, directories are not:
+```typescript
+function handleDragStart(event: DragEvent) {
+  if (entry.is_directory || !event.dataTransfer) return;
+  event.dataTransfer.setData("text/plain", entry.path);
+  event.dataTransfer.effectAllowed = "copy";
+}
+```
+```svelte
+<button ... draggable={!entry.is_directory} ondragstart={handleDragStart}>
+```
+
+**No drop handling anywhere** — no `ondragover`, `ondrop`, `ondragleave` handlers on any element.
+
+**No Rust `move_file` command** — `rename_file` only changes the filename within the same directory.
+
+### Solution
+
+#### Rust Backend: `move_file` Command
+
+New Tauri command in `src-tauri/src/commands/filesystem.rs`:
+
+```rust
+#[derive(serde::Serialize)]
+pub struct MoveFileResult {
+    pub old_path: String,
+    pub new_path: String,
+}
+
+#[tauri::command]
+pub fn move_file(source_path: String, target_dir: String) -> Result<MoveFileResult, String> {
+    let source = Path::new(&source_path);
+    let target = Path::new(&target_dir);
+
+    // Validation
+    if !source.exists() {
+        return Err(format!("Source file does not exist: {}", source_path));
+    }
+    if !source.is_file() {
+        return Err("Can only move files, not directories".into());
+    }
+    if !source_path.to_lowercase().ends_with(".md") {
+        return Err("Can only move markdown (.md) files".into());
+    }
+    if !target.exists() || !target.is_dir() {
+        return Err(format!("Target directory does not exist: {}", target_dir));
+    }
+    if source_path.contains("..") || target_dir.contains("..") {
+        return Err("Invalid path".into());
+    }
+
+    let filename = source.file_name()
+        .ok_or("Cannot determine filename")?;
+    let new_path = target.join(filename);
+
+    if new_path.exists() {
+        return Err(format!("A file named '{}' already exists in the target folder",
+            filename.to_string_lossy()));
+    }
+
+    fs::rename(&source, &new_path)
+        .map_err(|e| format!("Failed to move file: {}", e))?;
+
+    Ok(MoveFileResult {
+        old_path: source_path,
+        new_path: new_path.to_string_lossy().into_owned(),
+    })
+}
+```
+
+Register in `src-tauri/src/commands/mod.rs` and add to `.invoke_handler()` in `lib.rs`.
+
+#### Frontend: Drop Handlers on Directories
+
+**`FileTreeItem.svelte`** — add drop zone behavior for directory entries:
+
+```typescript
+let dragOver = $state(false);
+
+function handleDragOver(event: DragEvent) {
+  if (!entry.is_directory) return;
+  event.preventDefault();
+  event.dataTransfer!.dropEffect = "move";
+  dragOver = true;
+}
+
+function handleDragLeave() {
+  dragOver = false;
+}
+
+function handleDrop(event: DragEvent) {
+  if (!entry.is_directory) return;
+  event.preventDefault();
+  dragOver = false;
+  const sourcePath = event.dataTransfer?.getData("text/plain");
+  if (sourcePath && sourcePath !== entry.path) {
+    onmovefile?.(sourcePath, entry.path);
+  }
+}
+```
+
+```svelte
+<button
+  class="tree-row"
+  class:drag-over={dragOver}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
+  ...
+>
+```
+
+**Visual feedback CSS:**
+```css
+.tree-row.drag-over {
+  background: rgba(158, 206, 106, 0.25);
+  outline: 2px dashed #9ece6a;
+  outline-offset: -2px;
+}
+```
+
+**Update drag start** — change `effectAllowed` from `"copy"` to `"move"`:
+```typescript
+event.dataTransfer.effectAllowed = "move";
+```
+
+#### Frontend Service: `moveFile()` wrapper
+
+```typescript
+// src/lib/services/filesystem.ts
+export async function moveFile(sourcePath: string, targetDir: string): Promise<MoveFileResult> {
+  return invoke<MoveFileResult>("move_file", { sourcePath, targetDir });
+}
+```
+
+#### App.svelte: `handleMoveFile` orchestration
+
+```typescript
+async function handleMoveFile(sourcePath: string, targetDir: string) {
+  try {
+    const { old_path, new_path } = await moveFile(sourcePath, targetDir);
+
+    // Update all open panes that had the old path
+    panes = panes.map(p =>
+      p.filePath === old_path ? { ...p, filePath: new_path } : p
+    );
+
+    // Prevent watcher double-refresh
+    recentOwnWrites.add(new_path);
+    setTimeout(() => recentOwnWrites.delete(new_path), 2000);
+
+    await loadTree();
+  } catch (e: any) {
+    console.error("Move failed:", e);
+    // Could show a toast/notification in the future
+  }
+}
+```
+
+#### Also allow dropping on the root sidebar area
+Add a drop zone to the Sidebar component (or a dedicated "root drop area") that moves files to the docs root folder. This handles the case where users want to move a file OUT of a subfolder back to the root.
+
+### Files to Modify
+- `src-tauri/src/commands/filesystem.rs` — add `move_file` command + `MoveFileResult` struct
+- `src-tauri/src/commands/mod.rs` — export `move_file`
+- `src-tauri/src/models.rs` — add `MoveFileResult` (or keep in filesystem.rs)
+- `src-tauri/src/lib.rs` — register `move_file` in `.invoke_handler()`
+- `src/lib/services/filesystem.ts` — add `moveFile()` wrapper + `MoveFileResult` type
+- `src/lib/components/FileTreeItem.svelte` — add `ondragover`, `ondragleave`, `ondrop` handlers, `onmovefile` prop, `drag-over` CSS class, change `effectAllowed` to `"move"`
+- `src/lib/components/FileTree.svelte` — pass `onmovefile` callback through
+- `src/lib/components/Sidebar.svelte` — pass `onmovefile` callback, add root drop zone
+- `src/App.svelte` — add `handleMoveFile`, pass through component tree
+
+### Tests
+
+**Rust (`filesystem.rs`):**
+- `move_file` moves a file to a different directory
+- `move_file` returns correct `MoveFileResult` with old and new paths
+- `move_file` rejects non-existent source
+- `move_file` rejects non-file source (directory)
+- `move_file` rejects non-.md files
+- `move_file` rejects non-existent target directory
+- `move_file` rejects if target already has a file with the same name
+- `move_file` rejects paths with `..` (path traversal)
+
+**Frontend (`filesystem.test.ts`):**
+- `moveFile()` calls invoke with correct command and args
+
+**FileTreeItem.test.ts:**
+- Directory entries accept drag over (prevent default, show `drag-over` class)
+- File entries do NOT accept drag over
+- Dropping a file on a directory calls `onmovefile` with source path and directory path
+- `drag-over` class removed on drag leave
+- Dropping a file on itself or same directory does nothing
+
+**FileTree.test.ts:**
+- `onmovefile` callback propagates from nested items
+
+**App.svelte (integration):**
+- Moving a file updates open pane paths
+- Moving a file refreshes the tree
+- Failed move doesn't crash (error handled gracefully)
+
+---
+
+## Feature: Create New Folder
+
+### Problem
+Users can't create new folders (subdirectories) from within the app. The only way to organize files into folders is to use the OS file manager externally, then let the file watcher pick up the changes. This breaks the workflow — users should be able to create a folder, then immediately create files inside it, all without leaving the app.
+
+### Current State (What Exists)
+
+**New file creation** works via `create_file` Rust command + "+" button in sidebar header. There is no equivalent for directories.
+
+**`Sidebar.svelte` line 119** — the "+" button only triggers `onnewfile` (new file):
+```svelte
+<button class="new-file-btn" onclick={onnewfile} title="New file">+</button>
+```
+
+**No `create_directory` Rust command** exists. The closest pattern is `create_file` in `commands/filesystem.rs` which validates the name and creates a file in a given directory.
+
+### Solution
+
+#### Rust Backend: `create_directory` Command
+
+New Tauri command in `src-tauri/src/commands/filesystem.rs`:
+
+```rust
+#[tauri::command]
+pub fn create_directory(parent: String, name: String) -> Result<String, String> {
+    let name = name.trim().to_string();
+
+    if name.is_empty() {
+        return Err("Folder name cannot be empty".into());
+    }
+
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err("Folder name cannot contain path separators".into());
+    }
+
+    let parent_dir = Path::new(&parent);
+    if !parent_dir.exists() || !parent_dir.is_dir() {
+        return Err(format!("Parent directory does not exist: {}", parent));
+    }
+
+    let new_dir = parent_dir.join(&name);
+    if new_dir.exists() {
+        return Err(format!("'{}' already exists", name));
+    }
+
+    fs::create_dir(&new_dir)
+        .map_err(|e| format!("Failed to create folder: {}", e))?;
+
+    Ok(new_dir.to_string_lossy().to_string())
+}
+```
+
+Register in `src-tauri/src/commands/mod.rs` and add to `.invoke_handler()` in `lib.rs`.
+
+#### Frontend Service: `createDirectory()` wrapper
+
+```typescript
+// src/lib/services/filesystem.ts
+export async function createDirectory(parent: string, name: string): Promise<string> {
+  return invoke<string>("create_directory", { parent, name });
+}
+```
+
+#### Sidebar UI: Folder creation button + inline input
+
+Add a new "📁+" button next to the existing "+" (new file) button in the sidebar header:
+
+```svelte
+<!-- Sidebar.svelte -->
+<header class="sidebar-header">
+  <div class="header-actions">
+    {#if onnewfile}
+      <button class="new-file-btn" onclick={onnewfile} title="New file">+</button>
+    {/if}
+    {#if onnewfolder}
+      <button class="new-folder-btn" onclick={onnewfolder} title="New folder">📁+</button>
+    {/if}
+    <!-- ... existing sort, help, folder selector buttons -->
+  </div>
+</header>
+```
+
+When clicked, show an inline input (same pattern as new file creation) but with a folder icon hint:
+
+```svelte
+{#if creatingFolder}
+  <div class="new-file-input">
+    <div class="new-file-row">
+      <span class="folder-icon-hint">📁</span>
+      <input
+        type="text"
+        bind:value={newFolderName}
+        onkeydown={handleNewFolderKeyDown}
+        class="filter-input"
+        placeholder="folder name"
+        data-testid="new-folder-input"
+        use:autofocusSelect
+      />
+      <button class="create-file-btn" onclick={() => oncreatenewfolder?.(newFolderName)} title="Create folder">✓</button>
+    </div>
+    {#if newFolderError}
+      <p class="new-file-error" role="alert">{newFolderError}</p>
+    {/if}
+  </div>
+{/if}
+```
+
+#### App.svelte: Orchestration
+
+```typescript
+let creatingFolder = $state(false);
+let newFolderError = $state("");
+
+function handleNewFolder() {
+  creatingFolder = true;
+  newFolderError = "";
+}
+
+function handleCancelCreateFolder() {
+  creatingFolder = false;
+  newFolderError = "";
+}
+
+async function handleCreateNewFolder(name: string) {
+  // Determine target: selectedFolderPath > focusedTreePath > docsPath
+  let targetDir = docsPath;
+  if (selectedFolderPath) {
+    targetDir = selectedFolderPath;
+  } else if (focusedTreePath) {
+    const entry = findEntryByPath(rawTree, focusedTreePath);
+    if (entry?.is_directory) {
+      targetDir = focusedTreePath;
+    }
+  }
+
+  try {
+    const newPath = await createDirectory(targetDir, name);
+    creatingFolder = false;
+    newFolderError = "";
+    // Expand the parent so the new folder is visible
+    // Select the new folder so it's highlighted
+    selectedFolderPath = newPath;
+    await loadTree();
+  } catch (e: any) {
+    newFolderError = typeof e === "string" ? e : e?.message || String(e);
+  }
+}
+```
+
+#### Target directory logic
+Uses the same priority as new file creation:
+1. `selectedFolderPath` (mouse-clicked folder) — highest priority
+2. `focusedTreePath` if it's a directory (keyboard-navigated folder)
+3. `docsPath` (root) — fallback
+
+This means the **Folder Selection** feature (above) should be implemented first, so the user can click a folder then click "📁+" to create a subfolder inside it.
+
+### Files to Modify
+- `src-tauri/src/commands/filesystem.rs` — add `create_directory` command
+- `src-tauri/src/commands/mod.rs` — export `create_directory`
+- `src-tauri/src/lib.rs` — register `create_directory` in `.invoke_handler()`
+- `src/lib/services/filesystem.ts` — add `createDirectory()` wrapper
+- `src/lib/components/Sidebar.svelte` — add "📁+" button, folder creation inline input, `onnewfolder`/`oncreatenewfolder`/`oncancelcreatefolder`/`creatingFolder`/`newFolderError` props
+- `src/App.svelte` — add `creatingFolder`/`newFolderError` state, `handleNewFolder`/`handleCancelCreateFolder`/`handleCreateNewFolder` handlers, pass props to Sidebar
+
+### Tests
+
+**Rust (`filesystem.rs`):**
+- `create_directory` creates a new folder in the specified parent
+- `create_directory` returns the full path of the new folder
+- `create_directory` rejects empty name
+- `create_directory` rejects name with path separators
+- `create_directory` rejects name with `..`
+- `create_directory` rejects if parent doesn't exist
+- `create_directory` rejects if folder already exists
+- `create_directory` trims whitespace from name
+
+**Frontend (`filesystem.test.ts`):**
+- `createDirectory()` calls invoke with correct command and args
+
+**Sidebar.test.ts:**
+- "📁+" button visible when `onnewfolder` is provided
+- Clicking "📁+" calls `onnewfolder`
+- Folder creation input shown when `creatingFolder` is true
+- Enter key in folder input calls `oncreatenewfolder` with the typed name
+- Escape key in folder input calls `oncancelcreatefolder`
+- Folder creation error shown when `newFolderError` is set
+
+**App.svelte (integration):**
+- Creating a folder in root creates it in `docsPath`
+- Creating a folder with `selectedFolderPath` set creates it inside the selected folder
+- New folder appears in tree after creation
+- New folder is auto-selected after creation
+- Duplicate folder name shows error
 
 ---
 
@@ -1737,12 +2339,15 @@ These features build on each other. Recommended sequence:
 12. ~~**Rename File**~~ — DONE (F2, right-click context menu, inline input, auto .md, updates open panes)
 13. ~~**Open Files from OS & CLI**~~ — DONE (file associations, `polarmd file.md` CLI, single-instance, NSIS PATH registration)
 14. ~~**Delete File**~~ — DONE (Delete key, right-click menu, native confirm dialog, closes affected panes)
-15. **Save As** — save a copy of the current file to a new location/name
-16. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-17. **Line Numbers Toggle** — nice-to-have viewer enhancement
-18. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-19. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-20. **MCP Server** — depends on write command + validation + search being built first
+15. ~~**Save As**~~ — DONE (Ctrl+Shift+S, native save dialog, pane updates to new file)
+16. **Folder Selection & Targeted File Creation** — `selectedFolderPath` state, visual folder highlight, folder icon (📁), click folder → "+" creates file there
+17. **Create New Folder** — Rust `create_directory` command, "📁+" button in sidebar, inline input, auto-selects new folder. Depends on Folder Selection for target directory logic.
+18. **Drag-and-Drop File Moving** — Rust `move_file` command, drop handlers on directories, visual drag-over feedback
+19. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+20. **Line Numbers Toggle** — nice-to-have viewer enhancement
+21. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+22. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+23. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 
@@ -1765,7 +2370,6 @@ Each feature is independently shippable and testable. Build, test, and verify af
 - **Markdown toolbar** — bold, italic, heading, link, image buttons above editor for quick formatting
 - **Vim/Emacs keybindings** — CodeMirror 6 has extensions for these
 - **CLI linting script** — `npm run lint:mermaid -- docs/` for CI pipelines, validates all mermaid in all markdown files
-- **Drag-and-drop file reordering** — move files between folders via drag
 - **Image paste/drop** — paste images from clipboard or drag into editor, auto-save to disk
 - **Markdown templates** — new file creation offers template choices (meeting notes, project plan, etc.)
 - **Word count / reading time** — status bar showing word count and estimated reading time

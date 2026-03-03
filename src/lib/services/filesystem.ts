@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ask, open } from "@tauri-apps/plugin-dialog";
-import type { CreateFileResult, FileEntry, RenameFileResult, SearchResult } from "../types";
+import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import type { CreateFileResult, FileEntry, MoveFileResult, RenameFileResult, SearchResult } from "../types";
 
 export async function readDirectoryTree(path: string): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("read_directory_tree", { path });
@@ -42,6 +42,18 @@ export async function renameFile(oldPath: string, newName: string): Promise<Rena
   return invoke<RenameFileResult>("rename_file", { oldPath, newName });
 }
 
+export async function createDirectory(parent: string, name: string): Promise<string> {
+  return invoke<string>("create_directory", { parent, name });
+}
+
+export async function moveFile(sourcePath: string, targetDir: string): Promise<MoveFileResult> {
+  return invoke<MoveFileResult>("move_file", { sourcePath, targetDir });
+}
+
+export async function moveDirectory(sourcePath: string, targetDir: string): Promise<MoveFileResult> {
+  return invoke<MoveFileResult>("move_directory", { sourcePath, targetDir });
+}
+
 export async function getInitialFile(): Promise<string | null> {
   return invoke<string | null>("get_initial_file");
 }
@@ -50,11 +62,34 @@ export async function deleteFile(path: string): Promise<void> {
   return invoke<void>("delete_file", { path });
 }
 
+export async function deleteDirectory(path: string): Promise<void> {
+  return invoke<void>("delete_directory", { path });
+}
+
 export async function confirmDelete(filename: string): Promise<boolean> {
   return ask(`Are you sure you want to delete "${filename}"? This cannot be undone.`, {
     title: "Delete File",
     kind: "warning",
   });
+}
+
+export async function confirmDeleteFolder(name: string): Promise<boolean> {
+  return ask(`Delete folder "${name}" and all its contents? This cannot be undone.`, {
+    title: "Delete Folder",
+    kind: "warning",
+  });
+}
+
+export async function saveFileAs(currentPath: string, content: string): Promise<string | null> {
+  const sep = currentPath.includes("\\") ? "\\" : "/";
+  const filename = currentPath.split(sep).pop() ?? "";
+  const newPath = await save({
+    defaultPath: filename,
+    filters: [{ name: "Markdown", extensions: ["md"] }],
+  });
+  if (!newPath) return null;
+  await writeFileContents(newPath, content);
+  return newPath;
 }
 
 export async function pickFolder(): Promise<string | null> {

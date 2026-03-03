@@ -3,12 +3,12 @@ import { render, screen, fireEvent } from "@testing-library/svelte";
 import Sidebar from "./Sidebar.svelte";
 
 describe("Sidebar", () => {
-  it("renders the Files header", () => {
+  it("renders the sidebar header with action buttons", () => {
     render(Sidebar, {
-      props: { entries: [], selectedPath: "", onselect: vi.fn() },
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), onnewfile: vi.fn() },
     });
 
-    expect(screen.getByText("Files")).toBeInTheDocument();
+    expect(screen.getByTitle("New file")).toBeInTheDocument();
   });
 
   it("renders with file browser aria label", () => {
@@ -288,6 +288,51 @@ describe("Sidebar", () => {
 
     // The rename input should appear because renamingPath matches the file
     expect(screen.getByTestId("rename-input")).toBeInTheDocument();
+  });
+
+  it("displays folder name when docsPath is provided", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), docsPath: "C:\\Users\\Zach\\docs\\my-project" },
+    });
+
+    expect(screen.getByText("my-project")).toBeInTheDocument();
+  });
+
+  it("shows full path in folder-path title tooltip", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), docsPath: "C:\\Users\\Zach\\docs\\my-project" },
+    });
+
+    const folderPath = screen.getByText("my-project");
+    expect(folderPath.getAttribute("title")).toBe("C:\\Users\\Zach\\docs\\my-project");
+  });
+
+  it("does not display folder path when docsPath is empty", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), docsPath: "" },
+    });
+
+    expect(screen.queryByText("my-project")).not.toBeInTheDocument();
+  });
+
+  it("passes onsaveas through to FileTree", async () => {
+    const entries = [
+      { name: "test.md", path: "/docs/test.md", is_directory: false, children: [] },
+    ];
+    const onsaveas = vi.fn();
+
+    render(Sidebar, {
+      props: { entries, selectedPath: "", onselect: vi.fn(), onsaveas },
+    });
+
+    // Right-click the file to trigger context menu
+    const button = document.querySelector('button[data-path="/docs/test.md"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    const saveAsBtn = screen.getByText("Save As");
+    await fireEvent.click(saveAsBtn);
+
+    expect(onsaveas).toHaveBeenCalledWith("/docs/test.md");
   });
 
   it("shows search results instead of file tree when searchMode is active with a query", () => {

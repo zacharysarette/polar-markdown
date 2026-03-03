@@ -13,10 +13,16 @@
     pickFolder,
     searchFiles,
     createFile,
+    createDirectory,
     renameFile,
     deleteFile,
+    deleteDirectory,
     confirmDelete,
+    confirmDeleteFolder,
     getInitialFile,
+    saveFileAs,
+    moveFile,
+    moveDirectory,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -32,6 +38,7 @@
   } from "./lib/services/persistence";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
   import { sortEntries, type SortMode } from "./lib/services/sort";
+  import { resetDragSource } from "./lib/components/FileTreeItem.svelte";
   import type { FileEntry, LayoutMode, OpenPane, SearchResult } from "./lib/types";
 
   const MAX_PANES = 4;
@@ -53,10 +60,14 @@
   let highlightKey = $state(0);
   let creatingFile = $state(false);
   let newFileError = $state("");
+  let creatingFolder = $state(false);
+  let newFolderError = $state("");
+  let selectedFolderPath = $state("");
   let focusedTreePath = $state("");
   let renamingPath = $state("");
   let renameError = $state("");
   const recentOwnWrites = new Set<string>();
+  let suppressWatcherUntil = 0;
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
 
   let sortedTree: FileEntry[] = $derived(sortEntries(rawTree, sortMode));
@@ -123,6 +134,7 @@
   function handleSelect(path: string, event?: MouseEvent, lineContent?: string) {
     highlightText = lineContent ?? "";
     if (lineContent) highlightKey++;
+    selectedFolderPath = "";
     if (event?.ctrlKey && panes.length < MAX_PANES) {
       openInNewPane(path);
     } else {
@@ -181,6 +193,59 @@
       console.error("Failed to save file:", e);
       recentOwnWrites.delete(path);
     }
+  }
+
+  async function handleSaveAs() {
+    const pane = panes.find((p) => p.id === activePaneId);
+    if (!pane || pane.readOnly) return;
+
+    const newPath = await saveFileAs(pane.path, pane.content);
+    if (!newPath) return;
+
+    recentOwnWrites.add(newPath);
+    panes = panes.map((p) =>
+      p.id === activePaneId ? { ...p, path: newPath } : p
+    );
+    persistPanes();
+    saveLastSelectedPath(newPath);
+    loadTree();
+    setTimeout(() => recentOwnWrites.delete(newPath), 500);
+  }
+
+  async function handleSaveAsForPath(path: string) {
+    try {
+      const content = await readFileContents(path);
+      const newPath = await saveFileAs(path, content);
+      if (!newPath) return;
+
+      recentOwnWrites.add(newPath);
+      // Update any open pane showing the original file
+      panes = panes.map((p) =>
+        p.path === path ? { ...p, path: newPath } : p
+      );
+      persistPanes();
+      loadTree();
+      setTimeout(() => recentOwnWrites.delete(newPath), 500);
+    } catch (e) {
+      console.error("Failed to save file as:", e);
+    }
+  }
+
+  async function handleSaveAsFromPane(id: string) {
+    const pane = panes.find((p) => p.id === id);
+    if (!pane || pane.readOnly) return;
+
+    const newPath = await saveFileAs(pane.path, pane.content);
+    if (!newPath) return;
+
+    recentOwnWrites.add(newPath);
+    panes = panes.map((p) =>
+      p.id === id ? { ...p, path: newPath } : p
+    );
+    persistPanes();
+    saveLastSelectedPath(newPath);
+    loadTree();
+    setTimeout(() => recentOwnWrites.delete(newPath), 500);
   }
 
   function findEntryByPath(items: FileEntry[], path: string): FileEntry | undefined {
@@ -354,15 +419,17 @@
     newFileError = "";
   }
 
-  async function handleCreateNewFile(filename: string) {
-    // Determine target directory: focused directory, or docsPath
-    let targetDir = docsPath;
+  function getTargetDir(): string {
+    if (selectedFolderPath) return selectedFolderPath;
     if (focusedTreePath) {
       const entry = findEntryByPath(rawTree, focusedTreePath);
-      if (entry?.is_directory) {
-        targetDir = focusedTreePath;
-      }
+      if (entry?.is_directory) return focusedTreePath;
     }
+    return docsPath;
+  }
+
+  async function handleCreateNewFile(filename: string) {
+    let targetDir = getTargetDir();
 
     try {
       const { path: newPath, content } = await createFile(targetDir, filename);
@@ -377,6 +444,83 @@
 
   function handleFocusChange(path: string) {
     focusedTreePath = path;
+  }
+
+  function handleFolderSelect(path: string) {
+    selectedFolderPath = path;
+  }
+
+  function handleNewFolder() {
+    creatingFolder = true;
+    newFolderError = "";
+  }
+
+  function handleCancelCreateFolder() {
+    creatingFolder = false;
+    newFolderError = "";
+  }
+
+  async function handleCreateNewFolder(name: string) {
+    let targetDir = getTargetDir();
+
+    try {
+      const newPath = await createDirectory(targetDir, name);
+      creatingFolder = false;
+      newFolderError = "";
+      selectedFolderPath = newPath;
+      await loadTree();
+    } catch (e: any) {
+      newFolderError = typeof e === "string" ? e : e?.message || String(e);
+    }
+  }
+
+  async function handleMoveFile(sourcePath: string, targetDir: string) {
+    try {
+      // Suppress watcher reloads — move triggers Remove/Create/Modify events
+      // for old path, new path, and parent dirs that would cause extra reloads
+      suppressWatcherUntil = Date.now() + 2000;
+
+      const entry = findEntryByPath(rawTree, sourcePath);
+      const isDir = entry?.is_directory ?? false;
+
+      const { old_path, new_path } = isDir
+        ? await moveDirectory(sourcePath, targetDir)
+        : await moveFile(sourcePath, targetDir);
+
+      recentOwnWrites.add(old_path);
+      recentOwnWrites.add(new_path);
+
+      if (isDir) {
+        const sep = old_path.includes("\\") ? "\\" : "/";
+        const oldPrefix = old_path + sep;
+        const newPrefix = new_path + sep;
+        panes = panes.map(p => {
+          if (p.path.startsWith(oldPrefix)) {
+            return { ...p, path: newPrefix + p.path.slice(oldPrefix.length) };
+          }
+          return p;
+        });
+        if (selectedFolderPath === old_path || selectedFolderPath.startsWith(oldPrefix)) {
+          selectedFolderPath = selectedFolderPath === old_path ? new_path : newPrefix + selectedFolderPath.slice(oldPrefix.length);
+        }
+      } else {
+        panes = panes.map(p =>
+          p.path === old_path ? { ...p, path: new_path } : p
+        );
+      }
+      persistPanes();
+
+      await loadTree();
+
+      setTimeout(() => {
+        recentOwnWrites.delete(old_path);
+        recentOwnWrites.delete(new_path);
+      }, 2000);
+    } catch (e: any) {
+      console.error("Move failed:", e);
+      const msg = typeof e === "string" ? e : e?.message || String(e);
+      alert("Move failed: " + msg);
+    }
   }
 
   function handleStartRename(path: string) {
@@ -428,45 +572,80 @@
   }
 
   async function handleDeleteFile(path: string) {
-    // Extract filename from path
+    // Extract name from path
     const sep = path.includes("\\") ? "\\" : "/";
     const parts = path.split(sep);
-    const filename = parts[parts.length - 1];
+    const name = parts[parts.length - 1];
+
+    // Determine if this is a directory
+    const entry = findEntryByPath(rawTree, path);
+    const isDir = entry?.is_directory ?? false;
 
     // Confirm with user via native dialog
-    const confirmed = await confirmDelete(filename);
+    const confirmed = isDir
+      ? await confirmDeleteFolder(name)
+      : await confirmDelete(name);
     if (!confirmed) return;
 
     try {
       // Prevent watcher double-refresh
       recentOwnWrites.add(path);
 
-      await deleteFile(path);
+      if (isDir) {
+        await deleteDirectory(path);
 
-      // Close any panes showing this file
-      const wasActive = panes.find((p) => p.id === activePaneId)?.path === path;
-      panes = panes.filter((p) => p.path !== path);
-      if (wasActive) {
-        activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+        // Close all panes whose path starts with the deleted directory
+        const dirPrefix = path.endsWith(sep) ? path : path + sep;
+        const wasActive = panes.find((p) => p.id === activePaneId);
+        panes = panes.filter((p) => p.path !== path && !p.path.startsWith(dirPrefix));
+        if (wasActive && !panes.find((p) => p.id === wasActive.id)) {
+          activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+        }
+
+        // Clear selectedFolderPath if it was the deleted dir
+        if (selectedFolderPath === path || selectedFolderPath.startsWith(dirPrefix)) {
+          selectedFolderPath = "";
+        }
+      } else {
+        await deleteFile(path);
+
+        // Close any panes showing this file
+        const wasActive = panes.find((p) => p.id === activePaneId)?.path === path;
+        panes = panes.filter((p) => p.path !== path);
+        if (wasActive) {
+          activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+        }
       }
+
       persistPanes();
 
       // Refresh tree
       await loadTree();
 
-      // Clear focused path if it was the deleted file
+      // Clear focused path if it was the deleted item
       if (focusedTreePath === path) {
         focusedTreePath = "";
       }
 
       setTimeout(() => recentOwnWrites.delete(path), 500);
     } catch (e) {
-      console.error("Failed to delete file:", e);
+      console.error("Failed to delete:", e);
       recentOwnWrites.delete(path);
     }
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // Escape: reset drag state (mitigates Windows 11 WebView2 stuck-drag bug)
+    if (event.key === "Escape") {
+      resetDragSource();
+      return;
+    }
+    // Ctrl+Shift+S: save as (must come before other Ctrl checks)
+    if (event.ctrlKey && event.shiftKey && event.key === "S") {
+      event.preventDefault();
+      handleSaveAs();
+      return;
+    }
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
       event.preventDefault();
@@ -498,6 +677,16 @@
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
+
+    // Prevent WebView2 from handling ANY drag/drop at the document level.
+    // This is the standard fix for WebView2 DnD issues on Windows 11.
+    function globalDragOver(e: Event) { e.preventDefault(); }
+    function globalDrop(e: Event) { e.preventDefault(); }
+    function globalDragEnd() { resetDragSource(); }
+
+    document.addEventListener("dragover", globalDragOver);
+    document.addEventListener("drop", globalDrop);
+    document.addEventListener("dragend", globalDragEnd);
 
     (async () => {
       // Check if a file was passed via CLI args or OS file association
@@ -565,6 +754,9 @@
       let watcherBatchTimer: ReturnType<typeof setTimeout> | undefined;
 
       unlistenFileChanged = await listen<string[]>("file-changed", (event) => {
+        // During move/rename ops, suppress all watcher events entirely
+        if (Date.now() < suppressWatcherUntil) return;
+
         for (const p of event.payload) {
           pendingChangedPaths.add(p);
         }
@@ -602,13 +794,16 @@
       unlistenFileChanged?.();
       unlistenOpenFile?.();
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("dragover", globalDragOver);
+      document.removeEventListener("drop", globalDrop);
+      document.removeEventListener("dragend", globalDragEnd);
     };
   });
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} {creatingFile} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} {newFileError} onfocuschange={handleFocusChange} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} {highlightText} {highlightKey} />
+  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} />
 </div>
 
 <style>

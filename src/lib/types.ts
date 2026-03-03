@@ -26,6 +26,11 @@ export interface RenameFileResult {
   new_path: string;
 }
 
+export interface MoveFileResult {
+  old_path: string;
+  new_path: string;
+}
+
 export interface SearchMatch {
   line_number: number;
   line_content: string;

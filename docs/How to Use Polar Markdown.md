@@ -99,6 +99,19 @@ You can delete markdown files directly from the sidebar:
 - A native OS confirmation dialog asks you to confirm before the file is removed
 - Any open panes showing the deleted file are automatically closed
 
+### Save As
+
+You can save a copy of any file under a new name or location:
+
+- **Ctrl+Shift+S** — saves the active pane's file via a native Save As dialog
+- **Right-click** a file in the sidebar — the context menu includes a "Save As" option
+- **Save As button** in the pane header — the download icon button (between the copy-path and close buttons)
+- After saving, the pane switches to the new file path
+
+### Current Folder Display
+
+The sidebar shows the name of the currently active folder just below the "Files" header. Hover over it to see the full path in a tooltip.
+
 ### Multi-File Viewing
 
 You can view multiple files side by side in split panes:
@@ -197,6 +210,7 @@ The editor and preview panes stay in sync as you work:
 
 - **Auto-save** — changes are saved to disk automatically 1 second after you stop typing
 - **Ctrl+S** — saves immediately (and cancels the auto-save timer)
+- **Ctrl+Shift+S** — opens a native Save As dialog to save a copy of the current file under a new name or location. After saving, the pane switches to the new file.
 
 ### Navigating While Editing
 
@@ -226,6 +240,7 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 | **Ctrl+N** | Create a new markdown file |
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+S** | Save immediately (in edit mode) |
+| **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
 | **Ctrl+Click** | Open file in a new pane |
 | **Ctrl+W** | Close active pane |
 | **Ctrl+1/2/3/4** | Switch to pane 1, 2, 3, or 4 |

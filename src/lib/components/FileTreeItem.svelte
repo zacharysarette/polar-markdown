@@ -1,3 +1,12 @@
+<script module lang="ts">
+  // Shared across all FileTreeItem instances — stores the path being dragged.
+  // Avoids relying on DataTransfer.getData() which returns empty in WebView2.
+  export let dragSourcePath: string | null = null;
+
+  /** Reset drag state from outside the component (e.g. global dragend/Escape handlers). */
+  export function resetDragSource() { dragSourcePath = null; }
+</script>
+
 <script lang="ts">
   import type { FileEntry } from "../types";
   import FileTreeItem from "./FileTreeItem.svelte";
@@ -7,8 +16,11 @@
     depth = 0,
     selectedPath = "",
     focusedPath = "",
+    selectedFolderPath = "",
     onselect,
     ontoggle,
+    onfolderselect,
+    onmovefile,
     expandedPaths = new Set<string>(),
     renamingPath = "",
     renameError = "",
@@ -20,14 +32,17 @@
     depth?: number;
     selectedPath?: string;
     focusedPath?: string;
+    selectedFolderPath?: string;
     onselect: (path: string, event?: MouseEvent) => void;
     ontoggle: (path: string) => void;
+    onfolderselect?: (path: string) => void;
+    onmovefile?: (sourcePath: string, targetDir: string) => void;
     expandedPaths?: Set<string>;
     renamingPath?: string;
     renameError?: string;
     onconfirmrename?: (oldPath: string, newName: string) => void;
     oncancelrename?: () => void;
-    oncontextmenu?: (path: string, x: number, y: number) => void;
+    oncontextmenu?: (path: string, x: number, y: number, isDirectory: boolean) => void;
   } = $props();
 
   const expanded = $derived(expandedPaths.has(entry.path));
@@ -51,15 +66,50 @@
   function handleClick(event: MouseEvent) {
     if (entry.is_directory) {
       ontoggle(entry.path);
+      onfolderselect?.(entry.path);
     } else {
       onselect(entry.path, event);
     }
   }
 
+  let dragOver = $state(false);
+
   function handleDragStart(event: DragEvent) {
-    if (entry.is_directory || !event.dataTransfer) return;
+    if (!event.dataTransfer) return;
+    dragSourcePath = entry.path;
     event.dataTransfer.setData("text/plain", entry.path);
-    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!entry.is_directory) return;
+    event.dataTransfer!.dropEffect = "move";
+    dragOver = true;
+  }
+
+  function handleDragLeave() {
+    dragOver = false;
+  }
+
+  function handleDragEnd() {
+    dragSourcePath = null;
+  }
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragOver = false;
+    if (!entry.is_directory) return;
+    // Use module-level variable (WebView2 DataTransfer.getData() returns empty)
+    const sourcePath = dragSourcePath ?? event.dataTransfer?.getData("text/plain");
+    dragSourcePath = null;
+    if (!sourcePath || sourcePath === entry.path) return;
+    // Prevent dropping a folder into its own descendant
+    const sep = entry.path.includes("\\") ? "\\" : "/";
+    if (entry.path.startsWith(sourcePath + sep)) return;
+    onmovefile?.(sourcePath, entry.path);
   }
 
   function handleRenameKeyDown(event: KeyboardEvent) {
@@ -79,14 +129,15 @@
   }
 
   function handleContextMenu(event: MouseEvent) {
-    if (!entry.is_directory && oncontextmenu) {
+    if (oncontextmenu) {
       event.preventDefault();
-      oncontextmenu(entry.path, event.clientX, event.clientY);
+      oncontextmenu(entry.path, event.clientX, event.clientY, entry.is_directory);
     }
   }
 
   const isSelected = $derived(entry.path === selectedPath);
   const isFocused = $derived(entry.path === focusedPath);
+  const isFolderSelected = $derived(entry.is_directory && entry.path === selectedFolderPath);
   const paddingLeft = $derived(`${depth * 16 + 8}px`);
 </script>
 
@@ -128,16 +179,23 @@
       class:selected={isSelected}
       class:focused={isFocused}
       class:directory={entry.is_directory}
+      class:folder-selected={isFolderSelected}
+      class:drag-over={dragOver}
       style="padding-left: {paddingLeft}"
       onclick={handleClick}
       oncontextmenu={handleContextMenu}
-      draggable={!entry.is_directory}
+      draggable={true}
       ondragstart={handleDragStart}
+      ondragover={handleDragOver}
+      ondragleave={handleDragLeave}
+      ondrop={handleDrop}
+      ondragend={handleDragEnd}
       title={entry.path}
       data-path={entry.path}
     >
       {#if entry.is_directory}
         <span class="chevron">{expanded ? "▼" : "▶"}</span>
+        <span class="folder-icon">📁</span>
       {:else}
         <span class="file-icon">📄</span>
       {/if}
@@ -153,8 +211,11 @@
           depth={depth + 1}
           {selectedPath}
           {focusedPath}
+          {selectedFolderPath}
           {onselect}
           {ontoggle}
+          {onfolderselect}
+          {onmovefile}
           {expandedPaths}
           {renamingPath}
           {renameError}
@@ -202,6 +263,17 @@
     color: #9ece6a;
   }
 
+  .tree-row.folder-selected {
+    background: rgba(158, 206, 106, 0.15);
+    outline: 1px solid rgba(158, 206, 106, 0.4);
+  }
+
+  .tree-row.drag-over {
+    background: rgba(158, 206, 106, 0.25);
+    outline: 2px dashed #9ece6a;
+    outline-offset: -2px;
+  }
+
   .chevron {
     font-size: 10px;
     width: 14px;
@@ -209,7 +281,8 @@
     flex-shrink: 0;
   }
 
-  .file-icon {
+  .file-icon,
+  .folder-icon {
     font-size: 12px;
     width: 14px;
     text-align: center;

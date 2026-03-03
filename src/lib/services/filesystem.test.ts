@@ -9,14 +9,16 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
   ask: vi.fn(),
+  save: vi.fn(),
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { ask, open } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, confirmDelete } from "./filesystem";
+import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 const mockAsk = vi.mocked(ask);
+const mockSave = vi.mocked(save);
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -24,6 +26,7 @@ beforeEach(() => {
   mockInvoke.mockReset();
   mockOpen.mockReset();
   mockAsk.mockReset();
+  mockSave.mockReset();
 });
 
 describe("readDirectoryTree", () => {
@@ -224,5 +227,94 @@ describe("confirmDelete", () => {
       { title: "Delete File", kind: "warning" }
     );
     expect(result).toBe(true);
+  });
+});
+
+describe("saveFileAs", () => {
+  it("opens save dialog, writes file, and returns new path", async () => {
+    mockSave.mockResolvedValue("C:\\docs\\copy.md");
+    mockInvoke.mockResolvedValue(undefined);
+
+    const result = await saveFileAs("C:\\docs\\original.md", "# Hello");
+
+    expect(mockSave).toHaveBeenCalledWith({
+      defaultPath: "original.md",
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("write_file_contents", {
+      path: "C:\\docs\\copy.md",
+      content: "# Hello",
+    });
+    expect(result).toBe("C:\\docs\\copy.md");
+  });
+
+  it("returns null when user cancels the dialog", async () => {
+    mockSave.mockResolvedValue(null);
+
+    const result = await saveFileAs("C:\\docs\\original.md", "# Hello");
+
+    expect(result).toBeNull();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+});
+
+describe("moveDirectory", () => {
+  it("calls invoke with correct command and args", async () => {
+    const mockResult = { old_path: "/docs/source", new_path: "/docs/target/source" };
+    mockInvoke.mockResolvedValue(mockResult);
+
+    const result = await moveDirectory("/docs/source", "/docs/target");
+
+    expect(mockInvoke).toHaveBeenCalledWith("move_directory", {
+      sourcePath: "/docs/source",
+      targetDir: "/docs/target",
+    });
+    expect(result).toEqual(mockResult);
+  });
+
+  it("propagates errors from invoke", async () => {
+    mockInvoke.mockRejectedValue(new Error("Cannot move a directory into itself"));
+
+    await expect(moveDirectory("/docs/parent", "/docs/parent/child")).rejects.toThrow("Cannot move a directory into itself");
+  });
+});
+
+describe("deleteDirectory", () => {
+  it("calls invoke with correct command and path", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+
+    await deleteDirectory("/docs/old-folder");
+
+    expect(mockInvoke).toHaveBeenCalledWith("delete_directory", {
+      path: "/docs/old-folder",
+    });
+  });
+
+  it("propagates errors from invoke", async () => {
+    mockInvoke.mockRejectedValue(new Error("Directory does not exist"));
+
+    await expect(deleteDirectory("/docs/missing")).rejects.toThrow("Directory does not exist");
+  });
+});
+
+describe("confirmDeleteFolder", () => {
+  it("calls ask with folder-specific message and options", async () => {
+    mockAsk.mockResolvedValue(true);
+
+    const result = await confirmDeleteFolder("my-notes");
+
+    expect(mockAsk).toHaveBeenCalledWith(
+      'Delete folder "my-notes" and all its contents? This cannot be undone.',
+      { title: "Delete Folder", kind: "warning" }
+    );
+    expect(result).toBe(true);
+  });
+
+  it("returns false when user cancels", async () => {
+    mockAsk.mockResolvedValue(false);
+
+    const result = await confirmDeleteFolder("my-notes");
+
+    expect(result).toBe(false);
   });
 });
