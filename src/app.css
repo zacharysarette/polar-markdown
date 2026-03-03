@@ -167,6 +167,7 @@ html, body, #app {
   margin-bottom: 0.5em;
   font-weight: 600;
   line-height: 1.3;
+  scroll-margin-top: 16px;
 }
 
 .markdown-body h1 {

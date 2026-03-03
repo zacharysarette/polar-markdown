@@ -69,6 +69,33 @@ export function resolveImageSrc(href: string, markdownDir: string): string {
   return convertFileSrc(absolutePath);
 }
 
+/** Convert heading text to a URL-friendly slug for anchor links. */
+export function slugify(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")       // strip bold **text**
+    .replace(/\*(.+?)\*/g, "$1")            // strip italic *text*
+    .replace(/`(.+?)`/g, "$1")              // strip inline code `text`
+    .replace(/!\[.*?\]\(.*?\)/g, "")        // strip images ![alt](url)
+    .replace(/\[(.+?)\]\(.*?\)/g, "$1")     // strip links [text](url)
+    .replace(/~~(.+?)~~/g, "$1")            // strip strikethrough ~~text~~
+    .replace(/<[^>]+>/g, "")                // strip HTML tags
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")               // remove non-alphanumeric (keep hyphens, underscores)
+    .replace(/\s+/g, "-")                   // spaces to hyphens
+    .replace(/-+/g, "-")                    // collapse multiple hyphens
+    .replace(/^-|-$/g, "");                 // strip leading/trailing hyphens
+}
+
+// Track duplicate heading slugs for unique IDs within a single render
+let slugCounts = new Map<string, number>();
+
+function getUniqueSlug(slug: string): string {
+  const count = slugCounts.get(slug) ?? 0;
+  slugCounts.set(slug, count + 1);
+  return count === 0 ? slug : `${slug}-${count}`;
+}
+
 // Track the current markdown file's directory for image resolution
 let currentMarkdownDir = "";
 
@@ -96,6 +123,11 @@ const marked = new Marked({
     },
   },
   renderer: {
+    heading({ tokens, depth, text }: { tokens: any[]; depth: number; text: string }) {
+      const slug = getUniqueSlug(slugify(text));
+      const content = (this as any).parser.parseInline(tokens);
+      return `<h${depth} id="${slug}">${content}</h${depth}>\n`;
+    },
     image({ href, title, text }: { href: string; title?: string | null; text: string }) {
       const resolvedHref = resolveImageSrc(href, currentMarkdownDir);
       const altAttr = text ? ` alt="${text}"` : ' alt=""';
@@ -133,6 +165,7 @@ const marked = new Marked({
 });
 
 export async function renderMarkdown(content: string, filePath?: string): Promise<string> {
+  slugCounts = new Map<string, number>();
   currentMarkdownDir = filePath ? getDirectory(filePath) : "";
   return marked.parse(content) as Promise<string>;
 }
