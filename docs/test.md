@@ -237,29 +237,15 @@ Content below the rule.
 
 ## Anchor Links (In-Page Navigation)
 
-Clicking a `#hash` link smooth-scrolls to the matching heading. Try these:
+Clicking a `#hash` link smooth-scrolls to the matching heading. Try these — each should visibly scroll since they jump across the full length of this document:
 
-- [Jump to Images](#images)
+- [Jump to Images](#images) (near the top)
 - [Jump to Code Blocks](#code-blocks)
 - [Jump to Mermaid Diagrams](#mermaid-diagrams)
+- [Jump to ASCII Art](#ascii-art--svgbob-diagrams)
 - [Jump to Tables](#tables)
 - [Jump to Text Formatting](#text-formatting)
 - [Back to top](#polar-markdown-rendering-museum)
-
-### Duplicate Heading Test
-
-The headings below have identical text — each gets a unique suffixed ID (`-1`, `-2`):
-
-#### Duplicate
-
-First duplicate heading.
-
-#### Duplicate
-
-Second duplicate heading — links to `#duplicate-1`.
-
-- [Go to first Duplicate](#duplicate)
-- [Go to second Duplicate](#duplicate-1)
 
 ---
 
