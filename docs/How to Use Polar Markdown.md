@@ -150,6 +150,7 @@ The main content area renders your markdown with full formatting support:
 - **Headings, lists, tables, blockquotes** — standard markdown
 - **Code blocks** — syntax highlighted with highlight.js, with line numbers in the left gutter
 - **Links** — clickable
+- **Anchor links** — `#hash` links (e.g. `[Go to top](#top)`) smooth-scroll to the matching heading within the document. Tables of contents, cross-references, and "Back to top" links all work. Headings automatically get GitHub-flavored IDs (lowercased, spaces become hyphens, special characters stripped). Duplicate headings get `-1`, `-2` suffixes.
 - **Mermaid diagrams** — rendered as live SVG diagrams
 
 ### ASCII Art Diagrams (svgbob)
@@ -269,4 +270,5 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 - **Widescreen monitors:** Use the layout toggle (top-right of the content area) to switch between centered and multi-column modes.
 - **Multiple folders:** Use the folder button to switch between different documentation directories. Each folder's state is independent.
 - **CLI usage:** After installing with the NSIS installer, run `polarmd` from any terminal to launch the app, or `polarmd file.md` to open a specific file.
+- **Rendering museum:** Open `docs/test.md` to see every rendering feature in one place — headings, code blocks, Mermaid diagrams, ASCII art, tables, images, anchor links, and more. Great for verifying everything works after updates.
 - **Dogfooding:** Polar Markdown's own documentation lives in the `docs/` folder — you're reading it right now!

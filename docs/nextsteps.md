@@ -2327,6 +2327,66 @@ Dual theme system (Aurora dark / Glacier light) with CSS variable foundation and
 
 ---
 
+## ~~Feature: Anchor Link Scrolling (In-Page Navigation)~~
+
+### Status: DONE
+
+Headings now get `id` attributes (GitHub-flavored slugs). Clicking `#hash` links smooth-scrolls to the target heading. Duplicate headings get `-1`, `-2` suffixes. External and relative file links pass through untouched. `scroll-margin-top: 16px` prevents headings from slamming against the top edge.
+
+### Key Files
+- `src/lib/services/markdown.ts` — `slugify()`, `getUniqueSlug()`, `heading()` renderer
+- `src/lib/components/MarkdownViewer.svelte` — `handleAnchorClick` event delegation on article
+- `src/app.css` — `scroll-margin-top` for headings with IDs
+
+### Tests (22 new)
+- markdown.test.ts: 12 slugify tests + 6 heading ID tests
+- MarkdownViewer.test.ts: 4 anchor click behavior tests
+
+---
+
+## Feature: File Link Navigation (Cross-File Links)
+
+### Status: PENDING (high priority)
+
+### Problem
+Markdown files often link to other files (e.g. `[see the guide](How to Use Polar Markdown.md)` or `[notes](notes/ideas.md)`). Currently, clicking these links does nothing useful — the browser tries to navigate away, which fails in the Tauri WebView.
+
+### Solution
+
+**1. Intercept link clicks in MarkdownViewer**
+- Extend the click handler on `.markdown-body` (same one as anchor links)
+- If the `href` ends with `.md` (or `.md#section`): resolve it relative to the current file's directory, then emit an event to open that file
+- If the `href` is an external URL (`http://` or `https://`): open in the user's default browser via Tauri's shell API
+
+**2. Resolve relative paths**
+- Given the current file's path and the link's `href`, compute the absolute path
+- Example: if viewing `C:\docs\readme.md` and link is `notes/ideas.md`, resolve to `C:\docs\notes\ideas.md`
+- Handle `../` traversal
+
+**3. Support `file.md#section` links**
+- If the link has both a file path and a hash fragment (e.g. `guide.md#installation`), open the file AND scroll to the heading
+- This combines both features: file navigation + anchor scrolling
+
+**4. Open in active pane vs new pane**
+- Normal click → open in active pane (same as clicking a file in the sidebar)
+- Ctrl+Click → open in new pane (follows existing multi-pane convention)
+
+### Key Files
+- `src/lib/components/MarkdownViewer.svelte` — click handler, path resolution, event emission
+- `src/App.svelte` — handle the "open file from link" event (reuse existing `handleSelect`)
+- `src/lib/services/markdown.ts` — possibly extend link renderer to add `data-path` attributes for resolved paths
+
+### Tests
+- MarkdownViewer.test.ts: clicking `.md` link emits correct event with resolved path
+- MarkdownViewer.test.ts: clicking external link calls shell open
+- MarkdownViewer.test.ts: Ctrl+Click emits with ctrlKey flag
+- MarkdownViewer.test.ts: `file.md#section` link emits path + hash
+
+### Dependencies
+- Anchor link scrolling should be implemented first (this feature builds on it for `file.md#section` links)
+
+---
+
 ## Feature: Line Numbers Toggle
 
 ### Status: PENDING (lower priority)
@@ -2380,11 +2440,13 @@ These features build on each other. Recommended sequence:
 17. ~~**Create New Folder**~~ — DONE (Rust `create_directory` command, "📁+" button in sidebar, inline input, auto-selects new folder)
 18. ~~**Drag-and-Drop File Moving**~~ — DONE (Rust `move_file`/`move_directory` commands, drop handlers on directories, visual drag-over feedback, WebView2 stuck-drag fix)
 19. ~~**Aurora/Glacier Theming**~~ — DONE (dual theme system, CSS variables, toggle button, theme-aware native background on startup — no white flash)
-20. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-21. **Line Numbers Toggle** — nice-to-have viewer enhancement
-22. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-23. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-24. **MCP Server** — depends on write command + validation + search being built first
+20. ~~**Anchor Link Scrolling**~~ — DONE (heading IDs via `slugify()`, `#hash` click handler with smooth scroll, duplicate ID suffixing, `scroll-margin-top`)
+21. **File Link Navigation** — `.md` links open files, external links open browser, `file.md#section` combo. Builds on anchor scrolling.
+22. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+23. **Line Numbers Toggle** — nice-to-have viewer enhancement
+24. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+25. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+26. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 

@@ -95,6 +95,91 @@ describe("MarkdownViewer", () => {
     });
   });
 
+  describe("anchor link scrolling", () => {
+    it("scrolls to target heading when anchor link is clicked", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "# Top\n\n[Go](#top)\n\n## Section", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const article = container.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        expect(article!.querySelector("#top")).not.toBeNull();
+      });
+
+      const heading = container.querySelector("#top") as HTMLElement;
+      heading.scrollIntoView = vi.fn();
+
+      const link = container.querySelector('a[href="#top"]') as HTMLAnchorElement;
+      expect(link).not.toBeNull();
+      link.click();
+
+      expect(heading.scrollIntoView).toHaveBeenCalled();
+    });
+
+    it("calls preventDefault on anchor link clicks", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "# Top\n\n[Go](#top)", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const article = container.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        expect(article!.querySelector("#top")).not.toBeNull();
+      });
+
+      const heading = container.querySelector("#top") as HTMLElement;
+      heading.scrollIntoView = vi.fn();
+
+      const article = container.querySelector("article.markdown-body") as HTMLElement;
+      const link = container.querySelector('a[href="#top"]') as HTMLAnchorElement;
+
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const preventSpy = vi.spyOn(event, "preventDefault");
+      link.dispatchEvent(event);
+
+      expect(preventSpy).toHaveBeenCalled();
+    });
+
+    it("does NOT intercept external links", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[External](https://example.com)", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const article = container.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        expect(article!.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const preventSpy = vi.spyOn(event, "preventDefault");
+      link.dispatchEvent(event);
+
+      expect(preventSpy).not.toHaveBeenCalled();
+    });
+
+    it("does NOT intercept relative file links", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Other](./other.md)", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const article = container.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        expect(article!.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const preventSpy = vi.spyOn(event, "preventDefault");
+      link.dispatchEvent(event);
+
+      expect(preventSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("image layout shift fix", () => {
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true });

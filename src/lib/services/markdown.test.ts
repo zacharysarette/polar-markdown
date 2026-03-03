@@ -18,13 +18,13 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => `http://asset.localhost/${path.replace(/\\/g, "/")}`),
 }));
 
-import { renderMarkdown, renderMermaidDiagrams, getDirectory, resolveImageSrc } from "./markdown";
+import { renderMarkdown, renderMermaidDiagrams, getDirectory, resolveImageSrc, slugify } from "./markdown";
 import mermaid from "mermaid";
 
 describe("renderMarkdown", () => {
   it("renders basic markdown headings", async () => {
     const html = await renderMarkdown("# Hello World");
-    expect(html).toContain("<h1>");
+    expect(html).toContain("<h1");
     expect(html).toContain("Hello World");
   });
 
@@ -225,6 +225,95 @@ describe("resolveImageSrc", () => {
   it("resolves bare relative path (no ./)", () => {
     const result = resolveImageSrc("screenshot.png", "/home/user/docs");
     expect(result).toBe("http://asset.localhost//home/user/docs/screenshot.png");
+  });
+});
+
+describe("slugify", () => {
+  it("converts to lowercase", () => {
+    expect(slugify("Hello")).toBe("hello");
+  });
+
+  it("replaces spaces with hyphens", () => {
+    expect(slugify("hello world")).toBe("hello-world");
+  });
+
+  it("removes special characters", () => {
+    expect(slugify("What's New?")).toBe("whats-new");
+  });
+
+  it("preserves hyphens and underscores", () => {
+    expect(slugify("my-slug_name")).toBe("my-slug_name");
+  });
+
+  it("handles numbers", () => {
+    expect(slugify("Section 2")).toBe("section-2");
+  });
+
+  it("strips leading/trailing whitespace", () => {
+    expect(slugify("  hello  ")).toBe("hello");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(slugify("")).toBe("");
+  });
+
+  it("collapses multiple spaces into single hyphen", () => {
+    expect(slugify("hello   world")).toBe("hello-world");
+  });
+
+  it("strips inline bold markers", () => {
+    expect(slugify("**bold text**")).toBe("bold-text");
+  });
+
+  it("strips inline link syntax", () => {
+    expect(slugify("[text](url)")).toBe("text");
+  });
+
+  it("strips inline code backticks", () => {
+    expect(slugify("`code` stuff")).toBe("code-stuff");
+  });
+
+  it("strips inline italic markers", () => {
+    expect(slugify("*italic text*")).toBe("italic-text");
+  });
+});
+
+describe("renderMarkdown heading IDs", () => {
+  it("adds id attribute to h1", async () => {
+    const html = await renderMarkdown("# Hello");
+    expect(html).toContain('<h1 id="hello">');
+  });
+
+  it("adds id attribute to h2 with multi-word text", async () => {
+    const html = await renderMarkdown("## Hello World");
+    expect(html).toContain('<h2 id="hello-world">');
+  });
+
+  it("suffixes duplicate heading IDs", async () => {
+    const html = await renderMarkdown("## Foo\n\n## Foo");
+    expect(html).toContain('id="foo"');
+    expect(html).toContain('id="foo-1"');
+  });
+
+  it("suffixes triple duplicate heading IDs", async () => {
+    const html = await renderMarkdown("## Foo\n\n## Foo\n\n## Foo");
+    expect(html).toContain('id="foo"');
+    expect(html).toContain('id="foo-1"');
+    expect(html).toContain('id="foo-2"');
+  });
+
+  it("resets slug counter between renderMarkdown calls", async () => {
+    await renderMarkdown("## Foo\n\n## Foo");
+    const html = await renderMarkdown("## Foo");
+    // Should be just "foo" — no suffix — because counter reset
+    expect(html).toContain('id="foo"');
+    expect(html).not.toContain('id="foo-1"');
+  });
+
+  it("strips inline formatting from id but preserves in HTML", async () => {
+    const html = await renderMarkdown("## Hello **World**");
+    expect(html).toContain('id="hello-world"');
+    expect(html).toContain("World");
   });
 });
 

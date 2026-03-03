@@ -235,4 +235,18 @@ Content below the rule.
 
 ---
 
+## Anchor Links (In-Page Navigation)
+
+Clicking a `#hash` link smooth-scrolls to the matching heading. Try these — each should visibly scroll since they jump across the full length of this document:
+
+- [Jump to Images](#images) (near the top)
+- [Jump to Code Blocks](#code-blocks)
+- [Jump to Mermaid Diagrams](#mermaid-diagrams)
+- [Jump to ASCII Art](#ascii-art--svgbob-diagrams)
+- [Jump to Tables](#tables)
+- [Jump to Text Formatting](#text-formatting)
+- [Back to top](#polar-markdown-rendering-museum)
+
+---
+
 *This file is a rendering museum — every feature of Polar Markdown displayed in one place.*

@@ -379,6 +379,22 @@
     return () => cancelAnimationFrame(frame);
   });
 
+  function handleAnchorClick(event: MouseEvent) {
+    const anchor = (event.target as HTMLElement).closest("a");
+    if (!anchor) return;
+    const href = anchor.getAttribute("href");
+    if (!href || !href.startsWith("#")) return;
+
+    const id = href.slice(1);
+    if (!id || !articleEl) return;
+
+    const target = articleEl.querySelector(`#${CSS.escape(id)}`);
+    if (target) {
+      event.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");
 </script>
 
@@ -393,7 +409,7 @@
         </div>
       </header>
     {/if}
-    <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} bind:this={articleEl}>
+    <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} bind:this={articleEl} onclick={handleAnchorClick}>
       {@html htmlContent}
     </article>
   {:else}
