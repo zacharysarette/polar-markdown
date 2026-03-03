@@ -39,7 +39,7 @@ export function getDirectory(filePath: string): string {
 }
 
 /** Join base directory with a relative path, resolving . and .. segments. */
-function resolvePath(base: string, relative: string): string {
+export function resolvePath(base: string, relative: string): string {
   // Normalize to forward slashes for processing
   const baseParts = base.replace(/\\/g, "/").split("/").filter(Boolean);
   const relParts = relative.replace(/\\/g, "/").split("/").filter(Boolean);

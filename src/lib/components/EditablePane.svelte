@@ -11,6 +11,7 @@
     highlightText = "",
     highlightKey = 0,
     theme = "aurora" as ThemeType,
+    onfilelink,
   }: {
     content?: string;
     filePath?: string;
@@ -18,6 +19,7 @@
     highlightText?: string;
     highlightKey?: number;
     theme?: ThemeType;
+    onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
   } = $props();
 
   let editContent = $state(content);
@@ -141,7 +143,7 @@
       <span class="preview-label">Preview</span>
       <span class="preview-file" title={filePath}>{fileName}</span>
     </header>
-    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} />
+    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} {onfilelink} />
   </div>
 </div>
 

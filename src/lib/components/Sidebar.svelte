@@ -44,6 +44,7 @@
     oncancelrename,
     ondelete,
     onsaveas,
+    oncopypath,
     docsPath = "",
     theme = "aurora" as ThemeType,
     onthemetoggle,
@@ -85,6 +86,7 @@
     oncancelrename?: () => void;
     ondelete?: (path: string) => void;
     onsaveas?: (path: string) => void;
+    oncopypath?: (path: string) => void;
     docsPath?: string;
     theme?: ThemeType;
     onthemetoggle?: () => void;
@@ -304,7 +306,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <nav class="sidebar-content" class:nav-drag-over={navDragOver} onclick={handleNavClick} ondragover={handleNavDragOver} ondragleave={handleNavDragLeave} ondrop={handleNavDrop}>
-      <FileTree {entries} {selectedPath} {selectedFolderPath} {onselect} {onfocuschange} {onfolderselect} {onmovefile} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} {ondelete} {onsaveas} docsPath={docsPath} />
+      <FileTree {entries} {selectedPath} {selectedFolderPath} {onselect} {onfocuschange} {onfolderselect} {onmovefile} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} {ondelete} {onsaveas} {oncopypath} docsPath={docsPath} />
     </nav>
   {/if}
   {#if docsPath}

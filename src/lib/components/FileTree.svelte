@@ -20,6 +20,7 @@
     oncancelrename,
     ondelete,
     onsaveas,
+    oncopypath,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -36,6 +37,7 @@
     oncancelrename?: () => void;
     ondelete?: (path: string) => void;
     onsaveas?: (path: string) => void;
+    oncopypath?: (path: string) => void;
   } = $props();
 
   let focusedPath = $state("");
@@ -164,6 +166,13 @@
     }
   }
 
+  function handleContextMenuCopyPath() {
+    if (contextMenu) {
+      oncopypath?.(contextMenu.path);
+      contextMenu = null;
+    }
+  }
+
   function handleContextMenuSaveAs() {
     if (contextMenu) {
       onsaveas?.(contextMenu.path);
@@ -258,6 +267,7 @@
     style="left: {contextMenu.x}px; top: {contextMenu.y}px"
     onclick={(e) => e.stopPropagation()}
   >
+    <button class="context-menu-item" onclick={handleContextMenuCopyPath}>Copy Path</button>
     {#if !contextMenu.isDirectory}
       <button class="context-menu-item" onclick={handleContextMenuSaveAs}>Save As</button>
       <button class="context-menu-item" onclick={handleContextMenuRename}>Rename</button>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams } from "../services/markdown";
+  import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams, getDirectory, resolvePath } from "../services/markdown";
+  import { open } from "@tauri-apps/plugin-shell";
   import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex, clearLineHeightCache } from "../services/highlight";
   import type { LayoutMode } from "../types";
 
@@ -16,6 +17,8 @@
     activeTotalLines = 1,
     activeColumn = 1,
     showHeader = true,
+    onfilelink,
+    scrollToId = "",
   }: {
     content?: string;
     filePath?: string;
@@ -28,6 +31,8 @@
     activeTotalLines?: number;
     activeColumn?: number;
     showHeader?: boolean;
+    onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
+    scrollToId?: string;
   } = $props();
 
   let htmlContent = $state("");
@@ -383,17 +388,55 @@
     const anchor = (event.target as HTMLElement).closest("a");
     if (!anchor) return;
     const href = anchor.getAttribute("href");
-    if (!href || !href.startsWith("#")) return;
+    if (!href) return;
 
-    const id = href.slice(1);
-    if (!id || !articleEl) return;
+    // Branch 1: #hash anchor links — scroll within the page
+    if (href.startsWith("#")) {
+      const id = href.slice(1);
+      if (!id || !articleEl) return;
+      const target = articleEl.querySelector(`#${CSS.escape(id)}`);
+      if (target) {
+        event.preventDefault();
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
 
-    const target = articleEl.querySelector(`#${CSS.escape(id)}`);
-    if (target) {
+    // Branch 2: External links (http/https) — open in system browser
+    if (/^https?:\/\//i.test(href)) {
       event.preventDefault();
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      open(href);
+      return;
+    }
+
+    // Branch 3: .md file links — navigate within app
+    // Split href into path and optional hash: "file.md#section" → ["file.md", "section"]
+    const [linkPath, hash] = href.split("#", 2);
+    if (linkPath.endsWith(".md")) {
+      event.preventDefault();
+      const dir = getDirectory(filePath);
+      const resolvedPath = dir ? resolvePath(dir, linkPath) : linkPath;
+      onfilelink?.(resolvedPath, hash || undefined, event.ctrlKey);
+      return;
     }
   }
+
+  // Scroll to a heading by ID when scrollToId changes (e.g. after opening file.md#section)
+  $effect(() => {
+    const id = scrollToId;
+    const el = articleEl;
+    const _html = htmlContent;
+    if (!id || !el || !_html) return;
+
+    const frame = requestAnimationFrame(() => {
+      const target = el.querySelector(`#${CSS.escape(id)}`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  });
 
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");
 </script>

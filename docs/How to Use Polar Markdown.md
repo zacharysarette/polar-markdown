@@ -99,6 +99,13 @@ You can delete markdown files directly from the sidebar:
 - A native OS confirmation dialog asks you to confirm before the file is removed
 - Any open panes showing the deleted file are automatically closed
 
+### Copy Path
+
+You can copy the full path of any file or folder to the clipboard:
+
+- **Right-click** a file or folder in the sidebar — the context menu includes a "Copy Path" option
+- The full file system path is copied to your clipboard
+
 ### Save As
 
 You can save a copy of any file under a new name or location:
@@ -151,6 +158,8 @@ The main content area renders your markdown with full formatting support:
 - **Code blocks** — syntax highlighted with highlight.js, with line numbers in the left gutter
 - **Links** — clickable
 - **Anchor links** — `#hash` links (e.g. `[Go to top](#top)`) smooth-scroll to the matching heading within the document. Tables of contents, cross-references, and "Back to top" links all work. Headings automatically get GitHub-flavored IDs (lowercased, spaces become hyphens, special characters stripped). Duplicate headings get `-1`, `-2` suffixes.
+- **File links** — clicking a `.md` link (e.g. `[see notes](notes.md)`) opens that file in the active pane. Ctrl+Click opens it in a new pane. Links with `#section` fragments (e.g. `guide.md#installation`) open the file and scroll to the heading. Relative paths (`../sibling/file.md`, `sub/deep.md`) are resolved correctly.
+- **External links** — clicking an `http://` or `https://` link opens it in your system browser instead of navigating inside the app
 - **Mermaid diagrams** — rendered as live SVG diagrams
 
 ### ASCII Art Diagrams (svgbob)

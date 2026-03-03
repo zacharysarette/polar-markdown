@@ -4,7 +4,7 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`polarmd file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
-### Current Test Count: 357 frontend (13 test files) + 81 Rust = 438 total
+### Current Test Count: 398 frontend (13 test files) + 81 Rust = 479 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs` (InitialFileState, extract_file_arg, single-instance plugin), `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -2346,7 +2346,7 @@ Headings now get `id` attributes (GitHub-flavored slugs). Clicking `#hash` links
 
 ## Feature: File Link Navigation (Cross-File Links)
 
-### Status: PENDING (high priority)
+### Status: DONE
 
 ### Problem
 Markdown files often link to other files (e.g. `[see the guide](How to Use Polar Markdown.md)` or `[notes](notes/ideas.md)`). Currently, clicking these links does nothing useful — the browser tries to navigate away, which fails in the Tauri WebView.
@@ -2441,7 +2441,7 @@ These features build on each other. Recommended sequence:
 18. ~~**Drag-and-Drop File Moving**~~ — DONE (Rust `move_file`/`move_directory` commands, drop handlers on directories, visual drag-over feedback, WebView2 stuck-drag fix)
 19. ~~**Aurora/Glacier Theming**~~ — DONE (dual theme system, CSS variables, toggle button, theme-aware native background on startup — no white flash)
 20. ~~**Anchor Link Scrolling**~~ — DONE (heading IDs via `slugify()`, `#hash` click handler with smooth scroll, duplicate ID suffixing, `scroll-margin-top`)
-21. **File Link Navigation** — `.md` links open files, external links open browser, `file.md#section` combo. Builds on anchor scrolling.
+21. ~~**File Link Navigation**~~ — DONE (`.md` links open files, external links open in system browser via `tauri-plugin-shell`, `file.md#section` combo, Ctrl+Click for new pane, Copy Path in context menu)
 22. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
 23. **Line Numbers Toggle** — nice-to-have viewer enhancement
 24. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)

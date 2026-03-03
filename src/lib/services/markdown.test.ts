@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => `http://asset.localhost/${path.replace(/\\/g, "/")}`),
 }));
 
-import { renderMarkdown, renderMermaidDiagrams, getDirectory, resolveImageSrc, slugify } from "./markdown";
+import { renderMarkdown, renderMermaidDiagrams, getDirectory, resolveImageSrc, slugify, resolvePath } from "./markdown";
 import mermaid from "mermaid";
 
 describe("renderMarkdown", () => {
@@ -314,6 +314,29 @@ describe("renderMarkdown heading IDs", () => {
     const html = await renderMarkdown("## Hello **World**");
     expect(html).toContain('id="hello-world"');
     expect(html).toContain("World");
+  });
+});
+
+describe("resolvePath", () => {
+  it("resolves simple relative path", () => {
+    expect(resolvePath("/home/docs", "notes.md")).toBe("/home/docs/notes.md");
+  });
+
+  it("resolves .. parent references", () => {
+    expect(resolvePath("/home/docs", "../sibling/file.md")).toBe("/home/sibling/file.md");
+  });
+
+  it("resolves ./ current directory", () => {
+    expect(resolvePath("/home/docs", "./readme.md")).toBe("/home/docs/readme.md");
+  });
+
+  it("handles Windows backslash paths", () => {
+    expect(resolvePath("C:\\Users\\docs", "notes.md")).toBe("C:/Users/docs/notes.md");
+  });
+
+  it("preserves leading slash for Unix paths", () => {
+    const result = resolvePath("/usr/share/docs", "file.md");
+    expect(result.startsWith("/")).toBe(true);
   });
 });
 

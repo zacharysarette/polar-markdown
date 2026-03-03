@@ -16,6 +16,8 @@
     highlightText = "",
     highlightKey = 0,
     theme = "aurora" as ThemeType,
+    onfilelink,
+    scrollToId = "",
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -29,6 +31,8 @@
     highlightText?: string;
     highlightKey?: number;
     theme?: ThemeType;
+    onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
+    scrollToId?: string;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -121,6 +125,7 @@
             highlightText={pane.id === activePaneId ? highlightText : ""}
             highlightKey={pane.id === activePaneId ? highlightKey : 0}
             {theme}
+            {onfilelink}
           />
         {:else}
           <MarkdownViewer
@@ -130,6 +135,8 @@
             {onlayoutchange}
             highlightText={pane.id === activePaneId ? highlightText : ""}
             highlightKey={pane.id === activePaneId ? highlightKey : 0}
+            {onfilelink}
+            scrollToId={pane.id === activePaneId ? scrollToId : ""}
           />
         {/if}
       </div>

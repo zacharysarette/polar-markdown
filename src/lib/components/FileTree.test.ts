@@ -791,7 +791,7 @@ describe("FileTree context menu", () => {
     expect(onsaveas).toHaveBeenCalledWith("/readme.md");
   });
 
-  it("shows context menu for directories with Delete only", async () => {
+  it("shows context menu for directories with Copy Path and Delete only", async () => {
     render(FileTree, {
       props: {
         entries: mixedEntries,
@@ -800,13 +800,15 @@ describe("FileTree context menu", () => {
         onstartrename: vi.fn(),
         ondelete: vi.fn(),
         onsaveas: vi.fn(),
+        oncopypath: vi.fn(),
       },
     });
 
     const button = document.querySelector('button[data-path="/docs"]') as HTMLElement;
     await fireEvent.contextMenu(button);
 
-    // Directories should show Delete but not Save As or Rename
+    // Directories should show Copy Path and Delete but not Save As or Rename
+    expect(screen.getByText("Copy Path")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
     expect(screen.queryByText("Save As")).not.toBeInTheDocument();
     expect(screen.queryByText("Rename")).not.toBeInTheDocument();
@@ -830,6 +832,103 @@ describe("FileTree context menu", () => {
     await fireEvent.click(deleteBtn);
 
     expect(ondelete).toHaveBeenCalledWith("/docs");
+  });
+});
+
+describe("FileTree Copy Path context menu", () => {
+  it("Copy Path appears in file context menu", async () => {
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        oncopypath: vi.fn(),
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/readme.md"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    expect(screen.getByText("Copy Path")).toBeInTheDocument();
+  });
+
+  it("Copy Path appears in directory context menu", async () => {
+    render(FileTree, {
+      props: {
+        entries: mixedEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        oncopypath: vi.fn(),
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/docs"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    expect(screen.getByText("Copy Path")).toBeInTheDocument();
+  });
+
+  it("calls oncopypath with file path", async () => {
+    const oncopypath = vi.fn();
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        oncopypath,
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/readme.md"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    const copyBtn = screen.getByText("Copy Path");
+    await fireEvent.click(copyBtn);
+
+    expect(oncopypath).toHaveBeenCalledWith("/readme.md");
+  });
+
+  it("calls oncopypath with directory path", async () => {
+    const oncopypath = vi.fn();
+    render(FileTree, {
+      props: {
+        entries: mixedEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        oncopypath,
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/docs"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    const copyBtn = screen.getByText("Copy Path");
+    await fireEvent.click(copyBtn);
+
+    expect(oncopypath).toHaveBeenCalledWith("/docs");
+  });
+
+  it("menu closes after Copy Path clicked", async () => {
+    const oncopypath = vi.fn();
+    render(FileTree, {
+      props: {
+        entries: fileEntries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        oncopypath,
+      },
+    });
+
+    const button = document.querySelector('button[data-path="/readme.md"]') as HTMLElement;
+    await fireEvent.contextMenu(button);
+
+    expect(screen.getByText("Copy Path")).toBeInTheDocument();
+
+    const copyBtn = screen.getByText("Copy Path");
+    await fireEvent.click(copyBtn);
+
+    // Menu should close after clicking
+    expect(screen.queryByText("Copy Path")).not.toBeInTheDocument();
   });
 });
 

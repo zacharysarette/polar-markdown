@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import ContentArea from "./lib/components/ContentArea.svelte";
@@ -79,6 +79,7 @@
   let focusedTreePath = $state("");
   let renamingPath = $state("");
   let renameError = $state("");
+  let scrollToId = $state("");
   const recentOwnWrites = new Set<string>();
   let suppressWatcherUntil = 0;
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
@@ -160,6 +161,7 @@
     highlightText = lineContent ?? "";
     if (lineContent) highlightKey++;
     selectedFolderPath = "";
+    scrollToId = "";
     if (event?.ctrlKey && panes.length < MAX_PANES) {
       openInNewPane(path);
     } else {
@@ -659,6 +661,24 @@
     }
   }
 
+  async function handleFileLink(path: string, hash?: string, ctrlKey?: boolean) {
+    scrollToId = "";
+    if (ctrlKey && panes.length < MAX_PANES) {
+      await openInNewPane(path);
+    } else {
+      await openInActivePane(path);
+    }
+    if (hash) {
+      // Small delay to let content render before scrolling
+      await tick();
+      scrollToId = hash;
+    }
+  }
+
+  function handleCopyPath(path: string) {
+    navigator.clipboard.writeText(path);
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Escape: reset drag state (mitigates Windows 11 WebView2 stuck-drag bug)
     if (event.key === "Escape") {
@@ -833,8 +853,8 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} />
+  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} />
 </div>
 
 <style>

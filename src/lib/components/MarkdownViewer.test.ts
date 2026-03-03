@@ -15,6 +15,14 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+// Mock shell plugin for external link handling (vi.hoisted runs before mock hoisting)
+const { mockShellOpen } = vi.hoisted(() => ({
+  mockShellOpen: vi.fn(),
+}));
+vi.mock("@tauri-apps/plugin-shell", () => ({
+  open: mockShellOpen,
+}));
+
 import MarkdownViewer from "./MarkdownViewer.svelte";
 
 describe("MarkdownViewer", () => {
@@ -141,7 +149,8 @@ describe("MarkdownViewer", () => {
       expect(preventSpy).toHaveBeenCalled();
     });
 
-    it("does NOT intercept external links", async () => {
+    it("intercepts external links and opens via shell", async () => {
+      mockShellOpen.mockReset();
       const { container } = render(MarkdownViewer, {
         props: { content: "[External](https://example.com)", filePath: "/docs/test.md" },
       });
@@ -157,12 +166,14 @@ describe("MarkdownViewer", () => {
       const preventSpy = vi.spyOn(event, "preventDefault");
       link.dispatchEvent(event);
 
-      expect(preventSpy).not.toHaveBeenCalled();
+      expect(preventSpy).toHaveBeenCalled();
+      expect(mockShellOpen).toHaveBeenCalledWith("https://example.com");
     });
 
-    it("does NOT intercept relative file links", async () => {
+    it("intercepts relative .md file links and calls onfilelink", async () => {
+      const onfilelink = vi.fn();
       const { container } = render(MarkdownViewer, {
-        props: { content: "[Other](./other.md)", filePath: "/docs/test.md" },
+        props: { content: "[Other](./other.md)", filePath: "/docs/test.md", onfilelink },
       });
 
       await vi.waitFor(() => {
@@ -176,7 +187,168 @@ describe("MarkdownViewer", () => {
       const preventSpy = vi.spyOn(event, "preventDefault");
       link.dispatchEvent(event);
 
-      expect(preventSpy).not.toHaveBeenCalled();
+      expect(preventSpy).toHaveBeenCalled();
+      expect(onfilelink).toHaveBeenCalledWith("/docs/other.md", undefined, false);
+    });
+  });
+
+  describe("file link navigation", () => {
+    beforeEach(() => {
+      mockShellOpen.mockReset();
+    });
+
+    it("clicking .md link calls onfilelink with resolved path", async () => {
+      const onfilelink = vi.fn();
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Notes](notes.md)", filePath: "/docs/test.md", onfilelink },
+      });
+
+      await vi.waitFor(() => {
+        const article = container.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        expect(article!.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      link.click();
+
+      expect(onfilelink).toHaveBeenCalledWith("/docs/notes.md", undefined, false);
+    });
+
+    it("Ctrl+Click passes ctrlKey: true", async () => {
+      const onfilelink = vi.fn();
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Notes](notes.md)", filePath: "/docs/test.md", onfilelink },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true });
+      link.dispatchEvent(event);
+
+      expect(onfilelink).toHaveBeenCalledWith("/docs/notes.md", undefined, true);
+    });
+
+    it("guide.md#installation splits into path + hash", async () => {
+      const onfilelink = vi.fn();
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Guide](guide.md#installation)", filePath: "/docs/test.md", onfilelink },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      link.click();
+
+      expect(onfilelink).toHaveBeenCalledWith("/docs/guide.md", "installation", false);
+    });
+
+    it("preventDefault called on .md clicks", async () => {
+      const onfilelink = vi.fn();
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Notes](notes.md)", filePath: "/docs/test.md", onfilelink },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const preventSpy = vi.spyOn(event, "preventDefault");
+      link.dispatchEvent(event);
+
+      expect(preventSpy).toHaveBeenCalled();
+    });
+
+    it("subdirectory relative paths resolved correctly", async () => {
+      const onfilelink = vi.fn();
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Deep](sub/deep.md)", filePath: "/docs/test.md", onfilelink },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      link.click();
+
+      expect(onfilelink).toHaveBeenCalledWith("/docs/sub/deep.md", undefined, false);
+    });
+  });
+
+  describe("external link handling", () => {
+    beforeEach(() => {
+      mockShellOpen.mockReset();
+    });
+
+    it("https:// link calls shell.open()", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Site](https://example.com)", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      link.click();
+
+      expect(mockShellOpen).toHaveBeenCalledWith("https://example.com");
+    });
+
+    it("http:// link calls shell.open()", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Site](http://example.com)", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      link.click();
+
+      expect(mockShellOpen).toHaveBeenCalledWith("http://example.com");
+    });
+
+    it("preventDefault called on external clicks", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Site](https://example.com)", filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const preventSpy = vi.spyOn(event, "preventDefault");
+      link.dispatchEvent(event);
+
+      expect(preventSpy).toHaveBeenCalled();
+    });
+
+    it("external links do NOT call onfilelink", async () => {
+      const onfilelink = vi.fn();
+      const { container } = render(MarkdownViewer, {
+        props: { content: "[Site](https://example.com)", filePath: "/docs/test.md", onfilelink },
+      });
+
+      await vi.waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      const link = container.querySelector("a") as HTMLAnchorElement;
+      link.click();
+
+      expect(onfilelink).not.toHaveBeenCalled();
     });
   });
 

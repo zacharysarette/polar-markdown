@@ -235,6 +235,22 @@ Content below the rule.
 
 ---
 
+## File Links (Cross-File Navigation)
+
+Clicking a `.md` link opens that file in the active pane. Ctrl+Click opens it in a new pane. Links with `#section` fragments open the file and scroll to the heading.
+
+- [Open the user guide](How to Use Polar Markdown.md) (should open in active pane)
+- [Open nextsteps](nextsteps.md) (relative file link)
+
+### External Links
+
+External `http://` and `https://` links open in your system browser instead of navigating the WebView:
+
+- [Polar Markdown on GitHub](https://github.com/zacharysarette/polar-markdown) (opens in browser)
+- [Example.com](https://example.com) (opens in browser)
+
+---
+
 ## Anchor Links (In-Page Navigation)
 
 Clicking a `#hash` link smooth-scrolls to the matching heading. Try these — each should visibly scroll since they jump across the full length of this document:
