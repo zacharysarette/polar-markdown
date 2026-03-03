@@ -222,6 +222,23 @@ Each pane toggles independently. You can have one pane in edit mode and another 
 
 ---
 
+## Themes
+
+Polar Markdown has two built-in themes:
+
+| Theme | Description |
+|---|---|
+| **Aurora** (default) | Dark theme inspired by the northern lights — deep blue backgrounds with cool-toned syntax colors |
+| **Glacier** | Light theme with a crisp, icy palette — bright backgrounds with warm accents |
+
+Click the **sun/moon button** (☀️/🌙) in the sidebar header to toggle between themes. Your choice is remembered across sessions.
+
+The theme also affects Mermaid diagrams, ASCII art (svgbob), code syntax highlighting, and the editor. Everything stays consistent.
+
+**Startup behavior:** The app remembers your last theme and sets the native window background color to match before anything is visible — no white flash on launch regardless of which theme you use.
+
+---
+
 ## Live File Watching
 
 Polar Markdown watches your folder for changes in real time. If you edit a markdown file in another editor (or if a tool like Claude Code writes files), the sidebar and content area update automatically — no refresh needed.

@@ -4,7 +4,7 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`polarmd file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
-### Current Test Count: 312 frontend (13 test files) + 53 Rust = 365 total
+### Current Test Count: 357 frontend (13 test files) + 81 Rust = 438 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs` (InitialFileState, extract_file_arg, single-instance plugin), `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -2291,6 +2291,42 @@ When a search result line is clicked, open the file AND scroll to + highlight th
 
 ---
 
+## Feature: Aurora/Glacier Theming & No-Flash Startup
+
+### Status: DONE
+
+### What Was Built
+Dual theme system (Aurora dark / Glacier light) with CSS variable foundation and theme-aware native window background to eliminate startup flash.
+
+### Implementation Details
+
+**Theming system:**
+- ~130 CSS variable replacements across 8 files — all component colors use `var()` references
+- `[data-theme="glacier"]` CSS block overrides all variables for light theme
+- Theme state in App.svelte, `$effect` sets `data-theme` attribute + calls `setMermaidTheme()` + `setBobDarkMode()`
+- Toggle button (sun/moon) in Sidebar header
+- Persisted via `saveTheme`/`getTheme` in persistence.ts (localStorage)
+- Custom CodeMirror themes in `codemirror-themes.ts` using `Compartment` for dynamic switching (no editor recreation)
+- Svgbob `render_ascii_diagram` accepts `dark: Option<bool>` with `apply_light_theme()` for light mode
+- Highlight.js light overrides in `[data-theme="glacier"] .hljs`
+
+**No-flash startup:**
+- Window starts hidden (`visible: false` in `tauri.conf.json`)
+- `save_theme` Rust command writes theme to `theme.txt` in app data dir — called fire-and-forget from `saveTheme()` in persistence.ts and once in onMount (upgrade path)
+- `read_saved_theme()` helper in lib.rs reads theme file at startup
+- In `setup()`: reads theme, calls `set_background_color()` (Aurora=#1a1b26, Glacier=#f4f7fb), then `window.show()`
+- User never sees wrong background color because window is invisible until the correct color is painted
+
+### Key Files Changed
+- `src-tauri/tauri.conf.json` — `visible: false` on window config
+- `src-tauri/src/lib.rs` — `read_saved_theme()`, `setup()` sets bg color + shows window
+- `src-tauri/src/commands/filesystem.rs` — `save_theme` command
+- `src/lib/services/filesystem.ts` — `saveThemeFile()` wrapper
+- `src/lib/services/persistence.ts` — `saveTheme()` also writes to disk
+- `src/App.svelte` — onMount writes theme file for upgrade path
+
+---
+
 ## Feature: Line Numbers Toggle
 
 ### Status: PENDING (lower priority)
@@ -2340,14 +2376,15 @@ These features build on each other. Recommended sequence:
 13. ~~**Open Files from OS & CLI**~~ — DONE (file associations, `polarmd file.md` CLI, single-instance, NSIS PATH registration)
 14. ~~**Delete File**~~ — DONE (Delete key, right-click menu, native confirm dialog, closes affected panes)
 15. ~~**Save As**~~ — DONE (Ctrl+Shift+S, native save dialog, pane updates to new file)
-16. **Folder Selection & Targeted File Creation** — `selectedFolderPath` state, visual folder highlight, folder icon (📁), click folder → "+" creates file there
-17. **Create New Folder** — Rust `create_directory` command, "📁+" button in sidebar, inline input, auto-selects new folder. Depends on Folder Selection for target directory logic.
-18. **Drag-and-Drop File Moving** — Rust `move_file` command, drop handlers on directories, visual drag-over feedback
-19. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-20. **Line Numbers Toggle** — nice-to-have viewer enhancement
-21. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
-22. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
-23. **MCP Server** — depends on write command + validation + search being built first
+16. ~~**Folder Selection & Targeted File Creation**~~ — DONE (selectedFolderPath state, visual folder highlight, folder icon, click folder → "+" creates file there)
+17. ~~**Create New Folder**~~ — DONE (Rust `create_directory` command, "📁+" button in sidebar, inline input, auto-selects new folder)
+18. ~~**Drag-and-Drop File Moving**~~ — DONE (Rust `move_file`/`move_directory` commands, drop handlers on directories, visual drag-over feedback, WebView2 stuck-drag fix)
+19. ~~**Aurora/Glacier Theming**~~ — DONE (dual theme system, CSS variables, toggle button, theme-aware native background on startup — no white flash)
+20. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
+21. **Line Numbers Toggle** — nice-to-have viewer enhancement
+22. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
+23. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
+24. **MCP Server** — depends on write command + validation + search being built first
 
 Each feature is independently shippable and testable. Build, test, and verify after each one.
 
@@ -2364,7 +2401,7 @@ Each feature is independently shippable and testable. Build, test, and verify af
 ## Other Ideas for Future Iterations
 
 - **Split pane resizing** — draggable dividers between panes
-- **Dark/light theme toggle** — currently dark only (Tokyo Night palette)
+- ~~**Dark/light theme toggle**~~ — DONE (Aurora/Glacier themes with no-flash startup)
 - **Export to PDF** — print/export the rendered markdown
 - **Table of contents** — auto-generated from headings, shown in sidebar or as a floating panel
 - **Markdown toolbar** — bold, italic, heading, link, image buttons above editor for quick formatting

@@ -23,6 +23,7 @@
     saveFileAs,
     moveFile,
     moveDirectory,
+    saveThemeFile,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -46,6 +47,14 @@
 
   const MAX_PANES = 4;
   let nextPaneId = 1;
+
+  function dismissSplash() {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+    splash.classList.add('fade-out');
+    splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+    setTimeout(() => splash.remove(), 1000);
+  }
 
   let theme: ThemeType = $state(getTheme());
   let rawTree: FileEntry[] = $state([]);
@@ -719,6 +728,7 @@
             docsPath = await getDocsPath();
           } catch (e) {
             console.error("Failed to get docs path:", e);
+            dismissSplash();
             return;
           }
         }
@@ -804,6 +814,11 @@
           }
         }, 300);
       });
+
+      // Ensure theme file exists for next launch (handles upgrade from older versions)
+      saveThemeFile(theme).catch(() => {});
+
+      dismissSplash();
     })();
 
     return () => {

@@ -2,6 +2,7 @@ use crate::models::{CreateFileResult, FileEntry, MoveFileResult, RenameFileResul
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
+use tauri::Manager;
 use walkdir::WalkDir;
 
 /// Help file content embedded at compile time — always available regardless of install location.
@@ -478,6 +479,15 @@ pub fn search_files(path: String, query: String) -> Result<Vec<SearchResult>, St
     results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
     Ok(results)
+}
+
+#[tauri::command]
+pub fn save_theme(app_handle: tauri::AppHandle, theme: String) -> Result<(), String> {
+    let dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join("theme.txt");
+    std::fs::write(path, theme).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]

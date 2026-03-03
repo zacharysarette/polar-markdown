@@ -92,6 +92,10 @@ export async function saveFileAs(currentPath: string, content: string): Promise<
   return newPath;
 }
 
+export async function saveThemeFile(theme: string): Promise<void> {
+  await invoke("save_theme", { theme });
+}
+
 export async function pickFolder(): Promise<string | null> {
   const selected = await open({
     directory: true,

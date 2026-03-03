@@ -8,6 +8,13 @@ use std::sync::Mutex;
 /// Holds the file path passed via CLI args (if any). `.take()` ensures it's consumed once.
 pub struct InitialFileState(pub Mutex<Option<String>>);
 
+/// Reads the saved theme from the app data directory (written by the frontend).
+fn read_saved_theme(app: &tauri::App) -> Option<String> {
+    let dir = tauri::Manager::path(app).app_data_dir().ok()?;
+    let path = dir.join("theme.txt");
+    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
+}
+
 /// Extracts a .md file path from CLI arguments.
 /// Skips the first arg (exe path) and any flags starting with `-`.
 /// Returns the first arg that is an existing .md file, canonicalized to an absolute path.
@@ -67,6 +74,18 @@ pub fn run() {
                 };
             }
 
+            // Set native window background color to match saved theme, then show.
+            // Window starts hidden (tauri.conf.json visible:false) so the user
+            // never sees the wrong color — we paint the right one before showing.
+            if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+                let color = match read_saved_theme(app) {
+                    Some(t) if t == "glacier" => tauri::webview::Color(0xf4, 0xf7, 0xfb, 0xff),
+                    _ => tauri::webview::Color(0x1a, 0x1b, 0x26, 0xff),
+                };
+                let _ = window.set_background_color(Some(color));
+                let _ = window.show();
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -84,6 +103,7 @@ pub fn run() {
             commands::filesystem::move_file,
             commands::filesystem::move_directory,
             commands::filesystem::get_initial_file,
+            commands::filesystem::save_theme,
             commands::watcher::start_watching,
             commands::diagram::render_ascii_diagram,
         ])
