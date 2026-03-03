@@ -150,6 +150,7 @@ The main content area renders your markdown with full formatting support:
 - **Headings, lists, tables, blockquotes** — standard markdown
 - **Code blocks** — syntax highlighted with highlight.js, with line numbers in the left gutter
 - **Links** — clickable
+- **Anchor links** — `#hash` links (e.g. `[Go to top](#top)`) smooth-scroll to the matching heading within the document. Tables of contents, cross-references, and "Back to top" links all work. Headings automatically get GitHub-flavored IDs (lowercased, spaces become hyphens, special characters stripped). Duplicate headings get `-1`, `-2` suffixes.
 - **Mermaid diagrams** — rendered as live SVG diagrams
 
 ### ASCII Art Diagrams (svgbob)
