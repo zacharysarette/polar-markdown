@@ -14,7 +14,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory, updateJumpList, getInitialFolder } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 const mockAsk = vi.mocked(ask);
@@ -316,5 +316,36 @@ describe("confirmDeleteFolder", () => {
     const result = await confirmDeleteFolder("my-notes");
 
     expect(result).toBe(false);
+  });
+});
+
+describe("updateJumpList", () => {
+  it("calls invoke with correct command and folder list", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+
+    await updateJumpList(["C:\\docs", "C:\\notes"]);
+
+    expect(mockInvoke).toHaveBeenCalledWith("update_jump_list", {
+      folders: ["C:\\docs", "C:\\notes"],
+    });
+  });
+});
+
+describe("getInitialFolder", () => {
+  it("calls invoke with correct command", async () => {
+    mockInvoke.mockResolvedValue("C:\\docs");
+
+    const result = await getInitialFolder();
+
+    expect(mockInvoke).toHaveBeenCalledWith("get_initial_folder");
+    expect(result).toBe("C:\\docs");
+  });
+
+  it("returns null when no folder was passed", async () => {
+    mockInvoke.mockResolvedValue(null);
+
+    const result = await getInitialFolder();
+
+    expect(result).toBeNull();
   });
 });

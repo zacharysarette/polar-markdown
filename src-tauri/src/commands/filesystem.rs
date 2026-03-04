@@ -31,7 +31,7 @@ fn build_tree(dir_path: &Path) -> Vec<FileEntry> {
             continue;
         }
 
-        let modified = fs::metadata(&path)
+        let modified = entry.metadata()
             .and_then(|m| m.modified())
             .ok()
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
@@ -407,6 +407,12 @@ pub fn move_directory(source_path: String, target_dir: String) -> Result<MoveFil
 /// Returns the file path passed via CLI args (if any), consuming it so subsequent calls return None.
 #[tauri::command]
 pub fn get_initial_file(state: tauri::State<'_, crate::InitialFileState>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut guard| guard.take())
+}
+
+/// Returns the folder path passed via --open-folder CLI arg (if any), consuming it.
+#[tauri::command]
+pub fn get_initial_folder(state: tauri::State<'_, crate::InitialFolderState>) -> Option<String> {
     state.0.lock().ok().and_then(|mut guard| guard.take())
 }
 

@@ -48,6 +48,7 @@
     docsPath = "",
     theme = "aurora" as ThemeType,
     onthemetoggle,
+    loading = false,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -90,6 +91,7 @@
     docsPath?: string;
     theme?: ThemeType;
     onthemetoggle?: () => void;
+    loading?: boolean;
   } = $props();
 
   const sortLabels: Record<SortMode, string> = {
@@ -303,11 +305,19 @@
         {/if}
       </div>
     {/if}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <nav class="sidebar-content" class:nav-drag-over={navDragOver} onclick={handleNavClick} ondragover={handleNavDragOver} ondragleave={handleNavDragLeave} ondrop={handleNavDrop}>
-      <FileTree {entries} {selectedPath} {selectedFolderPath} {onselect} {onfocuschange} {onfolderselect} {onmovefile} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} {ondelete} {onsaveas} {oncopypath} docsPath={docsPath} />
-    </nav>
+    {#if loading}
+      <div class="skeleton-container">
+        {#each Array(7) as _, i}
+          <div class="skeleton-bar" style="width: {60 + (i * 7) % 30}%; animation-delay: {i * 0.08}s"></div>
+        {/each}
+      </div>
+    {:else}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <nav class="sidebar-content" class:nav-drag-over={navDragOver} onclick={handleNavClick} ondragover={handleNavDragOver} ondragleave={handleNavDragLeave} ondrop={handleNavDrop}>
+        <FileTree {entries} {selectedPath} {selectedFolderPath} {onselect} {onfocuschange} {onfolderselect} {onmovefile} {renamingPath} {renameError} {onstartrename} {onconfirmrename} {oncancelrename} {ondelete} {onsaveas} {oncopypath} docsPath={docsPath} />
+      </nav>
+    {/if}
   {/if}
   {#if docsPath}
     <div class="folder-path" title={docsPath}>
@@ -582,5 +592,25 @@
     margin: 4px 0 0;
     color: var(--red);
     font-size: 12px;
+  }
+
+  .skeleton-container {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .skeleton-bar {
+    height: 20px;
+    border-radius: 4px;
+    background: var(--border);
+    animation: skeleton-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
   }
 </style>

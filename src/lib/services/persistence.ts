@@ -8,6 +8,7 @@ const SORT_MODE_KEY = "polar-markdown:sort-mode";
 const LAYOUT_MODE_KEY = "polar-markdown:layout-mode";
 const OPEN_PANES_KEY = "polar-markdown:open-panes";
 const EXPANDED_PATHS_KEY = "polar-markdown:expanded-paths";
+const RECENT_FOLDERS_KEY = "polar-markdown:recent-folders";
 const THEME_KEY = "polar-markdown:theme";
 
 export function saveLastSelectedPath(path: string): void {
@@ -68,6 +69,28 @@ export function getExpandedPaths(): string[] {
   } catch {
     return [];
   }
+}
+
+export function saveRecentFolders(folders: string[]): void {
+  localStorage.setItem(RECENT_FOLDERS_KEY, JSON.stringify(folders));
+}
+
+export function getRecentFolders(): string[] {
+  const stored = localStorage.getItem(RECENT_FOLDERS_KEY);
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
+}
+
+export function addRecentFolder(folder: string): string[] {
+  const existing = getRecentFolders();
+  const filtered = existing.filter((f) => f !== folder);
+  const updated = [folder, ...filtered].slice(0, 10);
+  saveRecentFolders(updated);
+  return updated;
 }
 
 export function saveTheme(theme: ThemeType): void {

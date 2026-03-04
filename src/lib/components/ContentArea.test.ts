@@ -101,6 +101,21 @@ describe("ContentArea", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows app logo image in empty state instead of emoji", () => {
+    render(ContentArea, {
+      props: {
+        panes: [],
+        activePaneId: "",
+        layoutMode: "centered" as LayoutMode,
+      },
+    });
+
+    const logo = screen.getByAltText("Polar Markdown");
+    expect(logo).toBeInTheDocument();
+    expect(logo.tagName).toBe("IMG");
+    expect((logo as HTMLImageElement).src).toContain("logo.png");
+  });
+
   it("renders a single pane with filename", async () => {
     render(ContentArea, {
       props: {

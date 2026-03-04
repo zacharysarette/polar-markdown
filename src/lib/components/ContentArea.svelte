@@ -2,6 +2,7 @@
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import EditablePane from "./EditablePane.svelte";
   import type { OpenPane, LayoutMode, ThemeType } from "../types";
+  import logoUrl from "../../../img/logo.png";
 
   let {
     panes = [],
@@ -46,7 +47,7 @@
 
 {#if panes.length === 0}
   <div class="empty-state" role="main" aria-label="Markdown viewer">
-    <div class="empty-icon">🐻‍❄️</div>
+    <img class="empty-logo" src={logoUrl} alt="Polar Markdown" />
     <h2>Polar Markdown</h2>
     <p>Select a markdown file from the sidebar to view it.</p>
   </div>
@@ -305,8 +306,16 @@
     gap: 12px;
   }
 
-  .empty-icon {
-    font-size: 48px;
+  .empty-logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    animation: pulse-logo 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-logo {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
   }
 
   .empty-state h2 {

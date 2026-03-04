@@ -25,6 +25,8 @@
     moveFile,
     moveDirectory,
     saveThemeFile,
+    updateJumpList,
+    getInitialFolder,
   } from "./lib/services/filesystem";
   import {
     saveLastSelectedPath,
@@ -39,6 +41,8 @@
     getOpenPanes,
     saveTheme,
     getTheme,
+    addRecentFolder,
+    getRecentFolders,
   } from "./lib/services/persistence";
   import { setMermaidTheme, setBobDarkMode } from "./lib/services/markdown";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
@@ -81,6 +85,7 @@
   let renamingPath = $state("");
   let renameError = $state("");
   let scrollToId = $state("");
+  let loading = $state(false);
   const recentOwnWrites = new Set<string>();
   let suppressWatcherUntil = 0;
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
@@ -115,6 +120,11 @@
     } catch (e) {
       console.error("Failed to load directory tree:", e);
     }
+  }
+
+  function refreshJumpList(folder: string) {
+    const folders = addRecentFolder(folder);
+    updateJumpList(folders).catch(() => {}); // fire-and-forget
   }
 
   function createPaneId(): string {
@@ -291,7 +301,10 @@
     docsPath = path;
     panes = [];
     activePaneId = "";
+    loading = true;
+    refreshJumpList(path);
     await loadTree();
+    loading = false;
 
     // Restore last selected file if it exists in the new tree
     const lastPath = getLastSelectedPath();
@@ -322,6 +335,7 @@
     // Set docs path to the parent directory
     docsPath = parentDir;
     saveDocsFolder(parentDir);
+    refreshJumpList(parentDir);
     await loadTree();
 
     // Open the file in the active pane
@@ -753,6 +767,7 @@
   onMount(() => {
     let unlistenFileChanged: (() => void) | undefined;
     let unlistenOpenFile: (() => void) | undefined;
+    let unlistenOpenFolder: (() => void) | undefined;
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
@@ -768,9 +783,15 @@
     document.addEventListener("dragend", globalDragEnd);
 
     (async () => {
+      // Check if a folder was passed via --open-folder (jump list click)
+      const initialFolder = await getInitialFolder();
       // Check if a file was passed via CLI args or OS file association
-      const initialFile = await getInitialFile();
-      if (initialFile) {
+      const initialFile = !initialFolder ? await getInitialFile() : null;
+
+      if (initialFolder) {
+        saveDocsFolder(initialFolder);
+        await switchToFolder(initialFolder);
+      } else if (initialFile) {
         await openFileFromOS(initialFile);
       } else {
         // Normal startup: check for a saved folder, then fall back to Rust backend default
@@ -824,6 +845,12 @@
         }
       }
 
+      // Listen for folder opens from jump list clicks (single-instance plugin)
+      unlistenOpenFolder = await listen<string>("open-folder", (event) => {
+        saveDocsFolder(event.payload);
+        switchToFolder(event.payload);
+      });
+
       // Listen for file opens from second instances (single-instance plugin)
       unlistenOpenFile = await listen<string>("open-file", (event) => {
         openFileFromOS(event.payload);
@@ -872,12 +899,16 @@
       // Ensure theme file exists for next launch (handles upgrade from older versions)
       saveThemeFile(theme).catch(() => {});
 
+      // Rebuild jump list on startup to clean stale entries
+      updateJumpList(getRecentFolders()).catch(() => {});
+
       dismissSplash();
     })();
 
     return () => {
       unlistenFileChanged?.();
       unlistenOpenFile?.();
+      unlistenOpenFolder?.();
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragover", globalDragOver);
       document.removeEventListener("drop", globalDrop);
@@ -887,7 +918,7 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} />
+  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
   <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} />
 </div>
 

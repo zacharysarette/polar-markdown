@@ -139,6 +139,17 @@ Click the **?** button to open this guide at any time, no matter what folder you
 
 ---
 
+## Jump List (Windows Taskbar)
+
+When you right-click the Polar Markdown icon in the Windows taskbar, a **Recent Folders** category shows the folders you've recently opened. Click any folder to instantly switch to it.
+
+- Folders are added to the jump list whenever you open or switch to a new folder
+- The list holds up to 10 recent folders (most recent first)
+- Stale entries (folders that no longer exist) are automatically cleaned up on app launch
+- If the app is already running, clicking a jump list folder switches the existing window to that folder
+
+---
+
 ## Reading Layout
 
 The markdown viewer has two reading layout modes, toggled with buttons in the top-right corner of the content area:

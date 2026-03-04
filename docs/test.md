@@ -279,4 +279,15 @@ Clicking a `#hash` link smooth-scrolls to the matching heading. Try these — ea
 
 ---
 
+## Jump List (Windows Taskbar)
+
+Right-click the Polar Markdown icon in the Windows taskbar to see **Recent Folders**. To test:
+
+1. Open 3 different folders using the folder picker
+2. Right-click the taskbar icon — all 3 should appear under "Recent Folders"
+3. Delete one of the folders on disk, then relaunch the app — the stale folder should disappear
+4. Click a folder in the jump list — the app should switch to that folder
+
+---
+
 *This file is a rendering museum — every feature of Polar Markdown displayed in one place.*

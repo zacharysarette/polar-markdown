@@ -8,6 +8,9 @@ use std::sync::Mutex;
 /// Holds the file path passed via CLI args (if any). `.take()` ensures it's consumed once.
 pub struct InitialFileState(pub Mutex<Option<String>>);
 
+/// Holds a folder path passed via `--open-folder` CLI arg (from jump list). Consumed once.
+pub struct InitialFolderState(pub Mutex<Option<String>>);
+
 /// Reads the saved theme from the app data directory (written by the frontend).
 fn read_saved_theme(app: &tauri::App) -> Option<String> {
     let dir = tauri::Manager::path(app).app_data_dir().ok()?;
@@ -39,16 +42,40 @@ fn extract_file_arg(args: &[String]) -> Option<String> {
         })
 }
 
+/// Extracts a folder path from `--open-folder "path"` CLI arguments.
+/// Used when the app is launched from a jump list entry.
+fn extract_folder_arg(args: &[String]) -> Option<String> {
+    let mut iter = args.iter().skip(1);
+    while let Some(arg) = iter.next() {
+        if arg == "--open-folder" {
+            if let Some(folder) = iter.next() {
+                let path = Path::new(folder);
+                if path.exists() && path.is_dir() {
+                    return path.canonicalize().ok().map(|p| {
+                        let s = p.to_string_lossy().to_string();
+                        s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
+                    });
+                }
+            }
+            return None;
+        }
+    }
+    None
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .manage(InitialFileState(Mutex::new(None)))
+        .manage(InitialFolderState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // Second instance launched — extract file arg and emit event to existing window
-            if let Some(file_path) = extract_file_arg(&args) {
+            // Second instance launched — check for folder or file arg
+            if let Some(folder_path) = extract_folder_arg(&args) {
+                let _ = tauri::Emitter::emit(app, "open-folder", folder_path);
+            } else if let Some(file_path) = extract_file_arg(&args) {
                 let _ = tauri::Emitter::emit(app, "open-file", file_path);
             }
             // Focus the existing main window
@@ -66,9 +93,14 @@ pub fn run() {
                 )?;
             }
 
-            // Parse CLI args for an initial file to open
+            // Parse CLI args for an initial file or folder to open
             let args: Vec<String> = std::env::args().collect();
-            if let Some(file_path) = extract_file_arg(&args) {
+            if let Some(folder_path) = extract_folder_arg(&args) {
+                let state = tauri::Manager::state::<InitialFolderState>(app);
+                if let Ok(mut guard) = state.0.lock() {
+                    *guard = Some(folder_path);
+                };
+            } else if let Some(file_path) = extract_file_arg(&args) {
                 let state = tauri::Manager::state::<InitialFileState>(app);
                 if let Ok(mut guard) = state.0.lock() {
                     *guard = Some(file_path);
@@ -106,8 +138,11 @@ pub fn run() {
             commands::filesystem::move_directory,
             commands::filesystem::get_initial_file,
             commands::filesystem::save_theme,
+            commands::filesystem::get_initial_folder,
             commands::watcher::start_watching,
             commands::diagram::render_ascii_diagram,
+            commands::jumplist::update_jump_list,
+            commands::jumplist::clear_jump_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -178,6 +213,59 @@ mod tests {
             file.to_string_lossy().to_string(),
         ];
         let result = extract_file_arg(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_folder_arg_finds_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_string_lossy().to_string();
+
+        let args = vec![
+            "polarmd.exe".to_string(),
+            "--open-folder".to_string(),
+            path.clone(),
+        ];
+        let result = extract_folder_arg(&args);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_extract_folder_arg_returns_none_without_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_string_lossy().to_string();
+
+        let args = vec![
+            "polarmd.exe".to_string(),
+            path,
+        ];
+        let result = extract_folder_arg(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_folder_arg_returns_none_for_nonexistent() {
+        let args = vec![
+            "polarmd.exe".to_string(),
+            "--open-folder".to_string(),
+            "C:\\nonexistent\\fake\\path".to_string(),
+        ];
+        let result = extract_folder_arg(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_folder_arg_returns_none_for_file_not_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("file.txt");
+        fs::write(&file, "hello").unwrap();
+
+        let args = vec![
+            "polarmd.exe".to_string(),
+            "--open-folder".to_string(),
+            file.to_string_lossy().to_string(),
+        ];
+        let result = extract_folder_arg(&args);
         assert!(result.is_none());
     }
 }

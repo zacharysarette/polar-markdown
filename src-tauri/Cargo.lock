@@ -98,6 +98,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tempfile",
  "walkdir",
+ "windows",
 ]
 
 [[package]]

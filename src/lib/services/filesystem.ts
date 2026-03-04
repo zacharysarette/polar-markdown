@@ -100,6 +100,14 @@ export async function saveThemeFile(theme: string): Promise<void> {
   await invoke("save_theme", { theme });
 }
 
+export async function updateJumpList(folders: string[]): Promise<void> {
+  await invoke("update_jump_list", { folders });
+}
+
+export async function getInitialFolder(): Promise<string | null> {
+  return invoke<string | null>("get_initial_folder");
+}
+
 export async function pickFolder(): Promise<string | null> {
   const selected = await open({
     directory: true,

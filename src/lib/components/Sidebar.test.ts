@@ -367,6 +367,25 @@ describe("Sidebar", () => {
     expect(onthemetoggle).toHaveBeenCalledOnce();
   });
 
+  it("shows skeleton bars when loading is true and entries are empty", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), loading: true },
+    });
+
+    const skeletonBars = document.querySelectorAll(".skeleton-bar");
+    expect(skeletonBars.length).toBeGreaterThan(0);
+    expect(skeletonBars.length).toBe(7);
+  });
+
+  it("does not show skeleton bars when loading is false", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), loading: false },
+    });
+
+    const skeletonBars = document.querySelectorAll(".skeleton-bar");
+    expect(skeletonBars.length).toBe(0);
+  });
+
   it("shows search results instead of file tree when searchMode is active with a query", () => {
     const searchResults = [
       { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },

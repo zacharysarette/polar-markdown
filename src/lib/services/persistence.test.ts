@@ -14,6 +14,9 @@ import {
   getExpandedPaths,
   saveTheme,
   getTheme,
+  saveRecentFolders,
+  getRecentFolders,
+  addRecentFolder,
 } from "./persistence";
 
 const STORAGE_KEY = "polar-markdown:last-selected-path";
@@ -151,5 +154,43 @@ describe("saveTheme / getTheme", () => {
     saveTheme("glacier");
     saveTheme("aurora");
     expect(getTheme()).toBe("aurora");
+  });
+});
+
+describe("saveRecentFolders / getRecentFolders", () => {
+  it("round-trips an array of folder paths", () => {
+    saveRecentFolders(["C:\\docs", "C:\\notes"]);
+    expect(getRecentFolders()).toEqual(["C:\\docs", "C:\\notes"]);
+  });
+
+  it("returns empty array when nothing stored", () => {
+    expect(getRecentFolders()).toEqual([]);
+  });
+
+  it("returns empty array for corrupt JSON", () => {
+    localStorage.setItem("polar-markdown:recent-folders", "not-json");
+    expect(getRecentFolders()).toEqual([]);
+  });
+});
+
+describe("addRecentFolder", () => {
+  it("adds a new folder to the front", () => {
+    const result = addRecentFolder("C:\\docs");
+    expect(result).toEqual(["C:\\docs"]);
+    expect(getRecentFolders()).toEqual(["C:\\docs"]);
+  });
+
+  it("moves an existing folder to the front (deduplicates)", () => {
+    saveRecentFolders(["C:\\notes", "C:\\docs", "C:\\archive"]);
+    const result = addRecentFolder("C:\\docs");
+    expect(result).toEqual(["C:\\docs", "C:\\notes", "C:\\archive"]);
+  });
+
+  it("caps at 10 entries", () => {
+    const folders = Array.from({ length: 12 }, (_, i) => `C:\\folder${i}`);
+    saveRecentFolders(folders);
+    const result = addRecentFolder("C:\\new");
+    expect(result.length).toBe(10);
+    expect(result[0]).toBe("C:\\new");
   });
 });
