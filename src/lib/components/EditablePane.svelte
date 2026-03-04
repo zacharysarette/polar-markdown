@@ -33,8 +33,9 @@
   let activeColumn = $state(1);
   let paneEl: HTMLDivElement | undefined = $state();
 
-  // Scroll wheel sync between editor and preview
-  let syncing = false;
+  // Directional scroll sync: only sync FROM the active pane TO the passive pane
+  let activePane: 'editor' | 'preview' | 'none' = $state('none');
+  let activeLineDriving = false;
   let cleanupScrollSync: (() => void) | undefined;
 
   function setupScrollSync() {
@@ -45,19 +46,24 @@
     const previewScroller = paneEl.querySelector('.markdown-body') as HTMLElement | null;
     if (!editorScroller || !previewScroller) return;
 
-    function syncScroll(source: HTMLElement, target: HTMLElement) {
-      if (syncing) return;
+    function syncScrollTo(source: HTMLElement, target: HTMLElement) {
       const maxSource = source.scrollHeight - source.clientHeight;
       const maxTarget = target.scrollHeight - target.clientHeight;
       if (maxSource <= 0 || maxTarget <= 0) return;
       const ratio = source.scrollTop / maxSource;
-      syncing = true;
       target.scrollTop = ratio * maxTarget;
-      requestAnimationFrame(() => { syncing = false; });
     }
 
-    function onEditorScroll() { syncScroll(editorScroller!, previewScroller!); }
-    function onPreviewScroll() { syncScroll(previewScroller!, editorScroller!); }
+    function onEditorScroll() {
+      if (activePane !== 'editor') return;
+      if (activeLineDriving) return;
+      syncScrollTo(editorScroller!, previewScroller!);
+    }
+
+    function onPreviewScroll() {
+      if (activePane !== 'preview') return;
+      syncScrollTo(previewScroller!, editorScroller!);
+    }
 
     editorScroller.addEventListener('scroll', onEditorScroll);
     previewScroller.addEventListener('scroll', onPreviewScroll);
@@ -82,6 +88,7 @@
     filePath;
     editContent = content;
     previewContent = content;
+    activePane = 'none';
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = undefined;
@@ -116,11 +123,16 @@
 
   function handleActiveLine(lineContent: string, lineNumber: number, totalLines: number, column: number) {
     if (activeLineDebounce) clearTimeout(activeLineDebounce);
+    activeLineDriving = true;
     activeLineDebounce = setTimeout(() => {
       activeLineText = lineContent;
       activeLineNumber = lineNumber;
       activeTotalLines = totalLines;
       activeColumn = column;
+      // Double-RAF: wait for MarkdownViewer's scrollIntoView to fire + settle
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { activeLineDriving = false; });
+      });
     }, 150);
   }
 
@@ -129,7 +141,8 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="editable-pane" onkeydown={handleKeyDown} bind:this={paneEl}>
-  <div class="editor-side">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="editor-side" onpointerdown={() => activePane = 'editor'} onwheel={() => activePane = 'editor'}>
     <header class="editor-header">
       <span class="editor-label">Editor</span>
       <span class="cursor-pos">Ln {activeLineNumber}, Col {activeColumn}</span>
@@ -138,7 +151,8 @@
       <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} />
     </div>
   </div>
-  <div class="preview-side">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="preview-side" onpointerdown={() => activePane = 'preview'} onwheel={() => activePane = 'preview'}>
     <header class="preview-header">
       <span class="preview-label">Preview</span>
       <span class="preview-file" title={filePath}>{fileName}</span>
