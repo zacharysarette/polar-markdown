@@ -728,7 +728,19 @@
     navigator.clipboard.writeText(path);
   }
 
+  async function handleToggleFullscreen() {
+    const win = getCurrentWebviewWindow();
+    const isFs = await win.isFullscreen();
+    await win.setFullscreen(!isFs);
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
+    // Alt+Enter: toggle fullscreen
+    if (event.altKey && event.key === "Enter") {
+      event.preventDefault();
+      handleToggleFullscreen();
+      return;
+    }
     // Escape: reset drag state (mitigates Windows 11 WebView2 stuck-drag bug)
     if (event.key === "Escape") {
       resetDragSource();
@@ -775,6 +787,7 @@
     let unlistenMenuClosePane: (() => void) | undefined;
     let unlistenMenuToggleEdit: (() => void) | undefined;
     let unlistenMenuHelp: (() => void) | undefined;
+    let unlistenMenuToggleFullscreen: (() => void) | undefined;
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
@@ -912,6 +925,7 @@
       unlistenMenuClosePane = await appWindow.listen("menu-close-pane", () => { if (activePaneId) handleClosePane(activePaneId); });
       unlistenMenuToggleEdit = await appWindow.listen("menu-toggle-edit", () => { if (activePaneId) handleToggleEdit(activePaneId); });
       unlistenMenuHelp = await appWindow.listen("menu-help", () => handleHelp());
+      unlistenMenuToggleFullscreen = await appWindow.listen("menu-toggle-fullscreen", () => handleToggleFullscreen());
 
       // Ensure theme file exists for next launch (handles upgrade from older versions)
       saveThemeFile(theme).catch(() => {});
@@ -932,6 +946,7 @@
       unlistenMenuClosePane?.();
       unlistenMenuToggleEdit?.();
       unlistenMenuHelp?.();
+      unlistenMenuToggleFullscreen?.();
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragover", globalDragOver);
       document.removeEventListener("drop", globalDrop);
