@@ -205,6 +205,8 @@ pub fn run() {
                 .build()?;
             let view_menu = tauri::menu::SubmenuBuilder::new(app, "View")
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-edit", "Toggle Edit Mode", true, Some("CmdOrCtrl+E"))?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-fullscreen", "Toggle Fullscreen", true, Some("Alt+Enter"))?)
                 .build()?;
             let help_menu = tauri::menu::SubmenuBuilder::new(app, "Help")
                 .item(&tauri::menu::MenuItem::with_id(app, "help", "Help", true, None::<&str>)?)
