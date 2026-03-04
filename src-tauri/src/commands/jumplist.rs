@@ -29,6 +29,10 @@ pub fn set_jump_list(folders: &[String], exe_path: &str) -> Result<(), String> {
         DestinationList, EnumerableObjectCollection, ICustomDestinationList, IShellLinkW, ShellLink,
     };
     use windows::Win32::UI::Shell::Common::{IObjectArray, IObjectCollection};
+    use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
+    use windows::Win32::Storage::EnhancedStorage::PKEY_Title;
+    use windows::Win32::System::Com::StructuredStorage::PROPVARIANT;
+    use windows::core::Interface;
 
     unsafe {
         // Initialize COM
@@ -48,7 +52,46 @@ pub fn set_jump_list(folders: &[String], exe_path: &str) -> Result<(), String> {
                 .BeginList(&mut max_slots)
                 .map_err(|e| format!("BeginList failed: {}", e))?;
 
-            // Create a collection for our items
+            // --- User Tasks: "New Window" ---
+            {
+                let tasks_collection: IObjectCollection =
+                    CoCreateInstance(&EnumerableObjectCollection, None, CLSCTX_INPROC_SERVER)
+                        .map_err(|e| format!("Failed to create tasks collection: {}", e))?;
+
+                let link: IShellLinkW =
+                    CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)
+                        .map_err(|e| format!("Failed to create ShellLink for New Window: {}", e))?;
+
+                link.SetPath(&HSTRING::from(exe_path))
+                    .map_err(|e| format!("SetPath failed: {}", e))?;
+                link.SetArguments(&HSTRING::from("--new-window"))
+                    .map_err(|e| format!("SetArguments failed: {}", e))?;
+                link.SetIconLocation(&HSTRING::from(exe_path), 0)
+                    .map_err(|e| format!("SetIconLocation failed: {}", e))?;
+
+                // Set PKEY_Title for the display name (required for user tasks)
+                let prop_store: IPropertyStore = Interface::cast(&link)
+                    .map_err(|e| format!("Cast to IPropertyStore failed: {}", e))?;
+                let title_variant = PROPVARIANT::from("New Window");
+                prop_store
+                    .SetValue(&PKEY_Title, &title_variant)
+                    .map_err(|e| format!("SetValue PKEY_Title failed: {}", e))?;
+                prop_store
+                    .Commit()
+                    .map_err(|e| format!("Commit IPropertyStore failed: {}", e))?;
+
+                tasks_collection
+                    .AddObject(&link)
+                    .map_err(|e| format!("AddObject for task failed: {}", e))?;
+
+                let tasks_array: IObjectArray = Interface::cast(&tasks_collection)
+                    .map_err(|e| format!("Cast tasks to IObjectArray failed: {}", e))?;
+                dest_list
+                    .AddUserTasks(&tasks_array)
+                    .map_err(|e| format!("AddUserTasks failed: {}", e))?;
+            }
+
+            // --- Recent Folders category ---
             let collection: IObjectCollection =
                 CoCreateInstance(&EnumerableObjectCollection, None, CLSCTX_INPROC_SERVER)
                     .map_err(|e| format!("Failed to create collection: {}", e))?;
@@ -69,13 +112,22 @@ pub fn set_jump_list(folders: &[String], exe_path: &str) -> Result<(), String> {
                 link.SetArguments(&HSTRING::from(arg.as_str()))
                     .map_err(|e| format!("SetArguments failed: {}", e))?;
 
-                // Set display name to just the folder name
+                // Display name from folder basename
                 let display = Path::new(folder)
                     .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| folder.clone());
-                link.SetDescription(&HSTRING::from(display.as_str()))
-                    .map_err(|e| format!("SetDescription failed: {}", e))?;
+
+                // Set PKEY_Title (required for jump list display name)
+                let prop_store: IPropertyStore = windows::core::Interface::cast(&link)
+                    .map_err(|e| format!("Cast to IPropertyStore failed: {}", e))?;
+                let title_variant = PROPVARIANT::from(display.as_str());
+                prop_store
+                    .SetValue(&PKEY_Title, &title_variant)
+                    .map_err(|e| format!("SetValue PKEY_Title failed: {}", e))?;
+                prop_store
+                    .Commit()
+                    .map_err(|e| format!("Commit IPropertyStore failed: {}", e))?;
 
                 // Set icon to a folder icon (shell32.dll index 3)
                 link.SetIconLocation(&HSTRING::from("shell32.dll"), 3)
@@ -112,12 +164,10 @@ pub fn set_jump_list(_folders: &[String], _exe_path: &str) -> Result<(), String>
 }
 
 /// Tauri command: receives folder list from frontend, validates, and updates jump list.
+/// Always calls set_jump_list even with no folders, so "New Window" task is registered.
 #[tauri::command]
 pub fn update_jump_list(folders: Vec<String>) -> Result<(), String> {
     let valid = build_recent_folders(&folders, 10);
-    if valid.is_empty() {
-        return Ok(());
-    }
     let exe = std::env::current_exe()
         .map_err(|e| e.to_string())?
         .to_string_lossy()
@@ -128,7 +178,11 @@ pub fn update_jump_list(folders: Vec<String>) -> Result<(), String> {
 /// Tauri command: clears the jump list.
 #[tauri::command]
 pub fn clear_jump_list() -> Result<(), String> {
-    set_jump_list(&[], "")
+    let exe = std::env::current_exe()
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
+    set_jump_list(&[], &exe)
 }
 
 #[cfg(test)]

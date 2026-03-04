@@ -92,6 +92,11 @@ fn extract_file_arg(args: &[String]) -> Option<String> {
         })
 }
 
+/// Checks if `--new-window` flag is present in CLI args.
+fn has_new_window_flag(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--new-window")
+}
+
 /// Extracts a folder path from `--open-folder "path"` CLI arguments.
 /// Used when the app is launched from a jump list entry.
 fn extract_folder_arg(args: &[String]) -> Option<String> {
@@ -123,7 +128,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // Second instance launched — check for folder, file, or open new window
+            // Second instance launched — check for new-window, folder, file, or default
+            if has_new_window_flag(&args) {
+                let _ = create_polar_window(app);
+                return;
+            }
             if let Some(folder_path) = extract_folder_arg(&args) {
                 let _ = tauri::Emitter::emit(app, "open-folder", folder_path);
                 if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
@@ -164,27 +173,37 @@ pub fn run() {
                 };
             }
 
-            // Application menu: File > New Window (Ctrl+Shift+N)
-            let new_window_item = tauri::menu::MenuItem::with_id(
-                app,
-                "new-window",
-                "New Window",
-                true,
-                Some("CmdOrCtrl+Shift+N"),
-            )?;
+            // Application menus
             let file_menu = tauri::menu::SubmenuBuilder::new(app, "File")
-                .item(&new_window_item)
+                .item(&tauri::menu::MenuItem::with_id(app, "new-file", "New File", true, Some("CmdOrCtrl+N"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "new-window", "New Window", true, Some("CmdOrCtrl+Shift+N"))?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "open-folder", "Open Folder...", true, None::<&str>)?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "save-as", "Save As...", true, Some("CmdOrCtrl+Shift+S"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "close-pane", "Close Pane", true, Some("CmdOrCtrl+W"))?)
+                .build()?;
+            let view_menu = tauri::menu::SubmenuBuilder::new(app, "View")
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-edit", "Toggle Edit Mode", true, Some("CmdOrCtrl+E"))?)
+                .build()?;
+            let help_menu = tauri::menu::SubmenuBuilder::new(app, "Help")
+                .item(&tauri::menu::MenuItem::with_id(app, "help", "Help", true, None::<&str>)?)
                 .build()?;
             let menu = tauri::menu::MenuBuilder::new(app)
                 .item(&file_menu)
+                .item(&view_menu)
+                .item(&help_menu)
                 .build()?;
             app.set_menu(menu)?;
 
-            // Handle menu events
+            // Handle menu events: new-window in Rust, everything else forwarded to frontend
             let handle = app.handle().clone();
             app.on_menu_event(move |_app, event| {
-                if event.id().0 == "new-window" {
+                let id = event.id().0.as_str();
+                if id == "new-window" {
                     let _ = create_polar_window(&handle);
+                } else {
+                    let _ = tauri::Emitter::emit(&handle, &format!("menu-{}", id), ());
                 }
             });
 
@@ -367,6 +386,29 @@ mod tests {
         ];
         let result = extract_folder_arg(&args);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_has_new_window_flag_true() {
+        let args = vec!["polarmd.exe".to_string(), "--new-window".to_string()];
+        assert!(has_new_window_flag(&args));
+    }
+
+    #[test]
+    fn test_has_new_window_flag_false() {
+        let args = vec!["polarmd.exe".to_string()];
+        assert!(!has_new_window_flag(&args));
+    }
+
+    #[test]
+    fn test_has_new_window_flag_with_other_args() {
+        let args = vec![
+            "polarmd.exe".to_string(),
+            "--verbose".to_string(),
+            "--new-window".to_string(),
+            "--debug".to_string(),
+        ];
+        assert!(has_new_window_flag(&args));
     }
 
     #[test]

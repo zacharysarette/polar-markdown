@@ -768,6 +768,12 @@
     let unlistenFileChanged: (() => void) | undefined;
     let unlistenOpenFile: (() => void) | undefined;
     let unlistenOpenFolder: (() => void) | undefined;
+    let unlistenMenuNewFile: (() => void) | undefined;
+    let unlistenMenuOpenFolder: (() => void) | undefined;
+    let unlistenMenuSaveAs: (() => void) | undefined;
+    let unlistenMenuClosePane: (() => void) | undefined;
+    let unlistenMenuToggleEdit: (() => void) | undefined;
+    let unlistenMenuHelp: (() => void) | undefined;
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
@@ -896,6 +902,14 @@
         }, 300);
       });
 
+      // Listen for native menu events
+      unlistenMenuNewFile = await listen("menu-new-file", () => handleNewFile());
+      unlistenMenuOpenFolder = await listen("menu-open-folder", () => handleChangeFolder());
+      unlistenMenuSaveAs = await listen("menu-save-as", () => handleSaveAs());
+      unlistenMenuClosePane = await listen("menu-close-pane", () => { if (activePaneId) handleClosePane(activePaneId); });
+      unlistenMenuToggleEdit = await listen("menu-toggle-edit", () => { if (activePaneId) handleToggleEdit(activePaneId); });
+      unlistenMenuHelp = await listen("menu-help", () => handleHelp());
+
       // Ensure theme file exists for next launch (handles upgrade from older versions)
       saveThemeFile(theme).catch(() => {});
 
@@ -909,6 +923,12 @@
       unlistenFileChanged?.();
       unlistenOpenFile?.();
       unlistenOpenFolder?.();
+      unlistenMenuNewFile?.();
+      unlistenMenuOpenFolder?.();
+      unlistenMenuSaveAs?.();
+      unlistenMenuClosePane?.();
+      unlistenMenuToggleEdit?.();
+      unlistenMenuHelp?.();
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragover", globalDragOver);
       document.removeEventListener("drop", globalDrop);
