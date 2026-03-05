@@ -1,23 +1,35 @@
 import { Marked } from "marked";
 import hljs from "highlight.js";
-import mermaid from "mermaid";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { renderAsciiDiagram } from "./filesystem";
 
-// Initialize mermaid with dark theme
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "dark",
-  securityLevel: "loose",
-});
+// Lazy-loaded mermaid instance
+let mermaidInstance: any = null;
+let pendingTheme: "dark" | "default" = "dark";
+
+async function getMermaid(): Promise<any> {
+  if (!mermaidInstance) {
+    const { default: mermaid } = await import("mermaid");
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: pendingTheme,
+      securityLevel: "loose",
+    });
+    mermaidInstance = mermaid;
+  }
+  return mermaidInstance;
+}
 
 /** Switch mermaid between dark/light themes. Call when app theme changes. */
 export function setMermaidTheme(themeType: "aurora" | "glacier"): void {
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: themeType === "aurora" ? "dark" : "default",
-    securityLevel: "loose",
-  });
+  pendingTheme = themeType === "aurora" ? "dark" : "default";
+  if (mermaidInstance) {
+    mermaidInstance.initialize({
+      startOnLoad: false,
+      theme: pendingTheme,
+      securityLevel: "loose",
+    });
+  }
 }
 
 // Unicode characters that unambiguously indicate an ASCII art diagram
@@ -283,6 +295,9 @@ export interface MermaidRenderResult {
 /** Validate all pre.mermaid blocks without rendering. Returns diagnostics for failed blocks. */
 export async function validateMermaidBlocks(): Promise<MermaidDiagnostic[]> {
   const blocks = document.querySelectorAll("pre.mermaid");
+  if (blocks.length === 0) return [];
+
+  const mermaid = await getMermaid();
   const diagnostics: MermaidDiagnostic[] = [];
 
   for (let i = 0; i < blocks.length; i++) {
@@ -308,6 +323,8 @@ export async function renderMermaidDiagrams(): Promise<MermaidRenderResult> {
   const diagnostics: MermaidDiagnostic[] = [];
 
   if (total === 0) return { total: 0, errorCount: 0, diagnostics: [] };
+
+  const mermaid = await getMermaid();
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i] as HTMLElement;

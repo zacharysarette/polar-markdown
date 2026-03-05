@@ -88,6 +88,16 @@ vi.mock("codemirror", () => ({
   basicSetup: "basicSetup",
 }));
 
+vi.mock("../services/codemirror-themes", () => ({
+  auroraTheme: [],
+  glacierTheme: [],
+}));
+
+vi.mock("../services/mermaid-linter", () => ({
+  mermaidLinter: "mermaidLinter",
+  lintGutter: vi.fn().mockReturnValue("lintGutter"),
+}));
+
 import EditablePane from "./EditablePane.svelte";
 
 describe("EditablePane", () => {

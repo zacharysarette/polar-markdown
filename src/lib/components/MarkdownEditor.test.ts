@@ -98,6 +98,11 @@ vi.mock("../services/mermaid-linter", () => ({
   lintGutter: vi.fn().mockReturnValue("lintGutter"),
 }));
 
+vi.mock("../services/codemirror-themes", () => ({
+  auroraTheme: [],
+  glacierTheme: [],
+}));
+
 import MarkdownEditor from "./MarkdownEditor.svelte";
 
 beforeEach(() => {
@@ -111,12 +116,17 @@ beforeEach(() => {
 });
 
 describe("MarkdownEditor", () => {
-  it("renders an editor container element", () => {
+  it("renders an editor container element", async () => {
     render(MarkdownEditor, {
       props: { content: "# Hello", onchange: vi.fn() },
     });
 
     expect(document.querySelector(".markdown-editor")).toBeInTheDocument();
+
+    // Wait for async onMount to complete so it doesn't leak into next test
+    await vi.waitFor(() => {
+      expect(MockEditorView).toHaveBeenCalled();
+    });
   });
 
   it("creates EditorView with provided content", async () => {

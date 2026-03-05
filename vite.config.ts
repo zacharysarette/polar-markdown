@@ -21,4 +21,25 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mermaid: ["mermaid"],
+          codemirror: [
+            "codemirror",
+            "@codemirror/view",
+            "@codemirror/state",
+            "@codemirror/lang-markdown",
+            "@codemirror/language",
+            "@codemirror/lint",
+            "@lezer/highlight",
+          ],
+          highlight: ["highlight.js"],
+          marked: ["marked"],
+        },
+      },
+    },
+  },
 }));

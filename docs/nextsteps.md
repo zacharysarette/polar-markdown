@@ -2483,3 +2483,4 @@ Each feature is independently shippable and testable. Build, test, and verify af
 - **Image paste/drop** — paste images from clipboard or drag into editor, auto-save to disk
 - **Markdown templates** — new file creation offers template choices (meeting notes, project plan, etc.)
 - **Word count / reading time** — status bar showing word count and estimated reading time
+- **Highlight.js tree-shaking** — replace `import hljs from "highlight.js"` with selective language imports (`highlight.js/lib/core` + only needed languages) to cut the highlight chunk from ~970 KB to ~100-200 KB. Affects `src/lib/services/markdown.ts`.

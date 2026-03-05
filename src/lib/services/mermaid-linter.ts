@@ -1,5 +1,4 @@
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
-import mermaid from "mermaid";
 import type { Extension } from "@codemirror/state";
 
 export interface MermaidBlock {
@@ -29,6 +28,9 @@ export function findMermaidBlocks(doc: string): MermaidBlock[] {
 /** Lint mermaid blocks in a document string, returning diagnostics for invalid ones. */
 export async function lintMermaidBlocks(doc: string): Promise<Diagnostic[]> {
   const blocks = findMermaidBlocks(doc);
+  if (blocks.length === 0) return [];
+
+  const { default: mermaid } = await import("mermaid");
   const diagnostics: Diagnostic[] = [];
 
   for (const block of blocks) {
