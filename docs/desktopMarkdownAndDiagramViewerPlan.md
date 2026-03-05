@@ -1,4 +1,4 @@
-# Polar Markdown - Desktop Markdown & Diagram Viewer
+# Glacimark - Desktop Markdown & Diagram Viewer
 
 ## Context
 
@@ -139,7 +139,7 @@ notify = "7"
 - `main.ts` — Import `highlight.js/styles/github-dark.css`
 
 ### Step 10: Window config
-Update `tauri.conf.json`: title "Polar Markdown", 1200x800, min 800x600
+Update `tauri.conf.json`: title "Glacimark", 1200x800, min 800x600
 
 ### Step 11: Create test content
 Create `docs/test.md` with headings, code blocks, and Mermaid diagrams to verify everything works.
@@ -155,12 +155,12 @@ Create `docs/test.md` with headings, code blocks, and Mermaid diagrams to verify
 ## Sample Test File (`docs/test.md`)
 
 ````markdown
-# Polar Markdown Test
+# Glacimark Test
 
 ## Code Block
 ```javascript
 function hello() {
-  console.log("Hello from Polar Markdown!");
+  console.log("Hello from Glacimark!");
 }
 ```
 

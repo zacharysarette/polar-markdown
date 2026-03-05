@@ -139,21 +139,21 @@ describe("renderMarkdown", () => {
   });
 
   it("does not render links with spaces in URL", async () => {
-    const html = await renderMarkdown("[Guide](How to Use Polar Markdown.md)");
+    const html = await renderMarkdown("[Guide](How to Use Glacimark.md)");
     expect(html).not.toContain("<a");
-    expect(html).toContain("[Guide](How to Use Polar Markdown.md)");
+    expect(html).toContain("[Guide](How to Use Glacimark.md)");
   });
 
   it("renders links with angle-bracket URLs containing spaces", async () => {
-    const html = await renderMarkdown("[Guide](<How to Use Polar Markdown.md>)");
+    const html = await renderMarkdown("[Guide](<How to Use Glacimark.md>)");
     expect(html).toContain("<a");
-    expect(html).toContain("How%20to%20Use%20Polar%20Markdown.md");
+    expect(html).toContain("How%20to%20Use%20Glacimark.md");
   });
 
   it("renders links with percent-encoded spaces in URL", async () => {
-    const html = await renderMarkdown("[Guide](How%20to%20Use%20Polar%20Markdown.md)");
+    const html = await renderMarkdown("[Guide](How%20to%20Use%20Glacimark.md)");
     expect(html).toContain("<a");
-    expect(html).toContain("How%20to%20Use%20Polar%20Markdown.md");
+    expect(html).toContain("How%20to%20Use%20Glacimark.md");
   });
 
   it("renders lists", async () => {

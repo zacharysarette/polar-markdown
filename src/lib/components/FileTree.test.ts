@@ -521,7 +521,7 @@ describe("FileTree drag-and-drop", () => {
 
     // Pre-expand parent so child is visible
     localStorage.setItem(
-      "polar-markdown:expanded-paths",
+      "glacimark:expanded-paths",
       JSON.stringify(["/parent"])
     );
 
@@ -1058,7 +1058,7 @@ describe("FileTree expansion persistence", () => {
 
   it("restores expansion state from localStorage", () => {
     localStorage.setItem(
-      "polar-markdown:expanded-paths",
+      "glacimark:expanded-paths",
       JSON.stringify(["/docs"])
     );
 

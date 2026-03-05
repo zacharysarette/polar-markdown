@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="img/logo.png" alt="Polar Markdown" width="220">
+  <img src="img/logo.png" alt="Glacimark" width="220">
 </p>
 
-<h1 align="center">Polar Markdown</h1>
+<h1 align="center">Glacimark</h1>
 
 <p align="center">
   <strong>A blazing-fast desktop markdown editor and viewer with live preview and diagram support</strong><br>
@@ -12,7 +12,7 @@
 <p align="center">
   <a href="#features"><img src="https://img.shields.io/badge/features-packed-blue?style=for-the-badge" alt="Features"></a>
   <a href="#getting-started"><img src="https://img.shields.io/badge/setup-easy-green?style=for-the-badge" alt="Setup"></a>
-  <a href="https://github.com/zacharysarette/planning-central/releases"><img src="https://img.shields.io/badge/download-latest-orange?style=for-the-badge" alt="Download"></a>
+  <a href="https://github.com/zacharysarette/glacimark/releases"><img src="https://img.shields.io/badge/download-latest-orange?style=for-the-badge" alt="Download"></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-purple?style=for-the-badge" alt="License"></a>
 </p>
 
@@ -196,7 +196,7 @@ src-tauri/                  # Rust backend
       filesystem.rs         # Directory tree, file read/write, search, help content
       watcher.rs            # Native file system watcher
       diagram.rs            # svgbob ASCII → SVG conversion
-docs/                       # In-app documentation (viewable in Polar Markdown)
+docs/                       # In-app documentation (viewable in Glacimark)
 release.bat                 # Windows release script
 release.sh                  # macOS / Linux release script
 ```

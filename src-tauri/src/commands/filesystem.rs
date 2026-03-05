@@ -6,7 +6,7 @@ use tauri::Manager;
 use walkdir::WalkDir;
 
 /// Help file content embedded at compile time — always available regardless of install location.
-const HELP_CONTENT: &str = include_str!("../../../docs/How to Use Polar Markdown.md");
+const HELP_CONTENT: &str = include_str!("../../../docs/How to Use Glacimark.md");
 
 /// Museum file content embedded at compile time — available for help-flow navigation.
 const MUSEUM_CONTENT: &str = include_str!("../../../docs/test.md");

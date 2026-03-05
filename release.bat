@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: ============================================================================
-:: Polar Markdown -- Windows Release Script
+:: Glacimark -- Windows Release Script
 :: ============================================================================
 ::
 :: USAGE:
@@ -200,8 +200,8 @@ echo   All tests passed!
 echo.
 echo [5/7] Building...
 
-set NSIS=src-tauri\target\release\bundle\nsis\Polar Markdown_!VERSION!_x64-setup.exe
-set MSI=src-tauri\target\release\bundle\msi\Polar Markdown_!VERSION!_x64_en-US.msi
+set NSIS=src-tauri\target\release\bundle\nsis\Glacimark_!VERSION!_x64-setup.exe
+set MSI=src-tauri\target\release\bundle\msi\Glacimark_!VERSION!_x64_en-US.msi
 
 call npx tauri build
 if errorlevel 1 (
@@ -238,7 +238,7 @@ if not errorlevel 1 (
     if exist RELEASE_NOTES.md (
         gh release edit !TAG! --notes-file RELEASE_NOTES.md
     )
-    gh release upload !TAG! "!NSIS!#Polar Markdown Installer (NSIS)" "!MSI!#Polar Markdown Installer (MSI)" --clobber
+    gh release upload !TAG! "!NSIS!#Glacimark Installer (NSIS)" "!MSI!#Glacimark Installer (MSI)" --clobber
     if errorlevel 1 (
         echo Upload failed.
         del RELEASE_NOTES.md 2>nul
@@ -250,16 +250,16 @@ if not errorlevel 1 (
 
 if exist RELEASE_NOTES.md (
     gh release create !TAG! ^
-        "!NSIS!#Polar Markdown Installer (NSIS)" ^
-        "!MSI!#Polar Markdown Installer (MSI)" ^
-        --title "Polar Markdown !TAG!" ^
+        "!NSIS!#Glacimark Installer (NSIS)" ^
+        "!MSI!#Glacimark Installer (MSI)" ^
+        --title "Glacimark !TAG!" ^
         --notes-file RELEASE_NOTES.md
 ) else (
     gh release create !TAG! ^
-        "!NSIS!#Polar Markdown Installer (NSIS)" ^
-        "!MSI!#Polar Markdown Installer (MSI)" ^
-        --title "Polar Markdown !TAG!" ^
-        --notes "Polar Markdown !TAG! -- Windows x64 installers. Run the NSIS .exe (recommended) or MSI to install."
+        "!NSIS!#Glacimark Installer (NSIS)" ^
+        "!MSI!#Glacimark Installer (MSI)" ^
+        --title "Glacimark !TAG!" ^
+        --notes "Glacimark !TAG! -- Windows x64 installers. Run the NSIS .exe (recommended) or MSI to install."
 )
 
 if errorlevel 1 (
@@ -272,5 +272,5 @@ del RELEASE_NOTES.md 2>nul
 :done
 echo.
 echo === Release !TAG! complete! ===
-echo https://github.com/zacharysarette/polar-markdown/releases/tag/!TAG!
+echo https://github.com/zacharysarette/glacimark/releases/tag/!TAG!
 echo.

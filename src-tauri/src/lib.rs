@@ -12,13 +12,13 @@ pub struct InitialFileState(pub Mutex<Option<String>>);
 /// Holds a folder path passed via `--open-folder` CLI arg (from jump list). Consumed once.
 pub struct InitialFolderState(pub Mutex<Option<String>>);
 
-/// Atomic counter for generating unique window labels ("polar-2", "polar-3", ...).
+/// Atomic counter for generating unique window labels ("glacimark-2", "glacimark-3", ...).
 pub struct WindowCounter(pub AtomicU32);
 
-/// Generates a unique window label like "polar-2", "polar-3", etc.
+/// Generates a unique window label like "glacimark-2", "glacimark-3", etc.
 fn generate_window_label(counter: &WindowCounter) -> String {
     let id = counter.0.fetch_add(1, Ordering::SeqCst);
-    format!("polar-{}", id)
+    format!("glacimark-{}", id)
 }
 
 /// Reads the saved theme from the app data directory (written by the frontend).
@@ -35,8 +35,8 @@ fn read_saved_theme_from_handle(app: &tauri::AppHandle) -> Option<String> {
     std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
 }
 
-/// Creates a new Polar Markdown window with the correct theme background.
-fn create_polar_window(app: &tauri::AppHandle) -> Result<(), String> {
+/// Creates a new Glacimark window with the correct theme background.
+fn create_glacimark_window(app: &tauri::AppHandle) -> Result<(), String> {
     let counter = tauri::Manager::state::<WindowCounter>(app);
     let label = generate_window_label(&counter);
 
@@ -50,7 +50,7 @@ fn create_polar_window(app: &tauri::AppHandle) -> Result<(), String> {
         &label,
         tauri::WebviewUrl::App("index.html".into()),
     )
-    .title("Polar Markdown")
+    .title("Glacimark")
     .inner_size(1200.0, 800.0)
     .min_inner_size(800.0, 600.0)
     .visible(false)
@@ -79,7 +79,7 @@ fn find_focused_window_label(app: &tauri::AppHandle) -> Option<String> {
 /// Tauri command: creates a new window.
 #[tauri::command]
 fn create_new_window(app: tauri::AppHandle) -> Result<(), String> {
-    create_polar_window(&app)
+    create_glacimark_window(&app)
 }
 
 /// Extracts a .md file path from CLI arguments.
@@ -144,7 +144,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // Second instance launched — check for new-window, folder, file, or default
             if has_new_window_flag(&args) {
-                let _ = create_polar_window(app);
+                let _ = create_glacimark_window(app);
                 return;
             }
             if let Some(folder_path) = extract_folder_arg(&args) {
@@ -167,7 +167,7 @@ pub fn run() {
                 }
             } else {
                 // No file/folder arg (taskbar click, Start menu, etc.): new window
-                let _ = create_polar_window(app);
+                let _ = create_glacimark_window(app);
             }
         }))
         .setup(|app| {
@@ -223,7 +223,7 @@ pub fn run() {
             app.on_menu_event(move |_app, event| {
                 let id = event.id().0.as_str();
                 if id == "new-window" {
-                    let _ = create_polar_window(&handle);
+                    let _ = create_glacimark_window(&handle);
                 } else if let Some(label) = find_focused_window_label(&handle) {
                     let target = tauri::EventTarget::webview_window(label);
                     let _ = tauri::Emitter::emit_to(&handle, target, &format!("menu-{}", id), ());
@@ -282,15 +282,15 @@ mod tests {
     fn test_generate_window_label_starts_at_2() {
         let counter = WindowCounter(AtomicU32::new(2));
         let label = generate_window_label(&counter);
-        assert_eq!(label, "polar-2");
+        assert_eq!(label, "glacimark-2");
     }
 
     #[test]
     fn test_generate_window_label_increments() {
         let counter = WindowCounter(AtomicU32::new(2));
-        assert_eq!(generate_window_label(&counter), "polar-2");
-        assert_eq!(generate_window_label(&counter), "polar-3");
-        assert_eq!(generate_window_label(&counter), "polar-4");
+        assert_eq!(generate_window_label(&counter), "glacimark-2");
+        assert_eq!(generate_window_label(&counter), "glacimark-3");
+        assert_eq!(generate_window_label(&counter), "glacimark-4");
     }
 
     #[test]
@@ -317,7 +317,7 @@ mod tests {
         fs::write(&file, "# Test").unwrap();
 
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             file.to_string_lossy().to_string(),
         ];
         let result = extract_file_arg(&args);
@@ -332,7 +332,7 @@ mod tests {
         fs::write(&file, "# Test").unwrap();
 
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             "--verbose".to_string(),
             "-d".to_string(),
             file.to_string_lossy().to_string(),
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_extract_file_arg_returns_none_for_no_args() {
-        let args = vec!["polarmd.exe".to_string()];
+        let args = vec!["glacimark.exe".to_string()];
         let result = extract_file_arg(&args);
         assert!(result.is_none());
     }
@@ -352,7 +352,7 @@ mod tests {
     #[test]
     fn test_extract_file_arg_ignores_nonexistent_files() {
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             "C:\\nonexistent\\fake.md".to_string(),
         ];
         let result = extract_file_arg(&args);
@@ -366,7 +366,7 @@ mod tests {
         fs::write(&file, "hello").unwrap();
 
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             file.to_string_lossy().to_string(),
         ];
         let result = extract_file_arg(&args);
@@ -379,7 +379,7 @@ mod tests {
         let path = dir.path().to_string_lossy().to_string();
 
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             "--open-folder".to_string(),
             path.clone(),
         ];
@@ -393,7 +393,7 @@ mod tests {
         let path = dir.path().to_string_lossy().to_string();
 
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             path,
         ];
         let result = extract_folder_arg(&args);
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn test_extract_folder_arg_returns_none_for_nonexistent() {
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             "--open-folder".to_string(),
             "C:\\nonexistent\\fake\\path".to_string(),
         ];
@@ -413,20 +413,20 @@ mod tests {
 
     #[test]
     fn test_has_new_window_flag_true() {
-        let args = vec!["polarmd.exe".to_string(), "--new-window".to_string()];
+        let args = vec!["glacimark.exe".to_string(), "--new-window".to_string()];
         assert!(has_new_window_flag(&args));
     }
 
     #[test]
     fn test_has_new_window_flag_false() {
-        let args = vec!["polarmd.exe".to_string()];
+        let args = vec!["glacimark.exe".to_string()];
         assert!(!has_new_window_flag(&args));
     }
 
     #[test]
     fn test_has_new_window_flag_with_other_args() {
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             "--verbose".to_string(),
             "--new-window".to_string(),
             "--debug".to_string(),
@@ -441,7 +441,7 @@ mod tests {
         fs::write(&file, "hello").unwrap();
 
         let args = vec![
-            "polarmd.exe".to_string(),
+            "glacimark.exe".to_string(),
             "--open-folder".to_string(),
             file.to_string_lossy().to_string(),
         ];

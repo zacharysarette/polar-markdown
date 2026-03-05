@@ -2,15 +2,15 @@ import type { SortMode } from "./sort";
 import type { LayoutMode, ThemeType } from "../types";
 import { saveThemeFile } from "./filesystem";
 
-const STORAGE_KEY = "polar-markdown:last-selected-path";
-const DOCS_FOLDER_KEY = "polar-markdown:docs-folder";
-const SORT_MODE_KEY = "polar-markdown:sort-mode";
-const LAYOUT_MODE_KEY = "polar-markdown:layout-mode";
-const OPEN_PANES_KEY = "polar-markdown:open-panes";
-const EXPANDED_PATHS_KEY = "polar-markdown:expanded-paths";
-const RECENT_FOLDERS_KEY = "polar-markdown:recent-folders";
-const THEME_KEY = "polar-markdown:theme";
-const LINE_NUMBERS_KEY = "polar-markdown:line-numbers";
+const STORAGE_KEY = "glacimark:last-selected-path";
+const DOCS_FOLDER_KEY = "glacimark:docs-folder";
+const SORT_MODE_KEY = "glacimark:sort-mode";
+const LAYOUT_MODE_KEY = "glacimark:layout-mode";
+const OPEN_PANES_KEY = "glacimark:open-panes";
+const EXPANDED_PATHS_KEY = "glacimark:expanded-paths";
+const RECENT_FOLDERS_KEY = "glacimark:recent-folders";
+const THEME_KEY = "glacimark:theme";
+const LINE_NUMBERS_KEY = "glacimark:line-numbers";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
