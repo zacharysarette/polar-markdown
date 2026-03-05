@@ -21,7 +21,7 @@ import {
   getLineNumbers,
 } from "./persistence";
 
-const STORAGE_KEY = "polar-markdown:last-selected-path";
+const STORAGE_KEY = "glacimark:last-selected-path";
 
 beforeEach(() => {
   localStorage.clear();
@@ -54,7 +54,7 @@ describe("getLastSelectedPath", () => {
   });
 });
 
-const DOCS_FOLDER_KEY = "polar-markdown:docs-folder";
+const DOCS_FOLDER_KEY = "glacimark:docs-folder";
 
 describe("saveDocsFolder", () => {
   it("saves the folder path to localStorage", () => {
@@ -83,7 +83,7 @@ describe("getDocsFolder", () => {
   });
 });
 
-const SORT_MODE_KEY = "polar-markdown:sort-mode";
+const SORT_MODE_KEY = "glacimark:sort-mode";
 
 describe("saveSortMode / getSortMode", () => {
   it("round-trips a sort mode value", () => {
@@ -96,7 +96,7 @@ describe("saveSortMode / getSortMode", () => {
   });
 });
 
-const LAYOUT_MODE_KEY = "polar-markdown:layout-mode";
+const LAYOUT_MODE_KEY = "glacimark:layout-mode";
 
 describe("saveLayoutMode / getLayoutMode", () => {
   it("round-trips a layout mode value", () => {
@@ -137,7 +137,7 @@ describe("saveExpandedPaths / getExpandedPaths", () => {
   });
 
   it("returns empty array for corrupt JSON", () => {
-    localStorage.setItem("polar-markdown:expanded-paths", "not-json");
+    localStorage.setItem("glacimark:expanded-paths", "not-json");
     expect(getExpandedPaths()).toEqual([]);
   });
 });
@@ -170,7 +170,7 @@ describe("saveRecentFolders / getRecentFolders", () => {
   });
 
   it("returns empty array for corrupt JSON", () => {
-    localStorage.setItem("polar-markdown:recent-folders", "not-json");
+    localStorage.setItem("glacimark:recent-folders", "not-json");
     expect(getRecentFolders()).toEqual([]);
   });
 });
@@ -214,7 +214,7 @@ describe("saveLineNumbers / getLineNumbers", () => {
   });
 
   it("returns false for corrupted data", () => {
-    localStorage.setItem("polar-markdown:line-numbers", "not-json");
+    localStorage.setItem("glacimark:line-numbers", "not-json");
     expect(getLineNumbers()).toBe(false);
   });
 });

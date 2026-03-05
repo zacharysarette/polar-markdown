@@ -383,10 +383,10 @@ describe("active line highlight: editor line → strip → find in rendered HTML
 
   // --- Headings ---
 
-  it("H1: # Polar Markdown — Next Steps", () => {
+  it("H1: # Glacimark — Next Steps", () => {
     const result = activeLineFindsMatch(
-      "# Polar Markdown — Next Steps",
-      "<h1>Polar Markdown — Next Steps</h1>"
+      "# Glacimark — Next Steps",
+      "<h1>Glacimark — Next Steps</h1>"
     );
     expect(result).not.toBeNull();
     expect(result!.tagName).toBe("H1");
@@ -639,9 +639,9 @@ describe("active line highlight: editor line → strip → find in rendered HTML
 
   // --- Real examples from docs/nextsteps.md (the file in the screenshot) ---
 
-  it("real: The help button loads `How to Use Polar Markdown.md` from the app's `docs/` folder...", () => {
-    const rawLine = "The help button loads `How to Use Polar Markdown.md` from the app's `docs/` folder at runtime using `get_docs_path()`. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.";
-    const rendered = "<p>The help button loads <code>How to Use Polar Markdown.md</code> from the app's <code>docs/</code> folder at runtime using <code>get_docs_path()</code>. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.</p>";
+  it("real: The help button loads `How to Use Glacimark.md` from the app's `docs/` folder...", () => {
+    const rawLine = "The help button loads `How to Use Glacimark.md` from the app's `docs/` folder at runtime using `get_docs_path()`. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.";
+    const rendered = "<p>The help button loads <code>How to Use Glacimark.md</code> from the app's <code>docs/</code> folder at runtime using <code>get_docs_path()</code>. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.</p>";
     const result = activeLineFindsMatch(rawLine, rendered);
     expect(result).not.toBeNull();
     expect(result!.tagName).toBe("P");
@@ -708,9 +708,9 @@ describe("active line highlight: editor line → strip → find in rendered HTML
   // --- Code block content lines (cursor inside a fenced code block) ---
 
   it("code block line: const HELP_CONTENT = include_str!(...)", () => {
-    const rawLine = 'const HELP_CONTENT: &str = include_str!("../../docs/How to Use Polar Markdown.md");';
+    const rawLine = 'const HELP_CONTENT: &str = include_str!("../../docs/How to Use Glacimark.md");';
     // This line is INSIDE a <pre><code>, so findMatchingBlockElement skips it
-    const rendered = '<pre class="line-numbers"><code class="hljs">const HELP_CONTENT: &amp;str = include_str!(&quot;../../docs/How to Use Polar Markdown.md&quot;);</code></pre>';
+    const rendered = '<pre class="line-numbers"><code class="hljs">const HELP_CONTENT: &amp;str = include_str!(&quot;../../docs/How to Use Glacimark.md&quot;);</code></pre>';
     const el = makeContainer(rendered);
     const stripped = stripMarkdownSyntax(rawLine);
     const result = findMatchingBlockElement(el, stripped);
@@ -748,11 +748,11 @@ describe("active line highlight: editor line → strip → find in rendered HTML
     expect(result!.tagName).toBe("LI");
   });
 
-  it("image line: ![Polar Markdown Logo](../img/logo.png)", () => {
-    const rawLine = '![Polar Markdown Logo](../img/logo.png "The Polar Markdown polar bear")';
+  it("image line: ![Glacimark Logo](../img/logo.png)", () => {
+    const rawLine = '![Glacimark Logo](../img/logo.png "The Glacimark polar bear")';
     const stripped = stripMarkdownSyntax(rawLine);
     // Image regex strips ![alt](url "title") → alt text only (title is inside parens)
-    expect(stripped).toBe("Polar Markdown Logo");
+    expect(stripped).toBe("Glacimark Logo");
   });
 });
 
@@ -833,9 +833,9 @@ describe("findMatchingPreElement", () => {
 
   it("matches JSON code block content", () => {
     const el = makeContainer(
-      '<pre class="line-numbers"><code class="hljs">{\n  "app": "Polar Markdown",\n  "version": "0.1.0"\n}</code></pre>'
+      '<pre class="line-numbers"><code class="hljs">{\n  "app": "Glacimark",\n  "version": "0.1.0"\n}</code></pre>'
     );
-    const result = findMatchingPreElement(el, '  "app": "Polar Markdown",');
+    const result = findMatchingPreElement(el, '  "app": "Glacimark",');
     expect(result).not.toBeNull();
     expect(result!.tagName).toBe("PRE");
   });

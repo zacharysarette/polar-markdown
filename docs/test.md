@@ -1,8 +1,8 @@
-# Polar Markdown Rendering Museum
+# Glacimark Rendering Museum
 
-Welcome to **Polar Markdown** — your local markdown viewer with diagram support. This file showcases every rendering feature so you can verify they all work correctly.
+Welcome to **Glacimark** — your local markdown viewer with diagram support. This file showcases every rendering feature so you can verify they all work correctly.
 
-For more information about how the application works, see [How to Use Polar Markdown](<How to Use Polar Markdown.md>).
+For more information about how the application works, see [How to Use Glacimark](<How to Use Glacimark.md>).
 
 ---
 
@@ -10,7 +10,7 @@ For more information about how the application works, see [How to Use Polar Mark
 
 ### Relative Path (Local Image)
 
-![Polar Markdown Logo](../img/logo.png "The Polar Markdown polar bear")
+![Glacimark Logo](../img/logo.png "The Glacimark polar bear")
 
 ### External URL
 
@@ -28,7 +28,7 @@ For more information about how the application works, see [How to Use Polar Mark
 
 ```javascript
 function hello() {
-  console.log("Hello from Polar Markdown!");
+  console.log("Hello from Glacimark!");
 }
 
 const features = ["markdown", "mermaid", "syntax highlighting", "images"];
@@ -39,7 +39,7 @@ features.forEach((f) => console.log(`Supports: ${f}`));
 
 ```rust
 fn main() {
-    let name = "Polar Markdown";
+    let name = "Glacimark";
     println!("Welcome to {}!", name);
 
     let features = vec!["file tree", "live reload", "dark theme"];
@@ -67,7 +67,7 @@ const features: Feature[] = [
 
 ```json
 {
-  "app": "Polar Markdown",
+  "app": "Glacimark",
   "version": "0.1.0",
   "features": ["markdown", "mermaid", "svgbob", "images", "search"]
 }
@@ -141,7 +141,7 @@ flowchart INVALID
 
 ```
 ┌─────────────────────────────────┐
-│       Polar Markdown          │
+│       Glacimark          │
 ├────────────┬────────────────────┤
 │  Sidebar   │   Content Area     │
 │            │                    │
@@ -252,21 +252,21 @@ Content below the rule.
 
 Clicking a `.md` link opens that file in the active pane. Ctrl+Click opens it in a new pane. Links with `#section` fragments open the file and scroll to the heading.
 
-- [Open the user guide](How to Use Polar Markdown.md) (should open in active pane)
+- [Open the user guide](How to Use Glacimark.md) (should open in active pane)
 - [Open nextsteps](nextsteps.md) (relative file link)
 
 ### External Links
 
 External `http://` and `https://` links open in your system browser instead of navigating the WebView:
 
-- [Polar Markdown on GitHub](https://github.com/zacharysarette/polar-markdown) (opens in browser)
+- [Glacimark on GitHub](https://github.com/zacharysarette/glacimark) (opens in browser)
 - [Example.com](https://example.com) (opens in browser)
 
 ### Malformed Links
 
 These intentionally broken link syntaxes should render as plain text, not clickable links:
 
-- [Spaces in URL](How to Use Polar Markdown.md) — spaces break the URL per CommonMark spec
+- [Spaces in URL](How to Use Glacimark.md) — spaces break the URL per CommonMark spec
 - [Missing closing paren](test.md — no closing `)` on the URL
 - [Empty URL]() — empty destination
 - Just brackets with no parens: [not a link]
@@ -285,14 +285,14 @@ Clicking a `#hash` link smooth-scrolls to the matching heading. Try these — ea
 - [Jump to ASCII Art](#ascii-art--svgbob-diagrams)
 - [Jump to Tables](#tables)
 - [Jump to Text Formatting](#text-formatting)
-- [Back to top](#polar-markdown-rendering-museum)
-- [Back to User Guide](<How to Use Polar Markdown.md>) (opens the help guide)
+- [Back to top](#glacimark-rendering-museum)
+- [Back to User Guide](<How to Use Glacimark.md>) (opens the help guide)
 
 ---
 
 ## Jump List (Windows Taskbar)
 
-Right-click the Polar Markdown icon in the Windows taskbar to see **Recent Folders**. To test:
+Right-click the Glacimark icon in the Windows taskbar to see **Recent Folders**. To test:
 
 1. Open 3 different folders using the folder picker
 2. Right-click the taskbar icon — all 3 should appear under "Recent Folders"
@@ -303,7 +303,7 @@ Right-click the Polar Markdown icon in the Windows taskbar to see **Recent Folde
 
 ## Multi-Window
 
-Polar Markdown supports multiple independent windows. To test:
+Glacimark supports multiple independent windows. To test:
 
 1. **Ctrl+Shift+N** or **File > New Window** — a second window should open with the correct theme
 2. Each window should independently browse folders, open files, and manage panes
@@ -338,4 +338,4 @@ Toggle off — all gutter numbers should disappear.
 
 ---
 
-*This file is a rendering museum — every feature of Polar Markdown displayed in one place.*
+*This file is a rendering museum — every feature of Glacimark displayed in one place.*

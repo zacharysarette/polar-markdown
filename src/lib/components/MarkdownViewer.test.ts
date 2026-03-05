@@ -33,7 +33,7 @@ describe("MarkdownViewer", () => {
       props: { content: "", filePath: "" },
     });
 
-    expect(screen.getByText("Polar Markdown")).toBeInTheDocument();
+    expect(screen.getByText("Glacimark")).toBeInTheDocument();
     expect(
       screen.getByText("Select a markdown file from the sidebar to view it.")
     ).toBeInTheDocument();
@@ -321,7 +321,7 @@ describe("MarkdownViewer", () => {
     it("decodes %20 in href before calling onfilelink", async () => {
       const onfilelink = vi.fn();
       const { container } = render(MarkdownViewer, {
-        props: { content: "[Guide](<How to Use Polar Markdown.md>)", filePath: "/docs/test.md", onfilelink },
+        props: { content: "[Guide](<How to Use Glacimark.md>)", filePath: "/docs/test.md", onfilelink },
       });
 
       await vi.waitFor(() => {
@@ -331,7 +331,7 @@ describe("MarkdownViewer", () => {
       const link = container.querySelector("a") as HTMLAnchorElement;
       link.click();
 
-      expect(onfilelink).toHaveBeenCalledWith("/docs/How to Use Polar Markdown.md", undefined, false);
+      expect(onfilelink).toHaveBeenCalledWith("/docs/How to Use Glacimark.md", undefined, false);
     });
 
     it("subdirectory relative paths resolved correctly", async () => {

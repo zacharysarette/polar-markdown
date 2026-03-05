@@ -1,9 +1,9 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Polar Markdown",
-  "mainBinaryName": "polarmd",
+  "productName": "Glacimark",
+  "mainBinaryName": "glacimark",
   "version": "0.6.6",
-  "identifier": "com.polarmarkdown.app",
+  "identifier": "com.glacimark.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Polar Markdown",
+        "title": "Glacimark",
         "width": 1200,
         "height": 800,
         "minWidth": 800,

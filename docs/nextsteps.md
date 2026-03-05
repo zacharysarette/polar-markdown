@@ -1,8 +1,8 @@
-# Polar Markdown — Next Steps
+# Glacimark — Next Steps
 
 ## Project Context
 
-Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`polarmd file.md`), and single-instance handling (`tauri-plugin-single-instance`).
+Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`glacimark file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
 ### Current Test Count: 460 frontend (13 test files) + 97 Rust = 557 total
 
@@ -29,14 +29,14 @@ Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a
 ### Status: DONE
 
 ### Problem
-The help button loads `How to Use Polar Markdown.md` from the app's `docs/` folder at runtime using `get_docs_path()`. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.
+The help button loads `How to Use Glacimark.md` from the app's `docs/` folder at runtime using `get_docs_path()`. This only works if the docs folder exists relative to the executable. When the app is installed to Program Files or run from a different location, the help file may not be found.
 
 ### Solution: Rust `include_str!`
 Compile the help file directly into the binary at build time using Rust's `include_str!` macro. This reads the file at compile time and embeds it as a string constant in the executable. No runtime file access needed.
 
 ```rust
 // In commands/filesystem.rs
-const HELP_CONTENT: &str = include_str!("../../docs/How to Use Polar Markdown.md");
+const HELP_CONTENT: &str = include_str!("../../docs/How to Use Glacimark.md");
 
 #[tauri::command]
 pub fn get_help_content() -> String {
@@ -170,7 +170,7 @@ Extend `src/lib/services/persistence.ts` with:
 - `saveDocsFolder(path: string): void`
 - `getDocsFolder(): string | null`
 
-Use a separate localStorage key like `"polar-markdown:docs-folder"`.
+Use a separate localStorage key like `"glacimark:docs-folder"`.
 
 #### 4. Update App.svelte
 
@@ -274,21 +274,21 @@ unlistenFn = await listen<string[]>("file-changed", async (event) => {
 
 ### Option A: Standalone EXE (simplest)
 ```
-src-tauri\target\release\polarmd.exe
+src-tauri\target\release\glacimark.exe
 ```
-Copy this file to your Desktop. Double-click to run. You can also pass a file path: `polarmd.exe path\to\file.md`.
+Copy this file to your Desktop. Double-click to run. You can also pass a file path: `glacimark.exe path\to\file.md`.
 
 ### Option B: NSIS Installer (recommended for distribution)
 ```
-src-tauri\target\release\bundle\nsis\Polar Markdown_0.5.1_x64-setup.exe
+src-tauri\target\release\bundle\nsis\Glacimark_0.5.1_x64-setup.exe
 ```
 Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller. The installer also:
-- Registers `.md` file associations (right-click → "Open with Polar Markdown")
-- Adds the install directory to your PATH so you can run `polarmd` from any terminal
+- Registers `.md` file associations (right-click → "Open with Glacimark")
+- Adds the install directory to your PATH so you can run `glacimark` from any terminal
 
 ### Option C: MSI Installer (enterprise/IT deployment)
 ```
-src-tauri\target\release\bundle\msi\Polar Markdown_0.5.1_x64_en-US.msi
+src-tauri\target\release\bundle\msi\Glacimark_0.5.1_x64_en-US.msi
 ```
 Standard Windows Installer package, good for Group Policy deployment.
 
@@ -549,21 +549,21 @@ Or detect automatically: if the query starts with `/` or a special prefix, do fu
 
 ### Option A: Standalone EXE (simplest)
 ```
-src-tauri\target\release\polarmd.exe
+src-tauri\target\release\glacimark.exe
 ```
-Copy this file to your Desktop. Double-click to run. You can also pass a file path: `polarmd.exe path\to\file.md`.
+Copy this file to your Desktop. Double-click to run. You can also pass a file path: `glacimark.exe path\to\file.md`.
 
 ### Option B: NSIS Installer (recommended for distribution)
 ```
-src-tauri\target\release\bundle\nsis\Polar Markdown_0.5.1_x64-setup.exe
+src-tauri\target\release\bundle\nsis\Glacimark_0.5.1_x64-setup.exe
 ```
 Double-click this to install the app to Program Files with a Start Menu shortcut and Desktop shortcut. Includes an uninstaller. The installer also:
-- Registers `.md` file associations (right-click → "Open with Polar Markdown")
-- Adds the install directory to your PATH so you can run `polarmd` from any terminal
+- Registers `.md` file associations (right-click → "Open with Glacimark")
+- Adds the install directory to your PATH so you can run `glacimark` from any terminal
 
 ### Option C: MSI Installer (enterprise/IT deployment)
 ```
-src-tauri\target\release\bundle\msi\Polar Markdown_0.5.1_x64_en-US.msi
+src-tauri\target\release\bundle\msi\Glacimark_0.5.1_x64_en-US.msi
 ```
 Standard Windows Installer package, good for Group Policy deployment.
 
@@ -910,7 +910,7 @@ When multiple panes are open:
 Shipped in v0.4.0 with: split-pane CodeMirror 6 editor + live preview, auto-save (1s debounce) + Ctrl+S, bidirectional scroll sync, active line highlighting with table cell targeting, search highlighting in editor, watcher feedback loop prevention, image layout shift fix.
 
 ### Problem (original)
-Polar Markdown is currently read-only. Users have to edit markdown files in a separate text editor, then switch back to see the rendered result. For a planning tool, editing should be built-in.
+Glacimark is currently read-only. Users have to edit markdown files in a separate text editor, then switch back to see the rendered result. For a planning tool, editing should be built-in.
 
 ### Solution
 Add a split-pane editor view: raw markdown editor on one side, live preview on the other. Includes Mermaid diagram editing with live-rendered previews.
@@ -1126,7 +1126,7 @@ If multi-file viewing is implemented first, each pane can independently be in Vi
 ### Status: DONE
 
 ### Problem
-Users can edit existing files but cannot create new markdown files from within Polar Markdown. They have to use a separate file manager or terminal to create files, then switch back.
+Users can edit existing files but cannot create new markdown files from within Glacimark. They have to use a separate file manager or terminal to create files, then switch back.
 
 ### Solution
 Add a "New File" button to the sidebar header. Clicking it creates a new `.md` file in the current directory and opens it in edit mode.
@@ -2133,7 +2133,7 @@ Expose `validate_mermaid` and `fix_mermaid` as MCP tools so Claude Code can vali
 ## Future: MCP Server for Claude Code Integration
 
 ### Vision
-Expose Polar Markdown's capabilities as an MCP (Model Context Protocol) server so AI tools like Claude Code can read, write, validate, and search markdown docs programmatically. This turns Polar Markdown from a standalone viewer into an AI-accessible knowledge base.
+Expose Glacimark's capabilities as an MCP (Model Context Protocol) server so AI tools like Claude Code can read, write, validate, and search markdown docs programmatically. This turns Glacimark from a standalone viewer into an AI-accessible knowledge base.
 
 ### Why MCP
 Claude Code already supports MCP servers. An MCP server would let Claude Code:
@@ -2159,7 +2159,7 @@ Claude Code already supports MCP servers. An MCP server would let Claude Code:
 
 #### Option A: Standalone MCP Server (Node.js process)
 
-A separate Node.js process that implements the MCP protocol and talks to Polar Markdown's backend via Tauri IPC or directly to the filesystem.
+A separate Node.js process that implements the MCP protocol and talks to Glacimark's backend via Tauri IPC or directly to the filesystem.
 
 ```
 Claude Code  ←→  MCP Server (Node.js)  ←→  Filesystem (docs/)
@@ -2233,7 +2233,7 @@ Users add the server to their Claude Code MCP config:
 ```json
 {
   "mcpServers": {
-    "polar-markdown": {
+    "glacimark": {
       "command": "node",
       "args": ["./mcp-server/dist/index.js", "--docs-path", "./docs"]
     }
@@ -2349,7 +2349,7 @@ Headings now get `id` attributes (GitHub-flavored slugs). Clicking `#hash` links
 ### Status: DONE
 
 ### Problem
-Markdown files often link to other files (e.g. `[see the guide](How to Use Polar Markdown.md)` or `[notes](notes/ideas.md)`). Currently, clicking these links does nothing useful — the browser tries to navigate away, which fails in the Tauri WebView.
+Markdown files often link to other files (e.g. `[see the guide](How to Use Glacimark.md)` or `[notes](notes/ideas.md)`). Currently, clicking these links does nothing useful — the browser tries to navigate away, which fails in the Tauri WebView.
 
 ### Solution
 
@@ -2432,7 +2432,7 @@ These features build on each other. Recommended sequence:
 10. ~~**Markdown & Diagram Editor**~~ — DONE (v0.4.0: split-pane CodeMirror + live preview, auto-save, scroll sync, active line highlight, table cell targeting)
 11. ~~**New File**~~ — DONE (Ctrl+N, + button, inline input, auto .md, title template, opens in edit mode)
 12. ~~**Rename File**~~ — DONE (F2, right-click context menu, inline input, auto .md, updates open panes)
-13. ~~**Open Files from OS & CLI**~~ — DONE (file associations, `polarmd file.md` CLI, single-instance, NSIS PATH registration)
+13. ~~**Open Files from OS & CLI**~~ — DONE (file associations, `glacimark file.md` CLI, single-instance, NSIS PATH registration)
 14. ~~**Delete File**~~ — DONE (Delete key, right-click menu, native confirm dialog, closes affected panes)
 15. ~~**Save As**~~ — DONE (Ctrl+Shift+S, native save dialog, pane updates to new file)
 16. ~~**Folder Selection & Targeted File Creation**~~ — DONE (selectedFolderPath state, visual folder highlight, folder icon, click folder → "+" creates file there)
@@ -2453,9 +2453,9 @@ Each feature is independently shippable and testable. Build, test, and verify af
 
 ## Self-Documenting Requirement
 
-**`docs/How to Use Polar Markdown.md`** is the in-app user guide. A help button (?) in the sidebar header loads this file in the viewer regardless of what folder is currently open.
+**`docs/How to Use Glacimark.md`** is the in-app user guide. A help button (?) in the sidebar header loads this file in the viewer regardless of what folder is currently open.
 
-**Rule:** Every time a new feature ships, update `How to Use Polar Markdown.md` to document it. This keeps the app self-documenting — users can always click the help button to see up-to-date instructions rendered inside Polar Markdown itself.
+**Rule:** Every time a new feature ships, update `How to Use Glacimark.md` to document it. This keeps the app self-documenting — users can always click the help button to see up-to-date instructions rendered inside Glacimark itself.
 
 ---
 

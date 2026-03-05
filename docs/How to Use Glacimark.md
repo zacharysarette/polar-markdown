@@ -1,6 +1,6 @@
-# How to Use Polar Markdown
+# How to Use Glacimark
 
-Polar Markdown is a desktop markdown viewer with Mermaid diagram support. It lets you browse, read, and navigate markdown files with live-rendered diagrams.
+Glacimark is a desktop markdown viewer with Mermaid diagram support. It lets you browse, read, and navigate markdown files with live-rendered diagrams.
 
 Want to see all the markdown features in action? Check out the [Rendering Museum](test.md) — it showcases every rendering capability in one place.
 
@@ -16,13 +16,13 @@ To open a different folder, click the **folder button** in the sidebar header. A
 
 You can open `.md` files directly from Windows:
 
-- **Right-click** a `.md` file in File Explorer → **Open with** → choose **Polar Markdown**
-- **Command line:** run `polarmd path\to\file.md` from any terminal (after installing via the NSIS installer, which adds `polarmd` to your PATH)
-- **Drag-and-drop** a `.md` file onto `polarmd.exe`
+- **Right-click** a `.md` file in File Explorer → **Open with** → choose **Glacimark**
+- **Command line:** run `glacimark path\to\file.md` from any terminal (after installing via the NSIS installer, which adds `glacimark` to your PATH)
+- **Drag-and-drop** a `.md` file onto `glacimark.exe`
 
 When you open a file this way, the app automatically sets the file's parent directory as the active folder in the sidebar.
 
-If Polar Markdown is already running and you open another file (via right-click, CLI, etc.), the existing window receives the file — no duplicate windows are created.
+If Glacimark is already running and you open another file (via right-click, CLI, etc.), the existing window receives the file — no duplicate windows are created.
 
 ---
 
@@ -67,7 +67,7 @@ Click the **🔍** button next to the filter bar to switch to full-text search m
 
 ### Creating New Files
 
-You can create new markdown files directly from within Polar Markdown:
+You can create new markdown files directly from within Glacimark:
 
 - Click the **+** button in the sidebar header, or press **Ctrl+N**
 - An inline input appears pre-filled with `untitled.md` — the "untitled" portion is selected so you can immediately type a new name
@@ -141,7 +141,7 @@ Click the **?** button to open this guide at any time, no matter what folder you
 
 ## Jump List (Windows Taskbar)
 
-When you right-click the Polar Markdown icon in the Windows taskbar, a **Recent Folders** category shows the folders you've recently opened. Click any folder to instantly switch to it.
+When you right-click the Glacimark icon in the Windows taskbar, a **Recent Folders** category shows the folders you've recently opened. Click any folder to instantly switch to it.
 
 - Folders are added to the jump list whenever you open or switch to a new folder
 - The list holds up to 10 recent folders (most recent first)
@@ -155,7 +155,7 @@ When you right-click the Polar Markdown icon in the Windows taskbar, a **Recent 
 You can open multiple independent windows, each with its own sidebar, folder, and panes:
 
 - **File > New Window** or **Ctrl+Shift+N** — opens a new window
-- **Taskbar:** right-click the Polar Markdown icon and click "Polar Markdown" to open a new window
+- **Taskbar:** right-click the Glacimark icon and click "Glacimark" to open a new window
 - Each window operates independently — browse different folders, open different files, use different pane layouts
 - File changes are synced across all windows (editing a file in one window updates it in all others)
 - The app quits when the last window is closed
@@ -230,13 +230,13 @@ graph LR
 
 Supported diagram types include flowcharts, sequence diagrams, class diagrams, state diagrams, ER diagrams, Gantt charts, pie charts, and more. See the [Mermaid documentation](https://mermaid.js.org/) for syntax details.
 
-**Error handling:** If a mermaid block has invalid syntax, Polar Markdown shows a red-bordered error overlay with the specific error message instead of a blank space. The raw mermaid source is kept visible below the error so you can diagnose and fix the problem. A status indicator in the viewer header shows how many diagrams rendered successfully (e.g. "3 diagrams OK" or "1 of 3 diagrams failed").
+**Error handling:** If a mermaid block has invalid syntax, Glacimark shows a red-bordered error overlay with the specific error message instead of a blank space. The raw mermaid source is kept visible below the error so you can diagnose and fix the problem. A status indicator in the viewer header shows how many diagrams rendered successfully (e.g. "3 diagrams OK" or "1 of 3 diagrams failed").
 
 ---
 
 ## Editing Markdown
 
-Polar Markdown includes a built-in split-pane editor so you can edit files without leaving the app.
+Glacimark includes a built-in split-pane editor so you can edit files without leaving the app.
 
 ### Entering Edit Mode
 
@@ -275,7 +275,7 @@ Each pane toggles independently. You can have one pane in edit mode and another 
 
 ## Themes
 
-Polar Markdown has two built-in themes:
+Glacimark has two built-in themes:
 
 | Theme | Description |
 |---|---|
@@ -292,7 +292,7 @@ The theme also affects Mermaid diagrams, ASCII art (svgbob), code syntax highlig
 
 ## Live File Watching
 
-Polar Markdown watches your folder for changes in real time. If you edit a markdown file in another editor (or if a tool like Claude Code writes files), the sidebar and content area update automatically — no refresh needed.
+Glacimark watches your folder for changes in real time. If you edit a markdown file in another editor (or if a tool like Claude Code writes files), the sidebar and content area update automatically — no refresh needed.
 
 ---
 
@@ -320,6 +320,6 @@ Polar Markdown watches your folder for changes in real time. If you edit a markd
 
 - **Widescreen monitors:** Use the layout toggle (top-right of the content area) to switch between centered and multi-column modes.
 - **Multiple folders:** Use the folder button to switch between different documentation directories. Each folder's state is independent.
-- **CLI usage:** After installing with the NSIS installer, run `polarmd` from any terminal to launch the app, or `polarmd file.md` to open a specific file.
+- **CLI usage:** After installing with the NSIS installer, run `glacimark` from any terminal to launch the app, or `glacimark file.md` to open a specific file.
 - **Rendering museum:** Open [the Rendering Museum](test.md) to see every rendering feature in one place — headings, code blocks, Mermaid diagrams, ASCII art, tables, images, anchor links, and more. Great for verifying everything works after updates.
-- **Dogfooding:** Polar Markdown's own documentation lives in the `docs/` folder — you're reading it right now!
+- **Dogfooding:** Glacimark's own documentation lives in the `docs/` folder — you're reading it right now!

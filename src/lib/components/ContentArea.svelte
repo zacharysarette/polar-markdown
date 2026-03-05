@@ -51,8 +51,8 @@
 
 {#if panes.length === 0}
   <div class="empty-state" role="main" aria-label="Markdown viewer">
-    <img class="empty-logo" src={logoUrl} alt="Polar Markdown" />
-    <h2>Polar Markdown</h2>
+    <img class="empty-logo" src={logoUrl} alt="Glacimark" />
+    <h2>Glacimark</h2>
     <p>Select a markdown file from the sidebar to view it.</p>
   </div>
 {:else}

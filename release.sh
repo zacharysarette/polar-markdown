@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================================
-# Polar Markdown — macOS / Linux Release Script
+# Glacimark — macOS / Linux Release Script
 # ============================================================================
 #
 # USAGE:
@@ -201,9 +201,9 @@ case "${OS}" in
         fi
         echo "  Found: ${DMG}"
         if [ "${ARCH}" = "arm64" ]; then
-            ARTIFACTS+=("${DMG}#Polar Markdown (macOS Apple Silicon .dmg)")
+            ARTIFACTS+=("${DMG}#Glacimark (macOS Apple Silicon .dmg)")
         else
-            ARTIFACTS+=("${DMG}#Polar Markdown (macOS Intel .dmg)")
+            ARTIFACTS+=("${DMG}#Glacimark (macOS Intel .dmg)")
         fi
         ;;
     Linux)
@@ -215,11 +215,11 @@ case "${OS}" in
         fi
         if [ -n "${DEB}" ]; then
             echo "  Found: ${DEB}"
-            ARTIFACTS+=("${DEB}#Polar Markdown (.deb)")
+            ARTIFACTS+=("${DEB}#Glacimark (.deb)")
         fi
         if [ -n "${APPIMAGE}" ]; then
             echo "  Found: ${APPIMAGE}"
-            ARTIFACTS+=("${APPIMAGE}#Polar Markdown (.AppImage)")
+            ARTIFACTS+=("${APPIMAGE}#Glacimark (.AppImage)")
         fi
         ;;
     *)
@@ -249,7 +249,7 @@ if gh release view "${TAG}" &>/dev/null; then
     gh release upload "${TAG}" "${ARTIFACTS[@]}" --clobber
 else
     echo "  Creating new release ${TAG}..."
-    NOTES="Polar Markdown ${TAG}"
+    NOTES="Glacimark ${TAG}"
     case "${OS}" in
         Darwin) NOTES="${NOTES} — macOS ${ARCH} installer." ;;
         Linux)  NOTES="${NOTES} — Linux installers (.deb and/or .AppImage)." ;;
@@ -257,11 +257,11 @@ else
 
     gh release create "${TAG}" \
         "${ARTIFACTS[@]}" \
-        --title "Polar Markdown ${TAG}" \
+        --title "Glacimark ${TAG}" \
         --notes "${NOTES}"
 fi
 
 echo ""
 echo "=== Release ${TAG} complete! ==="
-echo "  https://github.com/zacharysarette/polar-markdown/releases/tag/${TAG}"
+echo "  https://github.com/zacharysarette/glacimark/releases/tag/${TAG}"
 echo ""

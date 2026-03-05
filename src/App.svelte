@@ -437,13 +437,13 @@
       const content = await getHelpContent();
       if (panes.length === 0) {
         const id = createPaneId();
-        panes = [{ id, path: "How to Use Polar Markdown.md", content, readOnly: true, editMode: false }];
+        panes = [{ id, path: "How to Use Glacimark.md", content, readOnly: true, editMode: false }];
         activePaneId = id;
         savedPaneBeforeHelp = null;
       } else {
         panes = panes.map((p) =>
           p.id === activePaneId
-            ? { ...p, path: "How to Use Polar Markdown.md", content, readOnly: true, editMode: false }
+            ? { ...p, path: "How to Use Glacimark.md", content, readOnly: true, editMode: false }
             : p
         );
       }
@@ -687,7 +687,7 @@
 
   /** Map of virtual filenames to their embedded content loaders. */
   const EMBEDDED_DOCS: Record<string, () => Promise<string>> = {
-    "How to Use Polar Markdown.md": getHelpContent,
+    "How to Use Glacimark.md": getHelpContent,
     "test.md": getMuseumContent,
   };
 

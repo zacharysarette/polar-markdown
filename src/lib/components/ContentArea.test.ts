@@ -95,7 +95,7 @@ describe("ContentArea", () => {
       },
     });
 
-    expect(screen.getByText("Polar Markdown")).toBeInTheDocument();
+    expect(screen.getByText("Glacimark")).toBeInTheDocument();
     expect(
       screen.getByText("Select a markdown file from the sidebar to view it.")
     ).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe("ContentArea", () => {
       },
     });
 
-    const logo = screen.getByAltText("Polar Markdown");
+    const logo = screen.getByAltText("Glacimark");
     expect(logo).toBeInTheDocument();
     expect(logo.tagName).toBe("IMG");
     expect((logo as HTMLImageElement).src).toContain("logo.png");
