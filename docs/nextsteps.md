@@ -4,7 +4,7 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`polarmd file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
-### Current Test Count: 398 frontend (13 test files) + 81 Rust = 479 total
+### Current Test Count: 460 frontend (13 test files) + 97 Rust = 557 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs` (InitialFileState, extract_file_arg, single-instance plugin), `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -2389,31 +2389,30 @@ Markdown files often link to other files (e.g. `[see the guide](How to Use Polar
 
 ## Feature: Line Numbers Toggle
 
-### Status: PENDING (lower priority)
+### Status: DONE (v0.6.6)
 
 ### Problem
 Users may want to see line numbers in the rendered markdown for reference — useful when discussing documents or correlating with search results.
 
 ### Solution
-Add a toggle button in the viewer header (next to the layout controls) that overlays line numbers on the rendered content. When enabled, each block-level element (paragraph, heading, list item, code block) shows a line number gutter.
+A `1:` toggle button in the viewer header (next to the layout controls) shows source line numbers in a left gutter. Each block-level element (heading, paragraph, code block, list, table, blockquote, hr) displays its original source line number via CSS `::before` pseudo-elements.
 
-### Implementation Plan
+### Implementation
 
-**1. Track source line numbers in rendered HTML**
-- Extend the `marked` renderer to add `data-source-line` attributes to block-level elements
-- The attribute value is the 1-based line number in the original markdown source
+**Two-phase rendering:** When `sourceLineNumbers` is enabled, `renderMarkdown()` uses `marked.lexer()` → `annotateSourceLines()` (walks top-level tokens, counts newlines in `raw` to track line positions, sets `_sourceLine` on each token) → `marked.parser()`. Renderer methods read `_sourceLine` and emit `data-source-line="N"` attributes.
 
-**2. Line number toggle UI**
-- Add a button (e.g. `#` or `1:`) to the layout controls area in MarkdownViewer header
-- Persist the toggle state via localStorage (`persistence.ts`)
+**Key files changed:**
+- `persistence.ts` — `saveLineNumbers()`/`getLineNumbers()` (boolean, default false)
+- `markdown.ts` — `RenderOptions` type, `annotateSourceLines()`, `getSourceLineAttr()` helper, renderer overrides for paragraph/blockquote/list/table/hr (heading/code already existed, modified to accept token object)
+- `MarkdownViewer.svelte` — `showLineNumbers`/`onlinenumberschange` props, `1:` toggle button, `show-source-lines` CSS class on article
+- `app.css` — gutter styles (64px left padding, `::before` pseudo-elements, adjusted centered max-width to 864px)
+- `ContentArea.svelte` → `App.svelte` — pass-through wiring + state persistence
 
-**3. CSS line number gutter**
-- When enabled, block-level elements with `data-source-line` get a `::before` pseudo-element showing the line number
-- Use a left margin/padding to accommodate the gutter
-
-**4. Tests**
-- MarkdownViewer: toggle button renders, clicking toggles line numbers
-- persistence.test.ts: save/restore line number toggle state
+**Gotchas:**
+- Renderer methods changed from destructured params (`{ text, lang }`) to receiving the full token object (`token: any`) to access `_sourceLine`
+- `postprocess` hook regex for table wrapping changed from `/<table>/g` to `/<table([^>]*)>/g` to handle `data-source-line` attributes
+- `wrapWithLineNumbers()` gained a `lineAttr` parameter for code blocks
+- `toBobBlock()` inlined into the code renderer to add `lineAttr` (bob/diagram blocks)
 
 ---
 
@@ -2442,8 +2441,8 @@ These features build on each other. Recommended sequence:
 19. ~~**Aurora/Glacier Theming**~~ — DONE (dual theme system, CSS variables, toggle button, theme-aware native background on startup — no white flash)
 20. ~~**Anchor Link Scrolling**~~ — DONE (heading IDs via `slugify()`, `#hash` click handler with smooth scroll, duplicate ID suffixing, `scroll-margin-top`)
 21. ~~**File Link Navigation**~~ — DONE (`.md` links open files, external links open in system browser via `tauri-plugin-shell`, `file.md#section` combo, Ctrl+Click for new pane, Copy Path in context menu)
-22. **Mermaid Validation & Error Display** — viewer-side only, no editor dependency
-23. **Line Numbers Toggle** — nice-to-have viewer enhancement
+22. ~~**Mermaid Validation & Error Display**~~ — DONE (viewer-side validation + per-block error overlays)
+23. ~~**Line Numbers Toggle**~~ — DONE (v0.6.6: `1:` button, `data-source-line` attrs via two-phase marked rendering, CSS gutter)
 24. **Mermaid Linting in Editor** — depends on editor being built (CodeMirror lint integration)
 25. **Mermaid Auto-Fix** — depends on validation layer, enhances both viewer and editor
 26. **MCP Server** — depends on write command + validation + search being built first
