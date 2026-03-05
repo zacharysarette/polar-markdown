@@ -4,7 +4,7 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector (`tauri-plugin-dialog`), file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`glacimark file.md`), and single-instance handling (`tauri-plugin-single-instance`).
 
-### Current Test Count: 460 frontend (13 test files) + 97 Rust = 557 total
+### Current Test Count: 480 frontend (14 test files) + 97 Rust = 577 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs` (InitialFileState, extract_file_arg, single-instance plugin), `models.rs`, `commands/{mod,filesystem,watcher,diagram}.rs`
@@ -21,6 +21,18 @@ Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a
 - **Shell "Permission denied"** on every command due to bash profile bug with spaces in username path. Commands succeed despite exit code 1. Ignore it.
 - **Tauri capabilities:** `core:default` + `dialog:default` in `capabilities/default.json`. Add more permissions there for new plugins.
 - **User prefers TDD workflow:** Write tests first (red), implement (green), verify full suite.
+
+---
+
+## Editor Line Wrapping Toggle
+
+### Status: DONE
+
+### Problem
+Long lines in the CodeMirror editor scrolled horizontally with no way to wrap them, making it hard to edit prose-heavy markdown.
+
+### Solution
+Added a `lineWrapping` prop to MarkdownEditor using a CodeMirror `Compartment` (same pattern as theme switching). EditablePane owns the state, initialized from persistence (`getLineWrapping()`, default: `true`). A `⏎` toggle button in the editor header flips wrapping on/off and persists the choice globally via `saveLineWrapping()`.
 
 ---
 

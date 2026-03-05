@@ -3,6 +3,7 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import type { ThemeType } from "../types";
+  import { getLineWrapping, saveLineWrapping } from "../services/persistence";
 
   let {
     content = "",
@@ -21,6 +22,13 @@
     theme?: ThemeType;
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
   } = $props();
+
+  let lineWrapping = $state(getLineWrapping());
+
+  function toggleLineWrapping() {
+    lineWrapping = !lineWrapping;
+    saveLineWrapping(lineWrapping);
+  }
 
   let editContent = $state(content);
   let previewContent = $state(content);
@@ -145,10 +153,18 @@
   <div class="editor-side" onpointerdown={() => activePane = 'editor'} onwheel={() => activePane = 'editor'}>
     <header class="editor-header">
       <span class="editor-label">Editor</span>
-      <span class="cursor-pos">Ln {activeLineNumber}, Col {activeColumn}</span>
+      <span class="editor-controls">
+        <button
+          class="wrap-toggle"
+          class:active={lineWrapping}
+          onclick={toggleLineWrapping}
+          title={lineWrapping ? "Disable line wrapping" : "Enable line wrapping"}
+        >⏎</button>
+        <span class="cursor-pos">Ln {activeLineNumber}, Col {activeColumn}</span>
+      </span>
     </header>
     <div class="editor-content">
-      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} />
+      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} />
     </div>
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -193,6 +209,33 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--accent);
+  }
+
+  .editor-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .wrap-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 1px 5px;
+    line-height: 1;
+  }
+
+  .wrap-toggle:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+  }
+
+  .wrap-toggle.active {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .cursor-pos {

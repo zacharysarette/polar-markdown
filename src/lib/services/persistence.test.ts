@@ -19,6 +19,8 @@ import {
   addRecentFolder,
   saveLineNumbers,
   getLineNumbers,
+  saveLineWrapping,
+  getLineWrapping,
 } from "./persistence";
 
 const STORAGE_KEY = "glacimark:last-selected-path";
@@ -216,5 +218,26 @@ describe("saveLineNumbers / getLineNumbers", () => {
   it("returns false for corrupted data", () => {
     localStorage.setItem("glacimark:line-numbers", "not-json");
     expect(getLineNumbers()).toBe(false);
+  });
+});
+
+describe("saveLineWrapping / getLineWrapping", () => {
+  it("returns true as the default when nothing stored", () => {
+    expect(getLineWrapping()).toBe(true);
+  });
+
+  it("round-trips true", () => {
+    saveLineWrapping(true);
+    expect(getLineWrapping()).toBe(true);
+  });
+
+  it("round-trips false", () => {
+    saveLineWrapping(false);
+    expect(getLineWrapping()).toBe(false);
+  });
+
+  it("returns true for corrupted data", () => {
+    localStorage.setItem("glacimark:line-wrapping", "not-json");
+    expect(getLineWrapping()).toBe(true);
   });
 });

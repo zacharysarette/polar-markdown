@@ -11,6 +11,7 @@ const EXPANDED_PATHS_KEY = "glacimark:expanded-paths";
 const RECENT_FOLDERS_KEY = "glacimark:recent-folders";
 const THEME_KEY = "glacimark:theme";
 const LINE_NUMBERS_KEY = "glacimark:line-numbers";
+const LINE_WRAPPING_KEY = "glacimark:line-wrapping";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -114,5 +115,19 @@ export function getLineNumbers(): boolean {
     return JSON.parse(stored) === true;
   } catch {
     return false;
+  }
+}
+
+export function saveLineWrapping(enabled: boolean): void {
+  localStorage.setItem(LINE_WRAPPING_KEY, JSON.stringify(enabled));
+}
+
+export function getLineWrapping(): boolean {
+  const stored = localStorage.getItem(LINE_WRAPPING_KEY);
+  if (!stored) return true;
+  try {
+    return JSON.parse(stored) === true;
+  } catch {
+    return true;
   }
 }
