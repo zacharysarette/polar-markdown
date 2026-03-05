@@ -15,6 +15,7 @@
     highlightKey = 0,
     onactiveline,
     theme = "aurora" as ThemeType,
+    lineWrapping = true,
   }: {
     content?: string;
     onchange?: (content: string) => void;
@@ -22,12 +23,14 @@
     highlightKey?: number;
     onactiveline?: (lineContent: string, lineNumber: number, totalLines: number, column: number) => void;
     theme?: ThemeType;
+    lineWrapping?: boolean;
   } = $props();
 
   let containerEl: HTMLDivElement | undefined = $state();
   let view: EditorView | undefined;
   let suppressNextChange = false;
   const themeCompartment = new Compartment();
+  const lineWrapCompartment = new Compartment();
 
   function getThemeExtension(t: ThemeType) {
     return t === "aurora" ? auroraTheme : glacierTheme;
@@ -82,6 +85,7 @@
         basicSetup,
         markdown(),
         themeCompartment.of(getThemeExtension(theme)),
+        lineWrapCompartment.of(lineWrapping ? EditorView.lineWrapping : []),
         searchHighlightField,
         mermaidLinter,
         lintGutter(),
@@ -122,6 +126,14 @@
     const ext = getThemeExtension(theme);
     view.dispatch({
       effects: themeCompartment.reconfigure(ext),
+    });
+  });
+
+  // Reconfigure line wrapping when it changes
+  $effect(() => {
+    if (!view) return;
+    view.dispatch({
+      effects: lineWrapCompartment.reconfigure(lineWrapping ? EditorView.lineWrapping : []),
     });
   });
 

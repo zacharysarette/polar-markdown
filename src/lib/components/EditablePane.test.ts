@@ -15,6 +15,14 @@ vi.mock("../services/filesystem", () => ({
   renderAsciiDiagram: vi.fn(),
 }));
 
+// Mock persistence (needed by EditablePane for line wrapping)
+const mockGetLineWrapping = vi.fn().mockReturnValue(true);
+const mockSaveLineWrapping = vi.fn();
+vi.mock("../services/persistence", () => ({
+  getLineWrapping: (...args: any[]) => mockGetLineWrapping(...args),
+  saveLineWrapping: (...args: any[]) => mockSaveLineWrapping(...args),
+}));
+
 // Mock CodeMirror modules (needed by MarkdownEditor)
 vi.mock("@codemirror/view", () => ({
   EditorView: Object.assign(
@@ -28,6 +36,7 @@ vi.mock("@codemirror/view", () => ({
       theme: vi.fn().mockReturnValue("customTheme"),
       scrollIntoView: vi.fn().mockReturnValue({ type: "scrollIntoView" }),
       decorations: { from: vi.fn().mockReturnValue("decorationsFrom") },
+      lineWrapping: "lineWrapping",
     }
   ),
   Decoration: {
@@ -491,6 +500,89 @@ describe("EditablePane", () => {
 
       // No errors should occur — the directional model prevents feedback loops
       expect(document.querySelector(".editable-pane")).toBeInTheDocument();
+    });
+  });
+
+  describe("line wrapping toggle", () => {
+    beforeEach(() => {
+      mockGetLineWrapping.mockClear();
+      mockSaveLineWrapping.mockClear();
+    });
+
+    it("renders a wrap toggle button", () => {
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".wrap-toggle");
+      expect(btn).toBeInTheDocument();
+      expect(btn?.textContent).toContain("⏎");
+    });
+
+    it("toggle button has active class when line wrapping is enabled", () => {
+      mockGetLineWrapping.mockReturnValue(true);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".wrap-toggle");
+      expect(btn?.classList.contains("active")).toBe(true);
+    });
+
+    it("toggle button does not have active class when line wrapping is disabled", () => {
+      mockGetLineWrapping.mockReturnValue(false);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".wrap-toggle");
+      expect(btn?.classList.contains("active")).toBe(false);
+    });
+
+    it("clicking toggle flips state and calls saveLineWrapping", async () => {
+      mockGetLineWrapping.mockReturnValue(true);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".wrap-toggle")!;
+      await fireEvent.click(btn);
+
+      expect(mockSaveLineWrapping).toHaveBeenCalledWith(false);
+    });
+
+    it("double-clicking toggle restores original state", async () => {
+      mockGetLineWrapping.mockReturnValue(true);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".wrap-toggle")!;
+      await fireEvent.click(btn);
+      await fireEvent.click(btn);
+
+      expect(mockSaveLineWrapping).toHaveBeenCalledTimes(2);
+      expect(mockSaveLineWrapping).toHaveBeenLastCalledWith(true);
     });
   });
 

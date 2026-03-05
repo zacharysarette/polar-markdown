@@ -338,4 +338,15 @@ Toggle off — all gutter numbers should disappear.
 
 ---
 
+## Editor Line Wrapping
+
+Open this file in **edit mode** (pencil icon) to test line wrapping. The following line is intentionally very long:
+
+This is an extremely long line that should demonstrate how line wrapping works in the CodeMirror editor pane. When wrapping is enabled (the default), this text should wrap to fit within the editor width without any horizontal scrollbar. When wrapping is disabled by clicking the ⏎ button in the editor header, this line should extend past the visible area and require horizontal scrolling to read the full content. Toggle the ⏎ button to switch between wrapped and unwrapped modes. The setting persists across sessions.
+
+- With wrapping **on** (⏎ button highlighted): the long line above wraps within the editor
+- With wrapping **off** (⏎ button dim): horizontal scrollbar appears, line extends offscreen
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

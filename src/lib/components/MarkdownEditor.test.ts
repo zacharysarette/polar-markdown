@@ -42,6 +42,7 @@ vi.mock("@codemirror/view", () => ({
     theme: vi.fn().mockReturnValue("customTheme"),
     scrollIntoView: vi.fn().mockReturnValue({ type: "scrollIntoView" }),
     decorations: { from: vi.fn().mockReturnValue("decorationsFrom") },
+    lineWrapping: "lineWrapping",
   }),
   Decoration: {
     mark: vi.fn().mockReturnValue({ range: vi.fn().mockReturnValue({}) }),
@@ -237,5 +238,40 @@ describe("MarkdownEditor", () => {
     }
 
     if (originalImpl) MockEditorView.mockImplementation(originalImpl);
+  });
+
+  it("passes EditorView.lineWrapping to compartment when lineWrapping prop is true", async () => {
+    const { Compartment } = await import("@codemirror/state");
+    (Compartment as any).mockClear();
+
+    render(MarkdownEditor, {
+      props: { content: "# Hello", lineWrapping: true },
+    });
+
+    await vi.waitFor(() => {
+      expect(MockEditorView).toHaveBeenCalled();
+    });
+
+    // Second Compartment instance is the lineWrapCompartment
+    const instances = (Compartment as any).mock.instances;
+    const lineWrapInstance = instances[instances.length - 1];
+    expect(lineWrapInstance.of).toHaveBeenCalledWith("lineWrapping");
+  });
+
+  it("passes empty array to compartment when lineWrapping prop is false", async () => {
+    const { Compartment } = await import("@codemirror/state");
+    (Compartment as any).mockClear();
+
+    render(MarkdownEditor, {
+      props: { content: "# Hello", lineWrapping: false },
+    });
+
+    await vi.waitFor(() => {
+      expect(MockEditorView).toHaveBeenCalled();
+    });
+
+    const instances = (Compartment as any).mock.instances;
+    const lineWrapInstance = instances[instances.length - 1];
+    expect(lineWrapInstance.of).toHaveBeenCalledWith([]);
   });
 });
