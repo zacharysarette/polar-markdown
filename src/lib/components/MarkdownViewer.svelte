@@ -22,6 +22,7 @@
     showHeader = true,
     onfilelink,
     scrollToId = "",
+    zoomLevel = 1.0,
   }: {
     content?: string;
     filePath?: string;
@@ -38,6 +39,7 @@
     showHeader?: boolean;
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
     scrollToId?: string;
+    zoomLevel?: number;
   } = $props();
 
   let htmlContent = $state("");
@@ -468,13 +470,16 @@
           </span>
         {/if}
         <div class="layout-controls">
+          {#if zoomLevel !== 1.0}
+            <span class="zoom-indicator">{Math.round(zoomLevel * 100)}%</span>
+          {/if}
           <button class="line-numbers-toggle" class:active={showLineNumbers} onclick={() => onlinenumberschange?.(!showLineNumbers)} title="Toggle source line numbers">1:</button>
           <button class:active={layoutMode === "centered"} onclick={() => onlayoutchange?.("centered")} title="Single column">&#x2261;</button>
           <button class:active={layoutMode === "columns"} onclick={() => onlayoutchange?.("columns")} title="Multi-column">&#x229E;</button>
         </div>
       </header>
     {/if}
-    <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleAnchorClick}>
+    <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleAnchorClick} style="font-size: {15 * zoomLevel}px">
       {@html htmlContent}
     </article>
   {:else}
@@ -551,6 +556,15 @@
     background: var(--bg-secondary);
     border-color: var(--accent);
     color: var(--accent);
+  }
+
+  .zoom-indicator {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
   }
 
   .line-numbers-toggle {

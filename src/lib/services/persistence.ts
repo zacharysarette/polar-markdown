@@ -12,6 +12,7 @@ const RECENT_FOLDERS_KEY = "glacimark:recent-folders";
 const THEME_KEY = "glacimark:theme";
 const LINE_NUMBERS_KEY = "glacimark:line-numbers";
 const LINE_WRAPPING_KEY = "glacimark:line-wrapping";
+const ZOOM_LEVEL_KEY = "glacimark:zoom-level";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -129,5 +130,21 @@ export function getLineWrapping(): boolean {
     return JSON.parse(stored) === true;
   } catch {
     return true;
+  }
+}
+
+export function saveZoomLevel(level: number): void {
+  localStorage.setItem(ZOOM_LEVEL_KEY, JSON.stringify(level));
+}
+
+export function getZoomLevel(): number {
+  const stored = localStorage.getItem(ZOOM_LEVEL_KEY);
+  if (!stored) return 1.0;
+  try {
+    const val = JSON.parse(stored);
+    if (typeof val === "number" && val >= 0.5 && val <= 2.0) return val;
+    return 1.0;
+  } catch {
+    return 1.0;
   }
 }

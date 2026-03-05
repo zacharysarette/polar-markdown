@@ -10,6 +10,7 @@
     onactiveline,
     theme = "aurora" as ThemeType,
     lineWrapping = true,
+    zoomLevel = 1.0,
   }: {
     content?: string;
     onchange?: (content: string) => void;
@@ -18,6 +19,7 @@
     onactiveline?: (lineContent: string, lineNumber: number, totalLines: number, column: number) => void;
     theme?: ThemeType;
     lineWrapping?: boolean;
+    zoomLevel?: number;
   } = $props();
 
   let containerEl: HTMLDivElement | undefined = $state();
@@ -27,6 +29,7 @@
   // These are set during onMount once CodeMirror is loaded
   let reconfigureTheme: ((t: ThemeType) => void) | null = null;
   let reconfigureLineWrap: ((wrap: boolean) => void) | null = null;
+  let reconfigureFontSize: ((zoom: number) => void) | null = null;
   let dispatchSearchHighlight: ((text: string, key: number, doc: string) => void) | null = null;
 
   onMount(async () => {
@@ -55,6 +58,11 @@
 
     const themeCompartment = new Compartment();
     const lineWrapCompartment = new Compartment();
+    const fontSizeCompartment = new Compartment();
+
+    function getFontSizeExtension(zoom: number) {
+      return EditorView.theme({ "&": { fontSize: `${14 * zoom}px` } });
+    }
 
     // Search highlight via CodeMirror decorations
     const setSearchText = StateEffect.define<string>();
@@ -103,11 +111,12 @@
         markdown(),
         themeCompartment.of(getThemeExtension(theme)),
         lineWrapCompartment.of(lineWrapping ? EditorView.lineWrapping : []),
+        fontSizeCompartment.of(getFontSizeExtension(zoomLevel)),
         searchHighlightField,
         mermaidLinter,
         lintGutter(),
         EditorView.theme({
-          "&": { height: "100%", fontSize: "14px" },
+          "&": { height: "100%" },
           ".cm-scroller": { overflow: "auto" },
           ".cm-content": { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" },
         }),
@@ -149,6 +158,13 @@
       });
     };
 
+    reconfigureFontSize = (zoom: number) => {
+      if (!view) return;
+      view.dispatch({
+        effects: fontSizeCompartment.reconfigure(getFontSizeExtension(zoom)),
+      });
+    };
+
     dispatchSearchHighlight = (text: string, _key: number, _content: string) => {
       if (!view) return;
       const effects: any[] = [setSearchText.of(text)];
@@ -183,6 +199,12 @@
   $effect(() => {
     const wrap = lineWrapping;
     reconfigureLineWrap?.(wrap);
+  });
+
+  // Reconfigure font size when zoom changes
+  $effect(() => {
+    const zoom = zoomLevel;
+    reconfigureFontSize?.(zoom);
   });
 
   // If the content prop changes externally (e.g. initial load timing), sync the editor

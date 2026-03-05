@@ -21,6 +21,7 @@
     theme = "aurora" as ThemeType,
     onfilelink,
     scrollToId = "",
+    zoomLevel = 1.0,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -38,6 +39,7 @@
     theme?: ThemeType;
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
     scrollToId?: string;
+    zoomLevel?: number;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -131,6 +133,7 @@
             highlightKey={pane.id === activePaneId ? highlightKey : 0}
             {theme}
             {onfilelink}
+            {zoomLevel}
           />
         {:else}
           <MarkdownViewer
@@ -144,6 +147,7 @@
             highlightKey={pane.id === activePaneId ? highlightKey : 0}
             {onfilelink}
             scrollToId={pane.id === activePaneId ? scrollToId : ""}
+            {zoomLevel}
           />
         {/if}
       </div>

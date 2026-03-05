@@ -46,6 +46,8 @@
     getLineNumbers,
     addRecentFolder,
     getRecentFolders,
+    saveZoomLevel,
+    getZoomLevel,
   } from "./lib/services/persistence";
   import { setMermaidTheme, setBobDarkMode } from "./lib/services/markdown";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
@@ -90,6 +92,10 @@
   let renameError = $state("");
   let scrollToId = $state("");
   let loading = $state(false);
+  let zoomLevel = $state(getZoomLevel());
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 2.0;
+  const ZOOM_STEP = 0.1;
   const recentOwnWrites = new Set<string>();
   let suppressWatcherUntil = 0;
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
@@ -742,6 +748,21 @@
     await win.setFullscreen(!isFs);
   }
 
+  function handleZoomIn() {
+    zoomLevel = Math.min(ZOOM_MAX, Math.round((zoomLevel + ZOOM_STEP) * 10) / 10);
+    saveZoomLevel(zoomLevel);
+  }
+
+  function handleZoomOut() {
+    zoomLevel = Math.max(ZOOM_MIN, Math.round((zoomLevel - ZOOM_STEP) * 10) / 10);
+    saveZoomLevel(zoomLevel);
+  }
+
+  function handleZoomReset() {
+    zoomLevel = 1.0;
+    saveZoomLevel(zoomLevel);
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Alt+Enter: toggle fullscreen
     if (event.altKey && event.key === "Enter") {
@@ -758,6 +779,24 @@
     if (event.ctrlKey && event.shiftKey && event.key === "S") {
       event.preventDefault();
       handleSaveAs();
+      return;
+    }
+    // Ctrl+= / Ctrl++: zoom in
+    if (event.ctrlKey && (event.key === "=" || event.key === "+")) {
+      event.preventDefault();
+      handleZoomIn();
+      return;
+    }
+    // Ctrl+-: zoom out
+    if (event.ctrlKey && event.key === "-") {
+      event.preventDefault();
+      handleZoomOut();
+      return;
+    }
+    // Ctrl+0: reset zoom
+    if (event.ctrlKey && event.key === "0") {
+      event.preventDefault();
+      handleZoomReset();
       return;
     }
     // Ctrl+N: new file
@@ -809,6 +848,15 @@
     document.addEventListener("dragover", globalDragOver);
     document.addEventListener("drop", globalDrop);
     document.addEventListener("dragend", globalDragEnd);
+
+    // Ctrl+wheel zoom (intercept before browser zoom)
+    function handleWheel(e: WheelEvent) {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      if (e.deltaY < 0) handleZoomIn();
+      else if (e.deltaY > 0) handleZoomOut();
+    }
+    document.addEventListener("wheel", handleWheel, { passive: false });
 
     (async () => {
       const appWindow = getCurrentWebviewWindow();
@@ -959,13 +1007,14 @@
       document.removeEventListener("dragover", globalDragOver);
       document.removeEventListener("drop", globalDrop);
       document.removeEventListener("dragend", globalDragEnd);
+      document.removeEventListener("wheel", handleWheel);
     };
   });
 </script>
 
 <div class="app-layout">
   <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} />
 </div>
 
 <style>

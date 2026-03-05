@@ -13,6 +13,7 @@
     highlightKey = 0,
     theme = "aurora" as ThemeType,
     onfilelink,
+    zoomLevel = 1.0,
   }: {
     content?: string;
     filePath?: string;
@@ -21,6 +22,7 @@
     highlightKey?: number;
     theme?: ThemeType;
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
+    zoomLevel?: number;
   } = $props();
 
   let lineWrapping = $state(getLineWrapping());
@@ -164,7 +166,7 @@
       </span>
     </header>
     <div class="editor-content">
-      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} />
+      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} {zoomLevel} />
     </div>
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -173,7 +175,7 @@
       <span class="preview-label">Preview</span>
       <span class="preview-file" title={filePath}>{fileName}</span>
     </header>
-    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} {onfilelink} />
+    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} {onfilelink} {zoomLevel} />
   </div>
 </div>
 

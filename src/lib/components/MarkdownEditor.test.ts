@@ -262,9 +262,9 @@ describe("MarkdownEditor", () => {
       expect(MockEditorView).toHaveBeenCalled();
     });
 
-    // Second Compartment instance is the lineWrapCompartment
+    // lineWrapCompartment is the second of three Compartment instances (theme, lineWrap, fontSize)
     const instances = (Compartment as any).mock.instances;
-    const lineWrapInstance = instances[instances.length - 1];
+    const lineWrapInstance = instances[instances.length - 2];
     expect(lineWrapInstance.of).toHaveBeenCalledWith("lineWrapping");
   });
 
@@ -280,8 +280,9 @@ describe("MarkdownEditor", () => {
       expect(MockEditorView).toHaveBeenCalled();
     });
 
+    // lineWrapCompartment is the second of three Compartment instances (theme, lineWrap, fontSize)
     const instances = (Compartment as any).mock.instances;
-    const lineWrapInstance = instances[instances.length - 1];
+    const lineWrapInstance = instances[instances.length - 2];
     expect(lineWrapInstance.of).toHaveBeenCalledWith([]);
   });
 });

@@ -298,6 +298,21 @@ Glacimark watches your folder for changes in real time. If you edit a markdown f
 
 ---
 
+## Zoom
+
+You can zoom the text content in and out for readability. Zoom applies to both the markdown viewer and the code editor.
+
+- **Ctrl+=** or **Ctrl++** — zoom in
+- **Ctrl+-** — zoom out
+- **Ctrl+0** — reset to 100%
+- **Ctrl+Mouse Wheel** — scroll up to zoom in, scroll down to zoom out
+
+The zoom range is 50% to 200%, in 10% steps. Your zoom level is shown as a percentage in the viewer header when not at 100%, and is remembered across sessions.
+
+Mermaid and svgbob diagrams keep their native size — only text content scales.
+
+---
+
 ## Keyboard Shortcuts
 
 | Key | Action |
@@ -315,6 +330,9 @@ Glacimark watches your folder for changes in real time. If you edit a markdown f
 | **Ctrl+Click** | Open file in a new pane |
 | **Ctrl+W** | Close active pane |
 | **Ctrl+1/2/3/4** | Switch to pane 1, 2, 3, or 4 |
+| **Ctrl+=** / **Ctrl++** | Zoom in |
+| **Ctrl+-** | Zoom out |
+| **Ctrl+0** | Reset zoom to 100% |
 
 ---
 

@@ -21,6 +21,8 @@ import {
   getLineNumbers,
   saveLineWrapping,
   getLineWrapping,
+  saveZoomLevel,
+  getZoomLevel,
 } from "./persistence";
 
 const STORAGE_KEY = "glacimark:last-selected-path";
@@ -239,5 +241,33 @@ describe("saveLineWrapping / getLineWrapping", () => {
   it("returns true for corrupted data", () => {
     localStorage.setItem("glacimark:line-wrapping", "not-json");
     expect(getLineWrapping()).toBe(true);
+  });
+});
+
+describe("saveZoomLevel / getZoomLevel", () => {
+  it("returns 1.0 as the default when nothing stored", () => {
+    expect(getZoomLevel()).toBe(1.0);
+  });
+
+  it("round-trips a valid zoom level", () => {
+    saveZoomLevel(1.5);
+    expect(getZoomLevel()).toBe(1.5);
+  });
+
+  it("returns 1.0 for out-of-range values", () => {
+    saveZoomLevel(5.0);
+    expect(getZoomLevel()).toBe(1.0);
+  });
+
+  it("returns 1.0 for corrupted data", () => {
+    localStorage.setItem("glacimark:zoom-level", "not-json");
+    expect(getZoomLevel()).toBe(1.0);
+  });
+
+  it("accepts boundary values", () => {
+    saveZoomLevel(0.5);
+    expect(getZoomLevel()).toBe(0.5);
+    saveZoomLevel(2.0);
+    expect(getZoomLevel()).toBe(2.0);
   });
 });
