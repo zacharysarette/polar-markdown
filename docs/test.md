@@ -115,7 +115,7 @@ stateDiagram-v2
 
 ### Intentionally Broken Mermaid (Error Display)
 
-This block has invalid syntax to showcase the error overlay. You should see a red-bordered block with an error message instead of a rendered diagram:
+This block has invalid syntax to showcase the error overlay. You should see a red-bordered block with an error message instead of a rendered diagram. In **edit mode**, the mermaid code will have a red wavy underline (lint error):
 
 ```mermaid
 flowchart INVALID

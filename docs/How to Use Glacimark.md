@@ -232,6 +232,8 @@ Supported diagram types include flowcharts, sequence diagrams, class diagrams, s
 
 **Error handling:** If a mermaid block has invalid syntax, Glacimark shows a red-bordered error overlay with the specific error message instead of a blank space. The raw mermaid source is kept visible below the error so you can diagnose and fix the problem. A status indicator in the viewer header shows how many diagrams rendered successfully (e.g. "3 diagrams OK" or "1 of 3 diagrams failed").
 
+**Editor linting:** In edit mode, mermaid blocks with invalid syntax get a **red wavy underline** directly in the code editor. Hover over the underline to see the specific error message in a tooltip. The lint gutter also shows error markers next to broken blocks. This gives you immediate feedback while typing — no need to switch to view mode to check for errors.
+
 ---
 
 ## Editing Markdown

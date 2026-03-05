@@ -80,6 +80,20 @@ const auroraEditorTheme = EditorView.theme(
       backgroundColor: "rgba(224, 175, 104, 0.35)",
       borderRadius: "2px",
     },
+    ".cm-lint-marker-error": {
+      content: "'!'",
+      color: "#f7768e",
+    },
+    ".cm-lintRange-error": {
+      backgroundImage: "none",
+      textDecoration: "wavy underline #f7768e",
+      textUnderlineOffset: "3px",
+    },
+    ".cm-tooltip-lint": {
+      backgroundColor: "#1e1f2e",
+      border: "1px solid #2f3146",
+      color: "#c0caf5",
+    },
   },
   { dark: true }
 );
@@ -184,6 +198,20 @@ const glacierEditorTheme = EditorView.theme(
     ".cm-search-highlight": {
       backgroundColor: "rgba(196, 144, 48, 0.35)",
       borderRadius: "2px",
+    },
+    ".cm-lint-marker-error": {
+      content: "'!'",
+      color: "#b94e5a",
+    },
+    ".cm-lintRange-error": {
+      backgroundImage: "none",
+      textDecoration: "wavy underline #b94e5a",
+      textUnderlineOffset: "3px",
+    },
+    ".cm-tooltip-lint": {
+      backgroundColor: "#e8eef5",
+      border: "1px solid #c0cdd8",
+      color: "#2e3440",
     },
   },
   { dark: false }

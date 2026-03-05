@@ -5,6 +5,7 @@
   import { markdown } from "@codemirror/lang-markdown";
   import { basicSetup } from "codemirror";
   import { auroraTheme, glacierTheme } from "../services/codemirror-themes";
+  import { mermaidLinter, lintGutter } from "../services/mermaid-linter";
   import type { ThemeType } from "../types";
 
   let {
@@ -82,6 +83,8 @@
         markdown(),
         themeCompartment.of(getThemeExtension(theme)),
         searchHighlightField,
+        mermaidLinter,
+        lintGutter(),
         EditorView.theme({
           "&": { height: "100%", fontSize: "14px" },
           ".cm-scroller": { overflow: "auto" },

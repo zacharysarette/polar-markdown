@@ -92,6 +92,11 @@ vi.mock("codemirror", () => ({
   basicSetup: "basicSetup",
 }));
 
+vi.mock("../services/mermaid-linter", () => ({
+  mermaidLinter: "mermaidLinter",
+  lintGutter: vi.fn().mockReturnValue("lintGutter"),
+}));
+
 import MarkdownEditor from "./MarkdownEditor.svelte";
 
 beforeEach(() => {
