@@ -535,7 +535,7 @@
           {#if zoomLevel !== 1.0}
             <span class="zoom-indicator">{Math.round(zoomLevel * 100)}%</span>
           {/if}
-          <button class="doc-stats-toggle" class:active={showDocStats} onclick={() => ondocstatstoggle?.()} title="Document statistics (Ctrl+I)">Aa</button>
+          <button class="doc-stats-toggle" class:active={showDocStats} onclick={() => ondocstatstoggle?.()} title="Document statistics (Ctrl+I)">&#x03A3;</button>
           <button class="line-numbers-toggle" class:active={showLineNumbers} onclick={() => onlinenumberschange?.(!showLineNumbers)} title="Toggle source line numbers">1:</button>
           <button class:active={layoutMode === "centered"} onclick={() => onlayoutchange?.("centered")} title="Single column">&#x2261;</button>
           <button class:active={layoutMode === "columns"} onclick={() => onlayoutchange?.("columns")} title="Multi-column">&#x229E;</button>

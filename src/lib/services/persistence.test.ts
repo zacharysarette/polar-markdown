@@ -299,8 +299,8 @@ describe("saveTocVisible / getTocVisible", () => {
 });
 
 describe("saveDocStatsVisible / getDocStatsVisible", () => {
-  it("defaults to false when not stored", () => {
-    expect(getDocStatsVisible()).toBe(false);
+  it("defaults to true when not stored", () => {
+    expect(getDocStatsVisible()).toBe(true);
   });
 
   it("round-trips true", () => {

@@ -171,7 +171,7 @@ export function saveDocStatsVisible(visible: boolean): void {
 
 export function getDocStatsVisible(): boolean {
   const stored = localStorage.getItem(DOC_STATS_VISIBLE_KEY);
-  if (!stored) return false;
+  if (!stored) return true;
   try {
     return JSON.parse(stored) === true;
   } catch {

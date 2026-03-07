@@ -177,6 +177,8 @@
             {onfilelink}
             {zoomLevel}
             {onautofix}
+            showDocStats={pane.id === activePaneId ? showDocStats : false}
+            ondocstatstoggle={pane.id === activePaneId ? ondocstatstoggle : undefined}
           />
         {:else}
           <MarkdownViewer
