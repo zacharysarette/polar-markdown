@@ -270,6 +270,7 @@ pub fn run() {
             commands::filesystem::read_directory_files,
             commands::filesystem::restore_directory_files,
             commands::filesystem::get_initial_file,
+            commands::filesystem::save_image,
             commands::filesystem::save_theme,
             commands::filesystem::get_initial_folder,
             commands::watcher::start_watching,

@@ -43,6 +43,7 @@ vi.mock("@codemirror/view", () => ({
     scrollIntoView: vi.fn().mockReturnValue({ type: "scrollIntoView" }),
     decorations: { from: vi.fn().mockReturnValue("decorationsFrom") },
     lineWrapping: "lineWrapping",
+    domEventHandlers: vi.fn().mockReturnValue("domEventHandlers"),
   }),
   Decoration: {
     mark: vi.fn().mockReturnValue({ range: vi.fn().mockReturnValue({}) }),

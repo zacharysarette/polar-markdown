@@ -5,6 +5,8 @@
   import type { ThemeType } from "../types";
   import { getLineWrapping, saveLineWrapping } from "../services/persistence";
   import { fixMermaidInMarkdown } from "../services/mermaid-fixer";
+  import { saveImage } from "../services/filesystem";
+  import { generateImageFilename, fileToBytes, buildMarkdownImageRef } from "../services/image-paste";
 
   let {
     content = "",
@@ -143,6 +145,18 @@
     onautofix?.(totalFixes);
   }
 
+  async function handleImagePaste(file: File): Promise<string | null> {
+    if (!filePath) return null;
+    const sep = filePath.includes("\\") ? "\\" : "/";
+    const parts = filePath.split(sep);
+    parts.pop();
+    const directory = parts.join(sep);
+    const filename = generateImageFilename(file.type);
+    const bytes = await fileToBytes(file);
+    await saveImage(directory, filename, bytes);
+    return buildMarkdownImageRef(filename);
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     if (event.ctrlKey && event.shiftKey && event.key === "F") {
       event.preventDefault();
@@ -196,7 +210,7 @@
       </span>
     </header>
     <div class="editor-content">
-      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} {zoomLevel} />
+      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} {zoomLevel} onimagepaste={handleImagePaste} />
     </div>
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->

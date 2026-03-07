@@ -82,6 +82,10 @@ export async function restoreDirectoryFiles(basePath: string, files: DirectoryFi
   return invoke<void>("restore_directory_files", { basePath, files });
 }
 
+export async function saveImage(directory: string, filename: string, data: number[]): Promise<string> {
+  return invoke<string>("save_image", { directory, filename, data });
+}
+
 export async function confirmDelete(filename: string): Promise<boolean> {
   return ask(`Are you sure you want to delete "${filename}"? File will be moved to the Recycle Bin.`, {
     title: "Delete File",

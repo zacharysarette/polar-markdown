@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import type { ThemeType } from "../types";
+  import { getImageFromTransfer } from "../services/image-paste";
 
   let {
     content = "",
@@ -11,6 +12,7 @@
     theme = "aurora" as ThemeType,
     lineWrapping = true,
     zoomLevel = 1.0,
+    onimagepaste,
   }: {
     content?: string;
     onchange?: (content: string) => void;
@@ -20,6 +22,7 @@
     theme?: ThemeType;
     lineWrapping?: boolean;
     zoomLevel?: number;
+    onimagepaste?: (file: File) => Promise<string | null>;
   } = $props();
 
   let containerEl: HTMLDivElement | undefined = $state();
@@ -115,6 +118,35 @@
         searchHighlightField,
         mermaidLinter,
         lintGutter(),
+        EditorView.domEventHandlers({
+          paste(event: ClipboardEvent, editorView: any) {
+            if (!onimagepaste || !event.clipboardData) return false;
+            const file = getImageFromTransfer(event.clipboardData);
+            if (!file) return false;
+            event.preventDefault();
+            const cursor = editorView.state.selection.main.head;
+            onimagepaste(file).then((md) => {
+              if (md) {
+                editorView.dispatch({ changes: { from: cursor, insert: md } });
+              }
+            });
+            return true;
+          },
+          drop(event: DragEvent, editorView: any) {
+            if (!onimagepaste || !event.dataTransfer) return false;
+            const file = getImageFromTransfer(event.dataTransfer);
+            if (!file) return false;
+            event.preventDefault();
+            const pos = editorView.posAtCoords({ x: event.clientX, y: event.clientY });
+            const insertPos = pos ?? editorView.state.selection.main.head;
+            onimagepaste(file).then((md) => {
+              if (md) {
+                editorView.dispatch({ changes: { from: insertPos, insert: md } });
+              }
+            });
+            return true;
+          },
+        }),
         EditorView.theme({
           "&": { height: "100%" },
           ".cm-scroller": { overflow: "auto" },

@@ -305,6 +305,15 @@ The editor and preview panes stay in sync as you work:
 - **Ctrl+S** — saves immediately (and cancels the auto-save timer)
 - **Ctrl+Shift+S** — opens a native Save As dialog to save a copy of the current file under a new name or location. After saving, the pane switches to the new file.
 
+### Pasting and Dropping Images
+
+You can insert images directly into the editor:
+
+- **Paste from clipboard** — take a screenshot or copy an image, then **Ctrl+V** in the editor. The image is saved to an `assets/` subfolder next to your markdown file, and a `![](assets/filename.png)` reference is inserted at the cursor.
+- **Drag and drop** — drag an image file from File Explorer onto the editor. The image is saved the same way, and the markdown reference is inserted at the drop position.
+
+Supported formats: PNG, JPG/JPEG, GIF, WebP. Images are saved with auto-generated filenames (timestamp + random ID) to avoid collisions.
+
 ### Navigating While Editing
 
 Clicking a file in the sidebar while in edit mode loads the new file into the editor — you stay in edit mode. Click the eye icon or press **Ctrl+E** to return to view mode.
@@ -421,6 +430,7 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 | **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
 | **Ctrl+I** | Toggle document statistics footer |
 | **Ctrl+T** | Toggle Table of Contents panel |
+| **Ctrl+V** (with image) | Paste image from clipboard into editor |
 | **Ctrl+Shift+F** | Auto-fix mermaid diagrams (in edit mode) |
 | **Ctrl+Z** | Undo last file operation (create, delete, rename, move, save) |
 | **Ctrl+Shift+Z** / **Ctrl+Y** | Redo last undone operation |

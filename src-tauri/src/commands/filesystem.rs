@@ -644,6 +644,31 @@ pub fn find_backlinks(path: String, target: String) -> Result<Vec<SearchResult>,
 }
 
 #[tauri::command]
+pub fn save_image(directory: String, filename: String, data: Vec<u8>) -> Result<String, String> {
+    let filename = filename.trim().to_string();
+    if filename.is_empty() {
+        return Err("Filename cannot be empty".into());
+    }
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+        return Err("Filename must not contain path separators or '..'".into());
+    }
+
+    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
+    if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp") {
+        return Err(format!("Unsupported image format: .{}", ext));
+    }
+
+    let dir = Path::new(&directory);
+    let assets_dir = dir.join("assets");
+    fs::create_dir_all(&assets_dir).map_err(|e| format!("Failed to create assets directory: {}", e))?;
+
+    let file_path = assets_dir.join(&filename);
+    fs::write(&file_path, &data).map_err(|e| format!("Failed to write image: {}", e))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub fn save_theme(app_handle: tauri::AppHandle, theme: String) -> Result<(), String> {
     let dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -1602,5 +1627,79 @@ mod tests {
         let results = find_backlinks(dir.path().to_string_lossy().to_string(), "notes".into()).unwrap();
 
         assert_eq!(results.len(), 2);
+    }
+
+    // save_image tests
+
+    #[test]
+    fn test_save_image_creates_assets_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = vec![0x89, 0x50, 0x4E, 0x47]; // PNG magic bytes
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "test.png".into(), data);
+        assert!(result.is_ok());
+        assert!(dir.path().join("assets").is_dir());
+        assert!(dir.path().join("assets").join("test.png").exists());
+    }
+
+    #[test]
+    fn test_save_image_writes_binary_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = vec![0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
+
+        save_image(dir.path().to_string_lossy().to_string(), "photo.jpg".into(), data.clone()).unwrap();
+
+        let written = fs::read(dir.path().join("assets").join("photo.jpg")).unwrap();
+        assert_eq!(written, data);
+    }
+
+    #[test]
+    fn test_save_image_rejects_invalid_extension() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = vec![0x00];
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "evil.exe".into(), data.clone());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unsupported"));
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "script.js".into(), data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_image_rejects_path_traversal() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = vec![0x00];
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "../evil.png".into(), data.clone());
+        assert!(result.is_err());
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "sub/evil.png".into(), data.clone());
+        assert!(result.is_err());
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "sub\\evil.png".into(), data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_image_rejects_empty_filename() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = vec![0x00];
+
+        let result = save_image(dir.path().to_string_lossy().to_string(), "".into(), data);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+    }
+
+    #[test]
+    fn test_save_image_accepts_all_supported_formats() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = vec![0x00, 0x01];
+
+        for ext in &["png", "jpg", "jpeg", "gif", "webp"] {
+            let filename = format!("test.{}", ext);
+            let result = save_image(dir.path().to_string_lossy().to_string(), filename, data.clone());
+            assert!(result.is_ok(), "Should accept .{} files", ext);
+        }
     }
 }

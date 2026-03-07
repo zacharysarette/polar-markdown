@@ -16,6 +16,10 @@ For more information about how the application works, see [How to Use Glacimark]
 
 ![Placeholder](https://placehold.co/400x120/1a1b26/7aa2f7?text=External+Image+Works)
 
+### Image Paste/Drop (Editor Feature)
+
+To test: open this file in edit mode (Ctrl+E), then paste a screenshot (Ctrl+V) or drag an image file onto the editor. An `assets/` folder will be created next to this file, and a markdown image reference will be inserted at the cursor. The image should appear in the preview pane immediately.
+
 ### Broken Image (Graceful Degradation)
 
 ![This alt text should appear](./nonexistent-image.png)
