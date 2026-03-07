@@ -16,6 +16,8 @@
     onfilelink,
     zoomLevel = 1.0,
     onautofix,
+    showDocStats = false,
+    ondocstatstoggle,
   }: {
     content?: string;
     filePath?: string;
@@ -26,6 +28,8 @@
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
     zoomLevel?: number;
     onautofix?: (fixCount: number) => void;
+    showDocStats?: boolean;
+    ondocstatstoggle?: () => void;
   } = $props();
 
   let lineWrapping = $state(getLineWrapping());
@@ -201,7 +205,7 @@
       <span class="preview-label">Preview</span>
       <span class="preview-file" title={filePath}>{fileName}</span>
     </header>
-    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} {onfilelink} {zoomLevel} />
+    <MarkdownViewer content={previewContent} {filePath} {highlightText} {highlightKey} {activeLineText} {activeLineNumber} {activeTotalLines} {activeColumn} showHeader={false} {onfilelink} {zoomLevel} {showDocStats} {ondocstatstoggle} />
   </div>
 </div>
 
