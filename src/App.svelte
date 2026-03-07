@@ -574,8 +574,10 @@
         description: `Create ${filename}`,
       });
 
+      recentOwnWrites.add(newPath);
       openInActivePane(newPath, true, content);
-      loadTree();
+      await loadTree();
+      setTimeout(() => recentOwnWrites.delete(newPath), 500);
     } catch (e: any) {
       newFileError = typeof e === "string" ? e : e?.message || String(e);
     }
@@ -614,7 +616,9 @@
         description: `Create folder ${name}`,
       });
 
+      recentOwnWrites.add(newPath);
       await loadTree();
+      setTimeout(() => recentOwnWrites.delete(newPath), 500);
     } catch (e: any) {
       newFolderError = typeof e === "string" ? e : e?.message || String(e);
     }
