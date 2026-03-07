@@ -190,6 +190,39 @@ The toggle state is remembered across sessions.
 
 ---
 
+## Find & Replace
+
+In edit mode, press **Ctrl+F** to open the find panel, or **Ctrl+H** for find & replace. The search panel is fully themed to match both Aurora and Glacier themes.
+
+- Type a search term to highlight all matches in the editor
+- Use the arrow buttons or Enter to jump between matches
+- **Ctrl+H** shows the replace field — replace one match or all matches at once
+- Press **Escape** to close the search panel
+
+---
+
+## Wiki-style Links
+
+Glacimark supports `[[wiki-style links]]` for easy cross-file navigation. Instead of writing `[Notes](notes.md)`, you can write `[[notes]]`.
+
+| Syntax | Rendered As |
+|---|---|
+| `[[filename]]` | Link to `filename.md` |
+| `[[filename.md]]` | Link to `filename.md` (no double extension) |
+| `[[filename\|Display Text]]` | Link showing "Display Text" |
+
+Wiki-links render with a **purple dashed underline** to distinguish them from regular markdown links. Clicking a wiki-link opens the target file, and Ctrl+Click opens it in a new pane.
+
+Wiki-link syntax inside code blocks or inline code is left as-is (not rendered as a link).
+
+### Backlinks
+
+When other files in the current folder link to the current file using wiki-links, a **backlinks panel** appears at the bottom of the viewer. Click the collapsed "N backlinks" header to expand it and see which files reference the current file, with context lines.
+
+Clicking a file name in the backlinks panel navigates to that file. Backlinks are not shown for embedded docs (help, museum).
+
+---
+
 ## Viewing Markdown
 
 The main content area renders your markdown with full formatting support:
@@ -361,6 +394,8 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 | **Delete** | Delete focused file (with confirmation) |
 | **Ctrl+N** | Create a new markdown file |
 | **Ctrl+E** | Toggle edit/view mode on active pane |
+| **Ctrl+F** | Find in editor (edit mode) |
+| **Ctrl+H** | Find & Replace in editor (edit mode) |
 | **Ctrl+S** | Save immediately (in edit mode) |
 | **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
 | **Ctrl+T** | Toggle Table of Contents panel |

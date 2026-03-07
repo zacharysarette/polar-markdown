@@ -146,6 +146,36 @@ function wrapWithLineNumbers(highlighted: string, text: string, langClass: strin
   return `<pre class="line-numbers"${lineAttr}><code class="hljs ${langClass}">${highlighted}</code><span class="line-numbers-rows" aria-hidden="true">${lineRows}</span></pre>`;
 }
 
+// Wiki-style [[link]] extension for marked
+const wikiLinkExtension = {
+  name: "wikilink",
+  level: "inline" as const,
+  start(src: string) {
+    return src.indexOf("[[");
+  },
+  tokenizer(src: string) {
+    const match = src.match(/^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/);
+    if (match) {
+      const target = match[1].trim();
+      if (!target) return undefined;
+      return {
+        type: "wikilink",
+        raw: match[0],
+        target,
+        alias: match[2]?.trim() || null,
+      };
+    }
+    return undefined;
+  },
+  renderer(token: any) {
+    const target = token.target;
+    const alias = token.alias || target;
+    const href = target.endsWith(".md") ? target : `${target}.md`;
+    const encoded = encodeURIComponent(href);
+    return `<a href="${encoded}" class="wikilink">${alias}</a>`;
+  },
+};
+
 // Create a configured Marked instance with syntax highlighting and mermaid support
 const marked = new Marked({
   hooks: {
@@ -247,6 +277,9 @@ const marked = new Marked({
     },
   },
 });
+
+// Register wiki-link extension
+marked.use({ extensions: [wikiLinkExtension] });
 
 export interface RenderOptions {
   sourceLineNumbers?: boolean;

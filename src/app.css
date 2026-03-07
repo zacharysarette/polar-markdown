@@ -198,6 +198,17 @@ html, body, #app {
   text-decoration: underline;
 }
 
+.markdown-body a.wikilink {
+  color: var(--purple);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--purple);
+}
+
+.markdown-body a.wikilink:hover {
+  text-decoration: none;
+  border-bottom-style: solid;
+}
+
 .markdown-body strong {
   color: var(--yellow);
   font-weight: 600;

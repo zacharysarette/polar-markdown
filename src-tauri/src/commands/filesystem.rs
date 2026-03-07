@@ -565,6 +565,84 @@ pub fn search_files(path: String, query: String) -> Result<Vec<SearchResult>, St
     Ok(results)
 }
 
+/// Finds all .md files in a directory that contain wiki-style [[links]] pointing to the target file.
+/// Returns results in the same format as search_files. Skips hidden dirs and the target file itself.
+#[tauri::command]
+pub fn find_backlinks(path: String, target: String) -> Result<Vec<SearchResult>, String> {
+    let dir = Path::new(&path);
+    if !dir.exists() || !dir.is_dir() {
+        return Err(format!("Invalid directory: {}", path));
+    }
+
+    if target.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Strip .md extension for matching: [[target]] or [[target.md]] both count
+    let base_name = target.strip_suffix(".md").unwrap_or(&target);
+    // Build regex: \[\[base_name(\.md)?(\|[^\]]+)?\]\] (case-insensitive)
+    let escaped = regex::escape(base_name);
+    let pattern = format!(r"\[\[{escaped}(\.md)?(\|[^\]]+)?\]\]");
+    let re = regex::RegexBuilder::new(&pattern)
+        .case_insensitive(true)
+        .build()
+        .map_err(|e| format!("Invalid regex: {}", e))?;
+
+    let mut results: Vec<SearchResult> = Vec::new();
+
+    for entry in WalkDir::new(dir)
+        .into_iter()
+        .filter_entry(|e| {
+            !e.file_name().to_string_lossy().starts_with('.')
+                || e.path() == dir
+        })
+        .filter_map(|e| e.ok())
+    {
+        let entry_path = entry.path();
+
+        if !entry_path.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.ends_with(".md") {
+            continue;
+        }
+
+        // Skip the target file itself
+        let entry_stem = name.strip_suffix(".md").unwrap_or(&name);
+        if entry_stem.eq_ignore_ascii_case(base_name) {
+            continue;
+        }
+
+        let content = match fs::read_to_string(entry_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let mut matches: Vec<SearchMatch> = Vec::new();
+        for (i, line) in content.lines().enumerate() {
+            if re.is_match(line) {
+                matches.push(SearchMatch {
+                    line_number: i + 1,
+                    line_content: line.to_string(),
+                });
+            }
+        }
+
+        if !matches.is_empty() {
+            results.push(SearchResult {
+                path: entry_path.to_string_lossy().to_string(),
+                name,
+                matches,
+            });
+        }
+    }
+
+    results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    Ok(results)
+}
+
 #[tauri::command]
 pub fn save_theme(app_handle: tauri::AppHandle, theme: String) -> Result<(), String> {
     let dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
@@ -1465,5 +1543,64 @@ mod tests {
 
         assert_eq!(fs::read_to_string(dest.join("root.md")).unwrap(), "# Root");
         assert_eq!(fs::read_to_string(dest.join("sub/nested.md")).unwrap(), "# Nested");
+    }
+
+    fn setup_backlinks_dir() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let hidden = dir.path().join(".hidden");
+        fs::create_dir_all(&hidden).unwrap();
+
+        fs::write(dir.path().join("notes.md"), "# Notes\nSome notes here.").unwrap();
+        fs::write(dir.path().join("index.md"), "# Index\nSee [[notes]] for details.\nAlso [[other]].").unwrap();
+        fs::write(dir.path().join("guide.md"), "# Guide\nRefer to [[notes.md|my notes]] here.").unwrap();
+        fs::write(dir.path().join("unrelated.md"), "# Unrelated\nNo links here.").unwrap();
+        fs::write(hidden.join("hidden.md"), "# Hidden\nSee [[notes]].").unwrap();
+
+        dir
+    }
+
+    #[test]
+    fn test_find_backlinks_matches_basic_and_aliased() {
+        let dir = setup_backlinks_dir();
+        let results = find_backlinks(dir.path().to_string_lossy().to_string(), "notes.md".into()).unwrap();
+
+        assert_eq!(results.len(), 2);
+        let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&"guide.md"));
+        assert!(names.contains(&"index.md"));
+    }
+
+    #[test]
+    fn test_find_backlinks_skips_self() {
+        let dir = setup_backlinks_dir();
+        let results = find_backlinks(dir.path().to_string_lossy().to_string(), "notes.md".into()).unwrap();
+
+        let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert!(!names.contains(&"notes.md"));
+    }
+
+    #[test]
+    fn test_find_backlinks_skips_hidden_dirs() {
+        let dir = setup_backlinks_dir();
+        let results = find_backlinks(dir.path().to_string_lossy().to_string(), "notes.md".into()).unwrap();
+
+        let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert!(!names.contains(&"hidden.md"));
+    }
+
+    #[test]
+    fn test_find_backlinks_returns_empty_for_no_matches() {
+        let dir = setup_backlinks_dir();
+        let results = find_backlinks(dir.path().to_string_lossy().to_string(), "unrelated.md".into()).unwrap();
+
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_find_backlinks_matches_without_md_extension() {
+        let dir = setup_backlinks_dir();
+        let results = find_backlinks(dir.path().to_string_lossy().to_string(), "notes".into()).unwrap();
+
+        assert_eq!(results.len(), 2);
     }
 }

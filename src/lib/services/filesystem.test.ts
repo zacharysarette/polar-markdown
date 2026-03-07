@@ -14,7 +14,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory, updateJumpList, getInitialFolder, createNewWindow, readDirectoryFiles, restoreDirectoryFiles } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, findBacklinks, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory, updateJumpList, getInitialFolder, createNewWindow, readDirectoryFiles, restoreDirectoryFiles } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 const mockAsk = vi.mocked(ask);
@@ -414,5 +414,14 @@ describe("confirmDeleteFolder updated message", () => {
       expect.stringContaining("Recycle Bin"),
       expect.any(Object),
     );
+  });
+});
+
+describe("findBacklinks", () => {
+  it("invokes find_backlinks with correct args", async () => {
+    mockInvoke.mockResolvedValueOnce([]);
+    const result = await findBacklinks("/docs", "notes.md");
+    expect(mockInvoke).toHaveBeenCalledWith("find_backlinks", { path: "/docs", target: "notes.md" });
+    expect(result).toEqual([]);
   });
 });

@@ -16,6 +16,7 @@
     getMuseumContent,
     pickFolder,
     searchFiles,
+    findBacklinks,
     createFile,
     createDirectory,
     renameFile,
@@ -103,6 +104,8 @@
   let zoomLevel = $state(getZoomLevel());
   let tocVisible = $state(getTocVisible());
   let activeTocSlug = $state("");
+  let backlinks: SearchResult[] = $state([]);
+  let backlinkDebounceTimer: ReturnType<typeof setTimeout> | undefined;
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.0;
   const ZOOM_STEP = 0.1;
@@ -139,6 +142,38 @@
   let tocEntries: TocEntry[] = $derived.by(() => {
     const activePane = panes.find((p) => p.id === activePaneId);
     return activePane?.content ? extractHeadings(activePane.content) : [];
+  });
+
+  // Fetch backlinks when active pane changes
+  $effect(() => {
+    const activePane = panes.find((p) => p.id === activePaneId);
+    const _path = activePane?.path;
+    const _docs = docsPath;
+
+    if (backlinkDebounceTimer) clearTimeout(backlinkDebounceTimer);
+
+    if (!activePane || !_docs || activePane.readOnly) {
+      backlinks = [];
+      return;
+    }
+
+    const filename = _path?.split(/[\\/]/).pop() ?? "";
+    if (!filename) {
+      backlinks = [];
+      return;
+    }
+
+    backlinkDebounceTimer = setTimeout(async () => {
+      try {
+        backlinks = await findBacklinks(_docs, filename);
+      } catch {
+        backlinks = [];
+      }
+    }, 300);
+
+    return () => {
+      if (backlinkDebounceTimer) clearTimeout(backlinkDebounceTimer);
+    };
   });
 
   async function loadTree() {
@@ -859,6 +894,10 @@
     activeTocSlug = slug;
   }
 
+  function handleBacklinkSelect(path: string) {
+    handleFileLink(path);
+  }
+
   function showToast(msg: string, duration = 3000) {
     toastMessage = msg;
     toastVisible = true;
@@ -1398,7 +1437,7 @@
 
 <div class="app-layout">
   <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} />
 </div>
 <Toast message={toastMessage} visible={toastVisible} />
 

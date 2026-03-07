@@ -87,6 +87,7 @@ version = "0.0.6"
 dependencies = [
  "log",
  "notify",
+ "regex",
  "serde",
  "serde_json",
  "svgbob",

@@ -4,16 +4,16 @@
 
 Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector, file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`glacimark file.md`), single-instance handling, dual theming (Aurora/Glacier), drag-and-drop file organization, anchor/file link navigation, source line numbers, editor mermaid linting, and bundle code splitting with lazy-loaded dependencies.
 
-### Current Version: 0.0.3
+### Current Version: 0.0.6
 
-### Current Test Count: 480 frontend (14 test files) + 97 Rust = 577 total
+### Current Test Count: 560 frontend (18 test files) + 107 Rust = 667 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher,diagram,jumplist}.rs`
-- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer, ContentArea, EditablePane, MarkdownEditor, SearchResults), `src/lib/services/` (filesystem, persistence, markdown, tree-utils, sort, highlight, codemirror-themes, mermaid-linter), `src/lib/types.ts`
+- **Frontend:** `src/App.svelte` (root), `src/lib/components/` (Sidebar, FileTree, FileTreeItem, MarkdownViewer, ContentArea, EditablePane, MarkdownEditor, SearchResults, Toast, TableOfContents), `src/lib/services/` (filesystem, persistence, markdown, tree-utils, sort, highlight, codemirror-themes, mermaid-linter, mermaid-fixer, undo, toc), `src/lib/types.ts`
 - **Config:** `tauri.conf.json`, `vitest.config.ts`, `vite.config.ts`, `src-tauri/Cargo.toml`, `src-tauri/capabilities/default.json`
 - **Installer:** `src-tauri/windows/installer-hooks.nsh`
-- **Tests:** 14 `.test.ts` files in `src/lib/`, Rust tests in `lib.rs` + `commands/{filesystem,diagram}.rs`
+- **Tests:** 18 `.test.ts` files in `src/lib/`, Rust tests in `lib.rs` + `commands/{filesystem,diagram}.rs`
 
 ---
 
@@ -48,45 +48,12 @@ All shipped and tested:
 25. **Embedded Help File** — `include_str!` compiles help into binary
 26. **Windows Jump List** — COM API for recent folders, `--open-folder` args
 27. **Bundle Code Splitting** — lazy-loaded mermaid/CodeMirror/highlight.js/marked via dynamic imports and Vite manual chunks
-
----
-
-## TODO: Mermaid Auto-Fix
-
-### Problem
-Mermaid blocks (especially AI-generated ones) often have subtle syntax errors. Layer 1 (viewer validation) and Layer 2 (editor linting) are done, but there's no auto-fix capability.
-
-### Solution
-An auto-fix system that detects and repairs common mermaid syntax mistakes.
-
-**Common fixable patterns:**
-
-| Problem | Example | Fix |
-|---------|---------|-----|
-| Missing diagram type | `A --> B` (no `graph` keyword) | Prepend `graph TD\n` |
-| Wrong arrow syntax | `A -> B` (single dash) | Replace with `A --> B` |
-| Spaces in node IDs | `My Node --> Other Node` | Wrap in quotes |
-| Missing direction | `graph\n  A --> B` | Default to `graph TD` |
-| Unclosed subgraph | `subgraph X\n  A --> B` | Append `end` |
-
-**Implementation:**
-
-New file `src/lib/services/mermaid-fixer.ts`:
-- `fixMermaidBlock(text: string): FixResult` — fixes a single block
-- `fixMermaidInMarkdown(markdown: string): { result: string; totalFixes: number }` — fixes all blocks in a document
-
-**UI integration:**
-- Editor toolbar button or `Ctrl+Shift+F` keybinding
-- Viewer error banner gets a "Try Auto-Fix" button
-- Toast notification: "Fixed 3 issues in 2 mermaid blocks"
-
-**Tests (TDD):**
-- `fixMermaidBlock` adds missing graph declaration
-- `fixMermaidBlock` fixes single-dash arrows
-- `fixMermaidBlock` closes unclosed subgraphs
-- `fixMermaidBlock` returns empty changes for valid blocks
-- `fixMermaidInMarkdown` fixes blocks within full markdown
-- `fixMermaidInMarkdown` leaves non-mermaid code blocks untouched
+28. **Mermaid Auto-Fix** — `mermaid-fixer.ts` auto-repairs missing diagram types, single-dash arrows, bare graph keywords, unclosed subgraphs. Viewer "Try Auto-Fix" link + editor wrench button (Ctrl+Shift+F). Toast feedback.
+29. **Undo/Redo** — `UndoManager` with dual stacks, 50-entry cap, 10s coalescing. Covers create/delete/rename/move/save for files and folders. Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y. Session-only.
+30. **Delete to Recycle Bin** — `trash::delete()` for files and folders instead of permanent deletion
+31. **Zoom** — Ctrl+=/−/0 and Ctrl+wheel, 50%–200% range, persisted, affects viewer + editor text only
+32. **Table of Contents** — Ctrl+T sidebar panel, auto-generated from headings, active heading tracking via IntersectionObserver, persisted visibility
+33. **Windows Jump List** — COM API for recent folders in taskbar right-click menu, `--open-folder` args, single-instance support
 
 ---
 
@@ -129,7 +96,6 @@ Standalone Node.js MCP server (`mcp-server/` directory) using `@modelcontextprot
 
 - **Split pane resizing** — draggable dividers between panes
 - **Export to PDF** — print/export the rendered markdown
-- **Table of contents** — auto-generated from headings, sidebar panel
 - **Markdown toolbar** — bold, italic, heading, link buttons above editor
 - **Vim/Emacs keybindings** — CodeMirror 6 extensions
 - **CLI linting script** — `npm run lint:mermaid -- docs/` for CI pipelines

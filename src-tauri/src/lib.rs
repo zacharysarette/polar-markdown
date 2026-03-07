@@ -259,6 +259,7 @@ pub fn run() {
             commands::filesystem::get_help_content,
             commands::filesystem::get_museum_content,
             commands::filesystem::search_files,
+            commands::filesystem::find_backlinks,
             commands::filesystem::create_file,
             commands::filesystem::rename_file,
             commands::filesystem::delete_file,

@@ -34,6 +34,10 @@ export async function searchFiles(path: string, query: string): Promise<SearchRe
   return invoke<SearchResult[]>("search_files", { path, query });
 }
 
+export async function findBacklinks(path: string, target: string): Promise<SearchResult[]> {
+  return invoke<SearchResult[]>("find_backlinks", { path, target });
+}
+
 export async function writeFileContents(path: string, content: string): Promise<void> {
   return invoke<void>("write_file_contents", { path, content });
 }

@@ -2,7 +2,7 @@
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import EditablePane from "./EditablePane.svelte";
   import TocPane from "./TocPane.svelte";
-  import type { OpenPane, LayoutMode, ThemeType, TocEntry } from "../types";
+  import type { OpenPane, LayoutMode, ThemeType, TocEntry, SearchResult } from "../types";
   import logoUrl from "../../../img/logo.png";
 
   let {
@@ -33,6 +33,8 @@
     ontocclose,
     ontoctoggle,
     tocFileName = "",
+    backlinks = [] as SearchResult[],
+    onbacklinkselect,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -61,6 +63,8 @@
     ontocclose?: () => void;
     ontoctoggle?: () => void;
     tocFileName?: string;
+    backlinks?: SearchResult[];
+    onbacklinkselect?: (path: string) => void;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -185,6 +189,8 @@
             {zoomLevel}
             onautofix={onviewerautofix}
             onactiveheadingchange={pane.id === activePaneId ? onactiveheadingchange : undefined}
+            backlinks={pane.id === activePaneId ? backlinks : []}
+            onbacklinkselect={onbacklinkselect}
           />
         {/if}
       </div>

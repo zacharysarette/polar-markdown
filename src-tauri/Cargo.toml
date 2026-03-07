@@ -30,6 +30,7 @@ svgbob = "0.7"
 tauri-plugin-single-instance = "2"
 tauri-plugin-shell = "2"
 trash = "5"
+regex = "1"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [

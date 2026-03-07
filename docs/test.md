@@ -428,4 +428,53 @@ Press **Ctrl+T** to toggle the Table of Contents pane. The TOC appears as a grid
 
 ---
 
+## Find & Replace
+
+In edit mode, press **Ctrl+F** to open the find panel, or **Ctrl+H** for find & replace. The search panel is styled to match both Aurora and Glacier themes.
+
+### Test Scenarios
+
+1. **Open find panel** -- enter edit mode (Ctrl+E), then press Ctrl+F: a themed search panel should appear at the top of the editor
+2. **Search highlight** -- type a search term: all matches should be highlighted with an amber background, the active match should be brighter
+3. **Replace** -- press Ctrl+H: both find and replace inputs should be visible, styled consistently with the theme
+4. **Theme switching** -- switch themes while the search panel is open: colors should update to match the new theme
+5. **Close panel** -- press Escape: the search panel should close
+
+---
+
+## Wiki-style Links
+
+Glacimark supports wiki-style `[[links]]` for linking between markdown files. They render with a dashed underline to distinguish them from regular links.
+
+### Examples
+
+- Basic link: [[How to Use Glacimark]]
+- With .md extension: [[How to Use Glacimark.md]]
+- With alias: [[How to Use Glacimark|the user guide]]
+- Non-existent file: [[imaginary page]]
+
+### Test Scenarios
+
+1. **Click a wiki-link** -- click [[How to Use Glacimark]] above: the user guide should open in the active pane
+2. **Alias display** -- the third link above should show "the user guide" as its text, not the filename
+3. **Dashed underline** -- wiki-links should have a purple dashed underline (not solid like regular links)
+4. **Code blocks** -- wiki-link syntax inside `[[code]]` or fenced code blocks should NOT be rendered as links
+5. **Ctrl+Click** -- Ctrl+Click a wiki-link to open it in a new pane
+
+---
+
+## Backlinks
+
+When other files in the current folder link to the current file using `[[wiki-links]]`, a "backlinks" panel appears at the bottom of the viewer.
+
+### Test Scenarios
+
+1. **Backlinks appear** -- open a file that other files link to via `[[links]]`: a collapsed "N backlinks" footer should appear below the content
+2. **Expand backlinks** -- click the backlinks header: it should expand to show the linking files with context lines
+3. **Navigate** -- click a file name in the expanded backlinks: the app should navigate to that file
+4. **No backlinks** -- open a file that nothing links to: no backlinks footer should appear
+5. **Read-only/help** -- open the help doc (? button): no backlinks should appear for embedded docs
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

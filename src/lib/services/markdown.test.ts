@@ -584,3 +584,50 @@ describe("renderMarkdown image integration", () => {
     expect(html).toContain('alt="alt"');
   });
 });
+
+describe("wiki-style [[links]]", () => {
+  it("renders basic [[filename]] as a wikilink", async () => {
+    const html = await renderMarkdown("See [[notes]]");
+    expect(html).toContain('class="wikilink"');
+    expect(html).toContain("notes.md");
+    expect(html).toContain(">notes<");
+  });
+
+  it("renders [[filename.md]] without doubling .md", async () => {
+    const html = await renderMarkdown("See [[notes.md]]");
+    expect(html).toContain("notes.md");
+    expect(html).not.toContain("notes.md.md");
+  });
+
+  it("renders [[file|alias]] with display text", async () => {
+    const html = await renderMarkdown("See [[notes|My Notes]]");
+    expect(html).toContain(">My Notes<");
+    expect(html).toContain("notes.md");
+  });
+
+  it("URL-encodes spaces in href", async () => {
+    const html = await renderMarkdown("See [[my doc]]");
+    expect(html).toContain("my%20doc.md");
+  });
+
+  it("does not parse [[links]] inside inline code", async () => {
+    const html = await renderMarkdown("Use `[[link]]` syntax");
+    expect(html).not.toContain("wikilink");
+    expect(html).toContain("[[link]]");
+  });
+
+  it("does not parse [[links]] inside code blocks", async () => {
+    const html = await renderMarkdown("```\n[[link]]\n```");
+    expect(html).not.toContain("wikilink");
+  });
+
+  it("ignores empty [[]]", async () => {
+    const html = await renderMarkdown("Empty [[]] here");
+    expect(html).not.toContain("wikilink");
+  });
+
+  it("handles nested [[[bad]]] without crashing", async () => {
+    const html = await renderMarkdown("Test [[[bad]]] here");
+    expect(html).toBeDefined();
+  });
+});

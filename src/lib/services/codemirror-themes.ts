@@ -94,6 +94,32 @@ const auroraEditorTheme = EditorView.theme(
       border: "1px solid #2f3146",
       color: "#c0caf5",
     },
+    ".cm-search label": {
+      color: "#c0caf5",
+    },
+    ".cm-search input, .cm-search button": {
+      background: "#1a1b26",
+      color: "#c0caf5",
+      border: "1px solid #2f3146",
+      borderRadius: "3px",
+      padding: "2px 6px",
+    },
+    ".cm-search button:hover": {
+      background: "#24253a",
+    },
+    ".cm-search input:focus": {
+      borderColor: "#7aa2f7",
+      outline: "none",
+    },
+    ".cm-search br": {
+      display: "none",
+    },
+    ".cm-search [name=close]": {
+      color: "#565f89",
+    },
+    ".cm-search [name=close]:hover": {
+      color: "#c0caf5",
+    },
   },
   { dark: true }
 );
@@ -211,6 +237,32 @@ const glacierEditorTheme = EditorView.theme(
     ".cm-tooltip-lint": {
       backgroundColor: "#e8eef5",
       border: "1px solid #c0cdd8",
+      color: "#2e3440",
+    },
+    ".cm-search label": {
+      color: "#2e3440",
+    },
+    ".cm-search input, .cm-search button": {
+      background: "#ffffff",
+      color: "#2e3440",
+      border: "1px solid #c0cdd8",
+      borderRadius: "3px",
+      padding: "2px 6px",
+    },
+    ".cm-search button:hover": {
+      background: "#dce4ed",
+    },
+    ".cm-search input:focus": {
+      borderColor: "#4a8dbf",
+      outline: "none",
+    },
+    ".cm-search br": {
+      display: "none",
+    },
+    ".cm-search [name=close]": {
+      color: "#6b7d8e",
+    },
+    ".cm-search [name=close]:hover": {
       color: "#2e3440",
     },
   },

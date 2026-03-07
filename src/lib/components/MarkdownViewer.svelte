@@ -4,7 +4,8 @@
   import type { MermaidRenderResult } from "../services/markdown";
   import { open } from "@tauri-apps/plugin-shell";
   import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex, clearLineHeightCache } from "../services/highlight";
-  import type { LayoutMode } from "../types";
+  import Backlinks from "./Backlinks.svelte";
+  import type { LayoutMode, SearchResult } from "../types";
 
   let {
     content = "",
@@ -25,6 +26,8 @@
     zoomLevel = 1.0,
     onautofix,
     onactiveheadingchange,
+    backlinks = [],
+    onbacklinkselect,
   }: {
     content?: string;
     filePath?: string;
@@ -44,6 +47,8 @@
     zoomLevel?: number;
     onautofix?: () => void;
     onactiveheadingchange?: (slug: string) => void;
+    backlinks?: SearchResult[];
+    onbacklinkselect?: (path: string) => void;
   } = $props();
 
   let htmlContent = $state("");
@@ -532,6 +537,7 @@
     <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleAnchorClick} style="font-size: {15 * zoomLevel}px">
       {@html htmlContent}
     </article>
+    <Backlinks {backlinks} onselect={onbacklinkselect} />
   {:else}
     <div class="empty-state">
       <div class="empty-icon">🏔️</div>
