@@ -5,6 +5,8 @@
   import { open } from "@tauri-apps/plugin-shell";
   import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex, clearLineHeightCache } from "../services/highlight";
   import Backlinks from "./Backlinks.svelte";
+  import DocStats from "./DocStats.svelte";
+  import { computeDocumentStats } from "../services/doc-stats";
   import type { LayoutMode, SearchResult } from "../types";
 
   let {
@@ -28,6 +30,8 @@
     onactiveheadingchange,
     backlinks = [],
     onbacklinkselect,
+    showDocStats = false,
+    ondocstatstoggle,
   }: {
     content?: string;
     filePath?: string;
@@ -49,6 +53,8 @@
     onactiveheadingchange?: (slug: string) => void;
     backlinks?: SearchResult[];
     onbacklinkselect?: (path: string) => void;
+    showDocStats?: boolean;
+    ondocstatstoggle?: () => void;
   } = $props();
 
   let htmlContent = $state("");
@@ -505,6 +511,7 @@
   });
 
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");
+  const docStats = $derived(content ? computeDocumentStats(content) : null);
 </script>
 
 <div class="viewer" role="main" aria-label="Markdown viewer">
@@ -528,6 +535,7 @@
           {#if zoomLevel !== 1.0}
             <span class="zoom-indicator">{Math.round(zoomLevel * 100)}%</span>
           {/if}
+          <button class="doc-stats-toggle" class:active={showDocStats} onclick={() => ondocstatstoggle?.()} title="Document statistics (Ctrl+I)">Aa</button>
           <button class="line-numbers-toggle" class:active={showLineNumbers} onclick={() => onlinenumberschange?.(!showLineNumbers)} title="Toggle source line numbers">1:</button>
           <button class:active={layoutMode === "centered"} onclick={() => onlayoutchange?.("centered")} title="Single column">&#x2261;</button>
           <button class:active={layoutMode === "columns"} onclick={() => onlayoutchange?.("columns")} title="Multi-column">&#x229E;</button>
@@ -537,6 +545,7 @@
     <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleAnchorClick} style="font-size: {15 * zoomLevel}px">
       {@html htmlContent}
     </article>
+    <DocStats stats={docStats} visible={showDocStats} />
     <Backlinks {backlinks} onselect={onbacklinkselect} />
   {:else}
     <div class="empty-state">
@@ -635,6 +644,12 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  }
+
+  .doc-stats-toggle {
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   .line-numbers-toggle {

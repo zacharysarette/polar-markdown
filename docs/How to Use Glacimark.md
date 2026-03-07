@@ -368,6 +368,27 @@ Press **Ctrl+T** to toggle the Table of Contents pane. The TOC appears as a dedi
 
 ---
 
+## Document Statistics
+
+Press **Ctrl+I** to toggle the document statistics footer bar. When visible, a slim bar appears at the bottom of the viewer showing:
+
+- **Word count** — total words (after stripping markdown syntax, code blocks, and frontmatter)
+- **Character count** — total characters, and characters excluding spaces
+- **Lines** — total lines in the raw markdown source
+- **Sentences** — detected via terminal punctuation (`.`, `!`, `?`)
+- **Paragraphs** — groups of text separated by blank lines
+- **Reading time** — estimated minutes at 200 words per minute
+- **FRE** — Flesch Reading Ease score (0-100; higher = easier to read)
+- **FK** — Flesch-Kincaid Grade Level (approximate US school grade level)
+
+Hover over the FRE and FK scores for a tooltip explaining the scales.
+
+You can also toggle the stats bar via the **Aa** button in the viewer header (next to the line numbers toggle). The toggle state is remembered across sessions.
+
+**Note:** The stats bar only appears in view mode, not in edit mode. When you switch between files, the stats update automatically.
+
+---
+
 ## Zoom
 
 You can zoom the text content in and out for readability. Zoom applies to both the markdown viewer and the code editor.
@@ -398,6 +419,7 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 | **Ctrl+H** | Find & Replace in editor (edit mode) |
 | **Ctrl+S** | Save immediately (in edit mode) |
 | **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
+| **Ctrl+I** | Toggle document statistics footer |
 | **Ctrl+T** | Toggle Table of Contents panel |
 | **Ctrl+Shift+F** | Auto-fix mermaid diagrams (in edit mode) |
 | **Ctrl+Z** | Undo last file operation (create, delete, rename, move, save) |

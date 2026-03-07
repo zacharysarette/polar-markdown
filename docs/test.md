@@ -477,4 +477,22 @@ When other files in the current folder link to the current file using `[[wiki-li
 
 ---
 
+## Document Statistics Footer
+
+Press **Ctrl+I** or click the **Aa** button in the viewer header to toggle the document statistics bar. It appears as a slim footer between the article content and the backlinks panel.
+
+### What to Verify
+
+1. **Toggle** -- press Ctrl+I: the stats bar should appear/disappear at the bottom of the viewer
+2. **Aa button** -- click the "Aa" button in the viewer header: same toggle behavior
+3. **Stats values** -- the bar shows: words, chars, chars (no spaces), lines, sentences, paragraphs, reading time, FRE score, FK grade
+4. **Tooltips** -- hover over "FRE" and "FK" values: tooltips should explain the scales
+5. **Persistence** -- toggle stats on, close and reopen the app: stats should still be visible
+6. **Theme** -- switch between Aurora and Glacier: the stats bar should match the theme (uses `--text-muted` and `--border` CSS variables)
+7. **Edit mode** -- enter edit mode (Ctrl+E): the stats bar should NOT appear
+8. **Empty file** -- view an empty or whitespace-only file: the stats bar should be hidden even when toggled on
+9. **CodeMirror guard** -- in edit mode, Ctrl+I should trigger italic formatting (not toggle stats)
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

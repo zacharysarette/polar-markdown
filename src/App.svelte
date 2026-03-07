@@ -56,6 +56,8 @@
     getZoomLevel,
     saveTocVisible,
     getTocVisible,
+    saveDocStatsVisible,
+    getDocStatsVisible,
   } from "./lib/services/persistence";
   import { setMermaidTheme, setBobDarkMode } from "./lib/services/markdown";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
@@ -103,6 +105,7 @@
   let loading = $state(false);
   let zoomLevel = $state(getZoomLevel());
   let tocVisible = $state(getTocVisible());
+  let showDocStats = $state(getDocStatsVisible());
   let activeTocSlug = $state("");
   let backlinks: SearchResult[] = $state([]);
   let backlinkDebounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -885,6 +888,11 @@
     saveTocVisible(tocVisible);
   }
 
+  function handleDocStatsToggle() {
+    showDocStats = !showDocStats;
+    saveDocStatsVisible(showDocStats);
+  }
+
   function handleTocSelect(slug: string) {
     scrollToId = "";
     requestAnimationFrame(() => { scrollToId = slug; });
@@ -1222,6 +1230,14 @@
       handleTocToggle();
       return;
     }
+    // Ctrl+I: toggle document stats (skip if CodeMirror editor is focused)
+    if (event.ctrlKey && event.key === "i") {
+      const active = document.activeElement;
+      if (active && active.closest(".cm-editor")) return;
+      event.preventDefault();
+      handleDocStatsToggle();
+      return;
+    }
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
       event.preventDefault();
@@ -1437,7 +1453,7 @@
 
 <div class="app-layout">
   <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} {showDocStats} ondocstatstoggle={handleDocStatsToggle} />
 </div>
 <Toast message={toastMessage} visible={toastVisible} />
 

@@ -14,6 +14,7 @@ const LINE_NUMBERS_KEY = "glacimark:line-numbers";
 const LINE_WRAPPING_KEY = "glacimark:line-wrapping";
 const ZOOM_LEVEL_KEY = "glacimark:zoom-level";
 const TOC_VISIBLE_KEY = "glacimark:toc-visible";
+const DOC_STATS_VISIBLE_KEY = "glacimark:doc-stats-visible";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -156,6 +157,20 @@ export function saveTocVisible(visible: boolean): void {
 
 export function getTocVisible(): boolean {
   const stored = localStorage.getItem(TOC_VISIBLE_KEY);
+  if (!stored) return false;
+  try {
+    return JSON.parse(stored) === true;
+  } catch {
+    return false;
+  }
+}
+
+export function saveDocStatsVisible(visible: boolean): void {
+  localStorage.setItem(DOC_STATS_VISIBLE_KEY, JSON.stringify(visible));
+}
+
+export function getDocStatsVisible(): boolean {
+  const stored = localStorage.getItem(DOC_STATS_VISIBLE_KEY);
   if (!stored) return false;
   try {
     return JSON.parse(stored) === true;

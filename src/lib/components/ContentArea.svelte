@@ -35,6 +35,8 @@
     tocFileName = "",
     backlinks = [] as SearchResult[],
     onbacklinkselect,
+    showDocStats = false,
+    ondocstatstoggle,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -65,6 +67,8 @@
     tocFileName?: string;
     backlinks?: SearchResult[];
     onbacklinkselect?: (path: string) => void;
+    showDocStats?: boolean;
+    ondocstatstoggle?: () => void;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -191,6 +195,8 @@
             onactiveheadingchange={pane.id === activePaneId ? onactiveheadingchange : undefined}
             backlinks={pane.id === activePaneId ? backlinks : []}
             onbacklinkselect={onbacklinkselect}
+            showDocStats={pane.id === activePaneId ? showDocStats : false}
+            ondocstatstoggle={pane.id === activePaneId ? ondocstatstoggle : undefined}
           />
         {/if}
       </div>
