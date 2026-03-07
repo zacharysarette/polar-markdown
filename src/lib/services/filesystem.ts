@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
-import type { CreateFileResult, FileEntry, MoveFileResult, RenameFileResult, SearchResult } from "../types";
+import type { CreateFileResult, DirectoryFileContent, FileEntry, MoveFileResult, RenameFileResult, SearchResult } from "../types";
 
 export async function readDirectoryTree(path: string): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("read_directory_tree", { path });
@@ -70,15 +70,23 @@ export async function deleteDirectory(path: string): Promise<void> {
   return invoke<void>("delete_directory", { path });
 }
 
+export async function readDirectoryFiles(path: string): Promise<DirectoryFileContent[]> {
+  return invoke<DirectoryFileContent[]>("read_directory_files", { path });
+}
+
+export async function restoreDirectoryFiles(basePath: string, files: DirectoryFileContent[]): Promise<void> {
+  return invoke<void>("restore_directory_files", { basePath, files });
+}
+
 export async function confirmDelete(filename: string): Promise<boolean> {
-  return ask(`Are you sure you want to delete "${filename}"? This cannot be undone.`, {
+  return ask(`Are you sure you want to delete "${filename}"? File will be moved to the Recycle Bin.`, {
     title: "Delete File",
     kind: "warning",
   });
 }
 
 export async function confirmDeleteFolder(name: string): Promise<boolean> {
-  return ask(`Delete folder "${name}" and all its contents? This cannot be undone.`, {
+  return ask(`Delete folder "${name}" and all its contents? Files will be moved to the Recycle Bin.`, {
     title: "Delete Folder",
     kind: "warning",
   });

@@ -98,8 +98,9 @@ You can delete markdown files directly from the sidebar:
 
 - **Delete key** — press while a file is focused in the tree to delete it
 - **Right-click** a file — a context menu appears with a "Delete" option
-- A native OS confirmation dialog asks you to confirm before the file is removed
+- A native OS confirmation dialog asks you to confirm before the file is moved to the Recycle Bin
 - Any open panes showing the deleted file are automatically closed
+- You can **undo** the deletion with **Ctrl+Z** to restore the file and its contents
 
 ### Copy Path
 
@@ -298,6 +299,23 @@ The theme also affects Mermaid diagrams, ASCII art (svgbob), code syntax highlig
 
 ---
 
+## Undo / Redo
+
+Glacimark tracks file operations so you can undo mistakes:
+
+- **Ctrl+Z** — undo the last operation (create, delete, rename, move, or save)
+- **Ctrl+Shift+Z** or **Ctrl+Y** — redo the last undone operation
+
+Supported operations: creating files/folders, deleting files/folders, renaming, moving (drag-and-drop), and file saves.
+
+**Editor vs. app undo:** When the CodeMirror editor is focused, Ctrl+Z uses the editor's built-in character-level undo. When the editor is not focused, Ctrl+Z undoes the last app-level file operation.
+
+**Recycle Bin:** Deleted files are moved to the Recycle Bin (not permanently deleted), giving you a safety net beyond the undo stack.
+
+**Session-only:** The undo history is kept in memory and is cleared when you restart the app or switch to a different folder.
+
+---
+
 ## Live File Watching
 
 Glacimark watches your folder for changes in real time. If you edit a markdown file in another editor (or if a tool like Claude Code writes files), the sidebar and content area update automatically — no refresh needed.
@@ -333,6 +351,8 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 | **Ctrl+S** | Save immediately (in edit mode) |
 | **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
 | **Ctrl+Shift+F** | Auto-fix mermaid diagrams (in edit mode) |
+| **Ctrl+Z** | Undo last file operation (create, delete, rename, move, save) |
+| **Ctrl+Shift+Z** / **Ctrl+Y** | Redo last undone operation |
 | **Ctrl+Shift+N** | Open a new window |
 | **Ctrl+Click** | Open file in a new pane |
 | **Ctrl+W** | Close active pane |

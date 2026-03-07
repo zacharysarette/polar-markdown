@@ -394,4 +394,21 @@ subgraph Services
 
 ---
 
+## Undo / Redo
+
+Glacimark tracks file operations so you can undo mistakes with **Ctrl+Z** and redo with **Ctrl+Shift+Z** or **Ctrl+Y**.
+
+### Test Scenarios
+
+1. **Create a file** (Ctrl+N, name it "undo-test") -- then Ctrl+Z: the file should disappear from the tree
+2. **Delete a file** (Delete key on a file) -- then Ctrl+Z: the file should reappear with its original content
+3. **Rename a file** (F2 on a file, change the name) -- then Ctrl+Z: the old name should be restored
+4. **Move a file** (drag it to another folder) -- then Ctrl+Z: the file should return to its original location
+5. **Edit and save a file** -- then close editor, Ctrl+Z: the previous content should be restored
+6. **Multiple undo/redo chain** -- perform several operations, then Ctrl+Z multiple times, then Ctrl+Shift+Z to redo
+
+**Note:** When the CodeMirror editor is focused, Ctrl+Z uses the editor's built-in character-level undo. Outside the editor, Ctrl+Z undoes the last app-level file operation. Deleted files are moved to the Recycle Bin for extra safety.
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

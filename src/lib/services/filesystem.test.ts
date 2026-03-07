@@ -14,7 +14,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
-import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory, updateJumpList, getInitialFolder, createNewWindow } from "./filesystem";
+import { readDirectoryTree, readFileContents, startWatching, getDocsPath, pickFolder, searchFiles, writeFileContents, createFile, renameFile, getInitialFile, deleteFile, deleteDirectory, confirmDelete, confirmDeleteFolder, saveFileAs, moveDirectory, updateJumpList, getInitialFolder, createNewWindow, readDirectoryFiles, restoreDirectoryFiles } from "./filesystem";
 
 const mockOpen = vi.mocked(open);
 const mockAsk = vi.mocked(ask);
@@ -223,7 +223,7 @@ describe("confirmDelete", () => {
     const result = await confirmDelete("notes.md");
 
     expect(mockAsk).toHaveBeenCalledWith(
-      'Are you sure you want to delete "notes.md"? This cannot be undone.',
+      'Are you sure you want to delete "notes.md"? File will be moved to the Recycle Bin.',
       { title: "Delete File", kind: "warning" }
     );
     expect(result).toBe(true);
@@ -314,7 +314,7 @@ describe("confirmDeleteFolder", () => {
     const result = await confirmDeleteFolder("my-notes");
 
     expect(mockAsk).toHaveBeenCalledWith(
-      'Delete folder "my-notes" and all its contents? This cannot be undone.',
+      'Delete folder "my-notes" and all its contents? Files will be moved to the Recycle Bin.',
       { title: "Delete Folder", kind: "warning" }
     );
     expect(result).toBe(true);
@@ -357,5 +357,62 @@ describe("getInitialFolder", () => {
     const result = await getInitialFolder();
 
     expect(result).toBeNull();
+  });
+});
+
+describe("readDirectoryFiles", () => {
+  it("calls invoke with correct command and path", async () => {
+    const mockFiles = [
+      { relative_path: "readme.md", content: "# README" },
+      { relative_path: "sub/note.md", content: "# Note" },
+    ];
+    mockInvoke.mockResolvedValue(mockFiles);
+
+    const result = await readDirectoryFiles("/docs/folder");
+
+    expect(mockInvoke).toHaveBeenCalledWith("read_directory_files", { path: "/docs/folder" });
+    expect(result).toEqual(mockFiles);
+  });
+});
+
+describe("restoreDirectoryFiles", () => {
+  it("calls invoke with correct command, basePath, and files", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+
+    const files = [
+      { relative_path: "readme.md", content: "# README" },
+    ];
+    await restoreDirectoryFiles("/docs/folder", files);
+
+    expect(mockInvoke).toHaveBeenCalledWith("restore_directory_files", {
+      basePath: "/docs/folder",
+      files,
+    });
+  });
+});
+
+describe("confirmDelete updated message", () => {
+  it("mentions Recycle Bin instead of 'cannot be undone'", async () => {
+    mockAsk.mockResolvedValue(true);
+
+    await confirmDelete("test.md");
+
+    expect(mockAsk).toHaveBeenCalledWith(
+      expect.stringContaining("Recycle Bin"),
+      expect.any(Object),
+    );
+  });
+});
+
+describe("confirmDeleteFolder updated message", () => {
+  it("mentions Recycle Bin instead of 'cannot be undone'", async () => {
+    mockAsk.mockResolvedValue(true);
+
+    await confirmDeleteFolder("myfolder");
+
+    expect(mockAsk).toHaveBeenCalledWith(
+      expect.stringContaining("Recycle Bin"),
+      expect.any(Object),
+    );
   });
 });

@@ -30,7 +30,10 @@
     saveThemeFile,
     updateJumpList,
     getInitialFolder,
+    readDirectoryFiles,
+    restoreDirectoryFiles,
   } from "./lib/services/filesystem";
+  import { UndoManager } from "./lib/services/undo";
   import {
     saveLastSelectedPath,
     getLastSelectedPath,
@@ -55,7 +58,7 @@
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
   import { sortEntries, type SortMode } from "./lib/services/sort";
   import { resetDragSource } from "./lib/components/FileTreeItem.svelte";
-  import type { FileEntry, LayoutMode, OpenPane, SearchResult, ThemeType } from "./lib/types";
+  import type { FileEntry, LayoutMode, OpenPane, SearchResult, ThemeType, UndoAction } from "./lib/types";
 
   const MAX_PANES = 4;
   let nextPaneId = 1;
@@ -98,6 +101,7 @@
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.0;
   const ZOOM_STEP = 0.1;
+  const undoManager = new UndoManager();
   const recentOwnWrites = new Set<string>();
   let suppressWatcherUntil = 0;
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
@@ -235,9 +239,24 @@
 
   async function handleSave(path: string, content: string) {
     try {
+      const pane = panes.find((p) => p.path === path);
+      const previousContent = pane?.content ?? "";
+
       recentOwnWrites.add(path);
       await writeFileContents(path, content);
-      // Update pane content to reflect saved state
+
+      if (content !== previousContent) {
+        const sep = path.includes("\\") ? "\\" : "/";
+        const filename = path.split(sep).pop() ?? path;
+        undoManager.push({
+          type: "save-file",
+          path,
+          previousContent,
+          newContent: content,
+          description: `Save ${filename}`,
+        });
+      }
+
       panes = panes.map((p) =>
         p.path === path ? { ...p, content } : p
       );
@@ -317,6 +336,7 @@
     panes = [];
     activePaneId = "";
     loading = true;
+    undoManager.clear();
     refreshJumpList(path);
     await loadTree();
     loading = false;
@@ -497,6 +517,16 @@
       const { path: newPath, content } = await createFile(targetDir, filename);
       creatingFile = false;
       newFileError = "";
+
+      undoManager.push({
+        type: "create-file",
+        path: newPath,
+        content,
+        directory: targetDir,
+        filename,
+        description: `Create ${filename}`,
+      });
+
       openInActivePane(newPath, true, content);
       loadTree();
     } catch (e: any) {
@@ -530,6 +560,13 @@
       creatingFolder = false;
       newFolderError = "";
       selectedFolderPath = newPath;
+
+      undoManager.push({
+        type: "create-directory",
+        path: newPath,
+        description: `Create folder ${name}`,
+      });
+
       await loadTree();
     } catch (e: any) {
       newFolderError = typeof e === "string" ? e : e?.message || String(e);
@@ -548,6 +585,15 @@
       const { old_path, new_path } = isDir
         ? await moveDirectory(sourcePath, targetDir)
         : await moveFile(sourcePath, targetDir);
+
+      const moveSep = old_path.includes("\\") ? "\\" : "/";
+      const moveName = old_path.split(moveSep).pop() ?? old_path;
+      undoManager.push({
+        type: isDir ? "move-directory" : "move-file",
+        oldPath: old_path,
+        newPath: new_path,
+        description: `Move ${moveName}`,
+      });
 
       recentOwnWrites.add(old_path);
       recentOwnWrites.add(new_path);
@@ -606,6 +652,13 @@
       // No-op if same name
       if (oldPath === newPath) return;
 
+      undoManager.push({
+        type: "rename-file",
+        oldPath,
+        newPath,
+        description: `Rename to ${newName}`,
+      });
+
       // Add newPath to recentOwnWrites to prevent watcher re-read
       recentOwnWrites.add(newPath);
       setTimeout(() => recentOwnWrites.delete(newPath), 500);
@@ -650,6 +703,15 @@
     if (!confirmed) return;
 
     try {
+      let savedContent = "";
+      let savedDirFiles: { relative_path: string; content: string }[] = [];
+
+      if (isDir) {
+        try { savedDirFiles = await readDirectoryFiles(path); } catch { /* best-effort */ }
+      } else {
+        try { savedContent = await readFileContents(path); } catch { /* best-effort */ }
+      }
+
       // Prevent watcher double-refresh
       recentOwnWrites.add(path);
 
@@ -680,6 +742,12 @@
       }
 
       persistPanes();
+
+      if (isDir) {
+        undoManager.push({ type: "delete-directory", path, files: savedDirFiles, description: `Delete folder ${name}` });
+      } else {
+        undoManager.push({ type: "delete-file", path, content: savedContent, description: `Delete ${name}` });
+      }
 
       // Refresh tree
       await loadTree();
@@ -794,6 +862,14 @@
     }
 
     try {
+      // Push undo action before writing
+      undoManager.push({
+        type: "save-file",
+        path: pane.path,
+        previousContent: pane.content,
+        newContent: result,
+        description: `auto-fix mermaid in ${pane.path.split(/[\\/]/).pop()}`,
+      });
       recentOwnWrites.add(pane.path);
       await writeFileContents(pane.path, result);
       panes = panes.map((p) =>
@@ -804,6 +880,224 @@
     } catch (e) {
       console.error("Failed to save auto-fixed content:", e);
       recentOwnWrites.delete(pane.path);
+    }
+  }
+
+  async function executeUndo() {
+    const action = undoManager.undo();
+    if (!action) return;
+
+    suppressWatcherUntil = Date.now() + 2000;
+
+    try {
+      switch (action.type) {
+        case "create-file": {
+          recentOwnWrites.add(action.path);
+          await deleteFile(action.path);
+          panes = panes.filter((p) => p.path !== action.path);
+          if (!panes.find((p) => p.id === activePaneId)) {
+            activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+          }
+          persistPanes();
+          await loadTree();
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "delete-file": {
+          recentOwnWrites.add(action.path);
+          await writeFileContents(action.path, action.content);
+          await openInActivePane(action.path, false, action.content);
+          await loadTree();
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "delete-directory": {
+          await restoreDirectoryFiles(action.path, action.files);
+          await loadTree();
+          break;
+        }
+        case "rename-file": {
+          const sep = action.oldPath.includes("\\") ? "\\" : "/";
+          const oldName = action.oldPath.split(sep).pop() ?? "";
+          recentOwnWrites.add(action.oldPath);
+          recentOwnWrites.add(action.newPath);
+          await renameFile(action.newPath, oldName);
+          panes = panes.map((p) =>
+            p.path === action.newPath ? { ...p, path: action.oldPath } : p
+          );
+          persistPanes();
+          await loadTree();
+          setTimeout(() => { recentOwnWrites.delete(action.oldPath); recentOwnWrites.delete(action.newPath); }, 2000);
+          break;
+        }
+        case "move-file": {
+          const sep = action.oldPath.includes("\\") ? "\\" : "/";
+          const oldDir = action.oldPath.split(sep).slice(0, -1).join(sep);
+          recentOwnWrites.add(action.oldPath);
+          recentOwnWrites.add(action.newPath);
+          await moveFile(action.newPath, oldDir);
+          panes = panes.map((p) =>
+            p.path === action.newPath ? { ...p, path: action.oldPath } : p
+          );
+          persistPanes();
+          await loadTree();
+          setTimeout(() => { recentOwnWrites.delete(action.oldPath); recentOwnWrites.delete(action.newPath); }, 2000);
+          break;
+        }
+        case "move-directory": {
+          const sep = action.oldPath.includes("\\") ? "\\" : "/";
+          const oldDir = action.oldPath.split(sep).slice(0, -1).join(sep);
+          recentOwnWrites.add(action.oldPath);
+          recentOwnWrites.add(action.newPath);
+          await moveDirectory(action.newPath, oldDir);
+          const oldPrefix = action.newPath + sep;
+          const newPrefix = action.oldPath + sep;
+          panes = panes.map((p) => {
+            if (p.path === action.newPath) return { ...p, path: action.oldPath };
+            if (p.path.startsWith(oldPrefix)) return { ...p, path: newPrefix + p.path.slice(oldPrefix.length) };
+            return p;
+          });
+          persistPanes();
+          await loadTree();
+          setTimeout(() => { recentOwnWrites.delete(action.oldPath); recentOwnWrites.delete(action.newPath); }, 2000);
+          break;
+        }
+        case "save-file": {
+          recentOwnWrites.add(action.path);
+          await writeFileContents(action.path, action.previousContent);
+          panes = panes.map((p) =>
+            p.path === action.path ? { ...p, content: action.previousContent } : p
+          );
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "create-directory": {
+          recentOwnWrites.add(action.path);
+          await deleteDirectory(action.path);
+          if (selectedFolderPath === action.path) selectedFolderPath = "";
+          await loadTree();
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+      }
+      showToast(`Undo: ${action.description}`);
+    } catch (e) {
+      console.error("Undo failed:", e);
+      showToast("Undo failed");
+    }
+  }
+
+  async function executeRedo() {
+    const action = undoManager.redo();
+    if (!action) return;
+
+    suppressWatcherUntil = Date.now() + 2000;
+
+    try {
+      switch (action.type) {
+        case "create-file": {
+          recentOwnWrites.add(action.path);
+          await writeFileContents(action.path, action.content);
+          await openInActivePane(action.path, false, action.content);
+          await loadTree();
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "delete-file": {
+          recentOwnWrites.add(action.path);
+          await deleteFile(action.path);
+          panes = panes.filter((p) => p.path !== action.path);
+          if (!panes.find((p) => p.id === activePaneId)) {
+            activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+          }
+          persistPanes();
+          await loadTree();
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "delete-directory": {
+          recentOwnWrites.add(action.path);
+          await deleteDirectory(action.path);
+          const sep = action.path.includes("\\") ? "\\" : "/";
+          const dirPrefix = action.path.endsWith(sep) ? action.path : action.path + sep;
+          panes = panes.filter((p) => p.path !== action.path && !p.path.startsWith(dirPrefix));
+          if (!panes.find((p) => p.id === activePaneId)) {
+            activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
+          }
+          persistPanes();
+          await loadTree();
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "rename-file": {
+          const sep = action.newPath.includes("\\") ? "\\" : "/";
+          const newName = action.newPath.split(sep).pop() ?? "";
+          recentOwnWrites.add(action.oldPath);
+          recentOwnWrites.add(action.newPath);
+          await renameFile(action.oldPath, newName);
+          panes = panes.map((p) =>
+            p.path === action.oldPath ? { ...p, path: action.newPath } : p
+          );
+          persistPanes();
+          await loadTree();
+          setTimeout(() => { recentOwnWrites.delete(action.oldPath); recentOwnWrites.delete(action.newPath); }, 2000);
+          break;
+        }
+        case "move-file": {
+          const sep = action.newPath.includes("\\") ? "\\" : "/";
+          const newDir = action.newPath.split(sep).slice(0, -1).join(sep);
+          recentOwnWrites.add(action.oldPath);
+          recentOwnWrites.add(action.newPath);
+          await moveFile(action.oldPath, newDir);
+          panes = panes.map((p) =>
+            p.path === action.oldPath ? { ...p, path: action.newPath } : p
+          );
+          persistPanes();
+          await loadTree();
+          setTimeout(() => { recentOwnWrites.delete(action.oldPath); recentOwnWrites.delete(action.newPath); }, 2000);
+          break;
+        }
+        case "move-directory": {
+          const sep = action.newPath.includes("\\") ? "\\" : "/";
+          const newDir = action.newPath.split(sep).slice(0, -1).join(sep);
+          recentOwnWrites.add(action.oldPath);
+          recentOwnWrites.add(action.newPath);
+          await moveDirectory(action.oldPath, newDir);
+          const oldPrefix = action.oldPath + sep;
+          const newPrefix = action.newPath + sep;
+          panes = panes.map((p) => {
+            if (p.path === action.oldPath) return { ...p, path: action.newPath };
+            if (p.path.startsWith(oldPrefix)) return { ...p, path: newPrefix + p.path.slice(oldPrefix.length) };
+            return p;
+          });
+          persistPanes();
+          await loadTree();
+          setTimeout(() => { recentOwnWrites.delete(action.oldPath); recentOwnWrites.delete(action.newPath); }, 2000);
+          break;
+        }
+        case "save-file": {
+          recentOwnWrites.add(action.path);
+          await writeFileContents(action.path, action.newContent);
+          panes = panes.map((p) =>
+            p.path === action.path ? { ...p, content: action.newContent } : p
+          );
+          setTimeout(() => recentOwnWrites.delete(action.path), 2000);
+          break;
+        }
+        case "create-directory": {
+          const sep = action.path.includes("\\") ? "\\" : "/";
+          const parts = action.path.split(sep);
+          const folderName = parts.pop() ?? "";
+          const parentDir = parts.join(sep);
+          await createDirectory(parentDir, folderName);
+          await loadTree();
+          break;
+        }
+      }
+      showToast(`Redo: ${action.description}`);
+    } catch (e) {
+      console.error("Redo failed:", e);
+      showToast("Redo failed");
     }
   }
 
@@ -823,6 +1117,23 @@
     if (event.ctrlKey && event.shiftKey && event.key === "S") {
       event.preventDefault();
       handleSaveAs();
+      return;
+    }
+    // Ctrl+Z: undo (skip if CodeMirror editor is focused)
+    if (event.ctrlKey && !event.shiftKey && event.key === "z") {
+      const active = document.activeElement;
+      if (active && active.closest(".cm-editor")) return;
+      event.preventDefault();
+      executeUndo();
+      return;
+    }
+    // Ctrl+Shift+Z or Ctrl+Y: redo (skip if CodeMirror is focused)
+    if ((event.ctrlKey && event.shiftKey && event.key === "Z") ||
+        (event.ctrlKey && !event.shiftKey && event.key === "y")) {
+      const active = document.activeElement;
+      if (active && active.closest(".cm-editor")) return;
+      event.preventDefault();
+      executeRedo();
       return;
     }
     // Ctrl+= / Ctrl++: zoom in

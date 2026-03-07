@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct FileEntry {
@@ -38,6 +38,12 @@ pub struct RenameFileResult {
 pub struct MoveFileResult {
     pub old_path: String,
     pub new_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectoryFileContent {
+    pub relative_path: String,
+    pub content: String,
 }
 
 #[cfg(test)]
@@ -111,6 +117,25 @@ mod tests {
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("\"old_path\":\"/docs/file.md\""));
         assert!(json.contains("\"new_path\":\"/docs/sub/file.md\""));
+    }
+
+    #[test]
+    fn test_directory_file_content_serializes_to_json() {
+        let content = DirectoryFileContent {
+            relative_path: "sub/note.md".into(),
+            content: "# Note".into(),
+        };
+        let json = serde_json::to_string(&content).unwrap();
+        assert!(json.contains("\"relative_path\":\"sub/note.md\""));
+        assert!(json.contains("\"content\":\"# Note\""));
+    }
+
+    #[test]
+    fn test_directory_file_content_deserializes_from_json() {
+        let json = r##"{"relative_path":"test.md","content":"# Test"}"##;
+        let content: DirectoryFileContent = serde_json::from_str(json).unwrap();
+        assert_eq!(content.relative_path, "test.md");
+        assert_eq!(content.content, "# Test");
     }
 
     #[test]

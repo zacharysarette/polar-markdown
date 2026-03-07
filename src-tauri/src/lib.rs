@@ -259,6 +259,8 @@ pub fn run() {
             commands::filesystem::create_directory,
             commands::filesystem::move_file,
             commands::filesystem::move_directory,
+            commands::filesystem::read_directory_files,
+            commands::filesystem::restore_directory_files,
             commands::filesystem::get_initial_file,
             commands::filesystem::save_theme,
             commands::filesystem::get_initial_folder,

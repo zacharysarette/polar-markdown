@@ -1,4 +1,4 @@
-use crate::models::{CreateFileResult, FileEntry, MoveFileResult, RenameFileResult, SearchMatch, SearchResult};
+use crate::models::{CreateFileResult, DirectoryFileContent, FileEntry, MoveFileResult, RenameFileResult, SearchMatch, SearchResult};
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
@@ -264,7 +264,7 @@ pub fn delete_file(path: String) -> Result<(), String> {
     if path.contains("..") {
         return Err("Invalid file path".into());
     }
-    fs::remove_file(file).map_err(|e| format!("Failed to delete file: {}", e))
+    trash::delete(file).map_err(|e| format!("Failed to delete file: {}", e))
 }
 
 /// Deletes a directory and all its contents recursively.
@@ -281,7 +281,7 @@ pub fn delete_directory(path: String) -> Result<(), String> {
     if path.contains("..") {
         return Err("Invalid directory path".into());
     }
-    fs::remove_dir_all(dir).map_err(|e| format!("Failed to delete directory: {}", e))
+    trash::delete(dir).map_err(|e| format!("Failed to delete directory: {}", e))
 }
 
 /// Creates a new directory inside the given parent directory.
@@ -402,6 +402,75 @@ pub fn move_directory(source_path: String, target_dir: String) -> Result<MoveFil
         old_path: source_path,
         new_path: new_path.to_string_lossy().into_owned(),
     })
+}
+
+/// Reads all .md files in a directory recursively, returning their relative paths and contents.
+/// Used to capture directory contents before deletion for undo support.
+#[tauri::command]
+pub fn read_directory_files(path: String) -> Result<Vec<DirectoryFileContent>, String> {
+    let base = Path::new(&path);
+    if !base.exists() || !base.is_dir() {
+        return Err(format!("Directory does not exist: {}", path));
+    }
+
+    let mut files = Vec::new();
+
+    for entry in WalkDir::new(base)
+        .into_iter()
+        .filter_entry(|e| {
+            // Always include root; skip hidden entries below root
+            e.path() == base || !e.file_name().to_string_lossy().starts_with('.')
+        })
+    {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        let entry_path = entry.path();
+        if !entry_path.is_file() {
+            continue;
+        }
+
+        if let Ok(content) = fs::read_to_string(entry_path) {
+            let relative = entry_path
+                .strip_prefix(base)
+                .unwrap_or(entry_path)
+                .to_string_lossy()
+                .to_string();
+            files.push(DirectoryFileContent {
+                relative_path: relative,
+                content,
+            });
+        }
+    }
+
+    Ok(files)
+}
+
+/// Recreates a directory structure and writes files from a saved snapshot.
+/// Used to restore directory contents after undo of a directory delete.
+#[tauri::command]
+pub fn restore_directory_files(base_path: String, files: Vec<DirectoryFileContent>) -> Result<(), String> {
+    let base = Path::new(&base_path);
+
+    // Create the base directory if it doesn't exist
+    fs::create_dir_all(base).map_err(|e| format!("Failed to create directory: {}", e))?;
+
+    for file in &files {
+        let file_path = base.join(&file.relative_path);
+
+        // Create parent directories
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+        }
+
+        fs::write(&file_path, &file.content)
+            .map_err(|e| format!("Failed to write file {}: {}", file.relative_path, e))?;
+    }
+
+    Ok(())
 }
 
 /// Returns the file path passed via CLI args (if any), consuming it so subsequent calls return None.
@@ -1277,5 +1346,124 @@ mod tests {
         let result = delete_directory(evil_path);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid"));
+    }
+
+    // read_directory_files tests
+
+    #[test]
+    fn test_read_directory_files_returns_all_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("sub");
+        fs::create_dir(&sub).unwrap();
+        fs::write(dir.path().join("readme.md"), "# README").unwrap();
+        fs::write(sub.join("note.md"), "# Note").unwrap();
+
+        let result = read_directory_files(dir.path().to_string_lossy().to_string()).unwrap();
+        assert_eq!(result.len(), 2);
+
+        let paths: Vec<&str> = result.iter().map(|f| f.relative_path.as_str()).collect();
+        assert!(paths.iter().any(|p| p.ends_with("readme.md")));
+        assert!(paths.iter().any(|p| p.contains("sub") && p.ends_with("note.md")));
+    }
+
+    #[test]
+    fn test_read_directory_files_skips_hidden() {
+        let dir = tempfile::tempdir().unwrap();
+        let hidden = dir.path().join(".hidden");
+        fs::create_dir(&hidden).unwrap();
+        fs::write(hidden.join("secret.md"), "secret").unwrap();
+        fs::write(dir.path().join("visible.md"), "visible").unwrap();
+
+        let result = read_directory_files(dir.path().to_string_lossy().to_string()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].relative_path, "visible.md");
+    }
+
+    #[test]
+    fn test_read_directory_files_nonexistent() {
+        let result = read_directory_files("/nonexistent/dir".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_directory_files_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = read_directory_files(dir.path().to_string_lossy().to_string()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    // restore_directory_files tests
+
+    #[test]
+    fn test_restore_directory_files_creates_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().join("restored");
+
+        let files = vec![
+            crate::models::DirectoryFileContent {
+                relative_path: "readme.md".into(),
+                content: "# README".into(),
+            },
+            crate::models::DirectoryFileContent {
+                relative_path: "sub/note.md".into(),
+                content: "# Note".into(),
+            },
+        ];
+
+        let result = restore_directory_files(base.to_string_lossy().to_string(), files);
+        assert!(result.is_ok());
+        assert_eq!(fs::read_to_string(base.join("readme.md")).unwrap(), "# README");
+        assert_eq!(fs::read_to_string(base.join("sub/note.md")).unwrap(), "# Note");
+    }
+
+    #[test]
+    fn test_restore_directory_files_creates_base_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().join("new-folder");
+
+        let files = vec![
+            crate::models::DirectoryFileContent {
+                relative_path: "file.md".into(),
+                content: "content".into(),
+            },
+        ];
+
+        assert!(!base.exists());
+        let result = restore_directory_files(base.to_string_lossy().to_string(), files);
+        assert!(result.is_ok());
+        assert!(base.exists());
+        assert!(base.join("file.md").exists());
+    }
+
+    #[test]
+    fn test_restore_directory_files_empty_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().join("empty-restore");
+
+        let result = restore_directory_files(base.to_string_lossy().to_string(), vec![]);
+        assert!(result.is_ok());
+        assert!(base.exists());
+    }
+
+    #[test]
+    fn test_read_then_restore_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        let sub = source.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(source.join("root.md"), "# Root").unwrap();
+        fs::write(sub.join("nested.md"), "# Nested").unwrap();
+
+        // Read
+        let files = read_directory_files(source.to_string_lossy().to_string()).unwrap();
+        assert_eq!(files.len(), 2);
+
+        // Restore to a new location
+        let dest = dir.path().join("restored");
+        let result = restore_directory_files(dest.to_string_lossy().to_string(), files);
+        assert!(result.is_ok());
+
+        assert_eq!(fs::read_to_string(dest.join("root.md")).unwrap(), "# Root");
+        assert_eq!(fs::read_to_string(dest.join("sub/nested.md")).unwrap(), "# Nested");
     }
 }
