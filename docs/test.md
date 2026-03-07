@@ -411,4 +411,21 @@ Glacimark tracks file operations so you can undo mistakes with **Ctrl+Z** and re
 
 ---
 
+## Table of Contents
+
+Press **Ctrl+T** to toggle the Table of Contents pane. The TOC appears as a grid pane on the left side of the content area.
+
+### Test Scenarios
+
+1. **Toggle TOC** -- press Ctrl+T: a TOC pane should appear on the left side of the content area showing all headings from this document
+2. **Click an entry** -- click any heading in the TOC: the viewer should scroll to that section and the TOC highlight should stay stable (no jitter during scroll)
+3. **Active heading tracking** -- scroll through the document: after ~1 second, the currently visible heading should be highlighted in the TOC
+4. **Switch panes** -- open a different file in another pane, then switch back: the TOC should update to reflect the active pane's content
+5. **Close TOC** -- click the x button on the TOC pane header, or press Ctrl+T again: the TOC pane should close and file panes should expand to fill the space
+6. **Persistence** -- close and reopen the app: the TOC visibility state should be remembered
+7. **Does not count toward pane limit** -- open 4 file panes, then toggle TOC: the TOC should appear alongside all 4 panes
+8. **Duplicate headings** -- this file has a "Test Scenarios" heading under both "Table of Contents" and other sections: clicking each one in the TOC should scroll to the correct one
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

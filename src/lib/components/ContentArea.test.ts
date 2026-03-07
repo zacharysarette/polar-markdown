@@ -79,7 +79,7 @@ vi.mock("codemirror", () => ({
 }));
 
 import ContentArea from "./ContentArea.svelte";
-import type { OpenPane, LayoutMode } from "../types";
+import type { OpenPane, LayoutMode, TocEntry } from "../types";
 
 function makePane(id: string, path: string, content: string): OpenPane {
   return { id, path, content };
@@ -413,5 +413,88 @@ describe("ContentArea", () => {
     });
 
     vi.useRealTimers();
+  });
+
+  it("renders TOC pane when tocVisible is true", async () => {
+    const tocEntries: TocEntry[] = [
+      { text: "Heading One", slug: "heading-one", depth: 1 },
+    ];
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+        tocVisible: true,
+        tocEntries,
+        activeTocSlug: "",
+        ontocselect: vi.fn(),
+        ontocclose: vi.fn(),
+        tocFileName: "readme.md",
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Heading One")).toBeInTheDocument();
+      expect(screen.getByText("TOC: readme.md")).toBeInTheDocument();
+    });
+  });
+
+  it("does not render TOC pane when tocVisible is false", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+        tocVisible: false,
+        tocEntries: [{ text: "Heading", slug: "heading", depth: 1 }],
+        ontocselect: vi.fn(),
+        ontocclose: vi.fn(),
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Heading")).not.toBeInTheDocument();
+    });
+  });
+
+  it("grid has extra column when TOC visible", async () => {
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+        tocVisible: true,
+        tocEntries: [{ text: "H", slug: "h", depth: 1 }],
+        ontocselect: vi.fn(),
+        ontocclose: vi.fn(),
+      },
+    });
+
+    await vi.waitFor(() => {
+      const contentArea = document.querySelector(".content-area") as HTMLElement;
+      expect(contentArea.style.gridTemplateColumns).toContain("220px");
+    });
+  });
+
+  it("close button on TOC triggers ontocclose", async () => {
+    const ontocclose = vi.fn();
+    render(ContentArea, {
+      props: {
+        panes: [makePane("1", "/docs/readme.md", "# Hello")],
+        activePaneId: "1",
+        layoutMode: "centered" as LayoutMode,
+        tocVisible: true,
+        tocEntries: [{ text: "H", slug: "h", depth: 1 }],
+        ontocselect: vi.fn(),
+        ontocclose,
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTitle("Close TOC (Ctrl+T)")).toBeInTheDocument();
+    });
+
+    await fireEvent.click(screen.getByTitle("Close TOC (Ctrl+T)"));
+    expect(ontocclose).toHaveBeenCalledOnce();
   });
 });

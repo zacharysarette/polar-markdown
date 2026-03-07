@@ -102,7 +102,13 @@ export function slugify(text: string): string {
 // Track duplicate heading slugs for unique IDs within a single render
 let slugCounts = new Map<string, number>();
 
-function getUniqueSlug(slug: string): string {
+/** Reset the slug deduplication counter. Call before processing a new document. */
+export function resetSlugCounts(): void {
+  slugCounts = new Map<string, number>();
+}
+
+/** Get a unique slug, appending -1, -2, etc. for duplicates. Shared by markdown renderer and TOC. */
+export function getUniqueSlug(slug: string): string {
   const count = slugCounts.get(slug) ?? 0;
   slugCounts.set(slug, count + 1);
   return count === 0 ? slug : `${slug}-${count}`;

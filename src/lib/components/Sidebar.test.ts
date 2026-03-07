@@ -408,4 +408,5 @@ describe("Sidebar", () => {
     expect(screen.getByText("readme.md")).toBeInTheDocument();
     expect(screen.queryByText("other.md")).not.toBeInTheDocument();
   });
+
 });

@@ -13,6 +13,7 @@ const THEME_KEY = "glacimark:theme";
 const LINE_NUMBERS_KEY = "glacimark:line-numbers";
 const LINE_WRAPPING_KEY = "glacimark:line-wrapping";
 const ZOOM_LEVEL_KEY = "glacimark:zoom-level";
+const TOC_VISIBLE_KEY = "glacimark:toc-visible";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -146,5 +147,19 @@ export function getZoomLevel(): number {
     return 1.0;
   } catch {
     return 1.0;
+  }
+}
+
+export function saveTocVisible(visible: boolean): void {
+  localStorage.setItem(TOC_VISIBLE_KEY, JSON.stringify(visible));
+}
+
+export function getTocVisible(): boolean {
+  const stored = localStorage.getItem(TOC_VISIBLE_KEY);
+  if (!stored) return false;
+  try {
+    return JSON.parse(stored) === true;
+  } catch {
+    return false;
   }
 }

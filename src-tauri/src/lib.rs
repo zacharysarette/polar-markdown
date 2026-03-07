@@ -233,7 +233,14 @@ pub fn run() {
             // Set native window background color to match saved theme, then show.
             // Window starts hidden (tauri.conf.json visible:false) so the user
             // never sees the wrong color — we paint the right one before showing.
-            if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+            // Try "main" first (Tauri default label), then fall back to any window.
+            let window = tauri::Manager::get_webview_window(app, "main")
+                .or_else(|| {
+                    tauri::Manager::webview_windows(app)
+                        .into_values()
+                        .next()
+                });
+            if let Some(window) = window {
                 let color = match read_saved_theme(app) {
                     Some(t) if t == "glacier" => tauri::webview::Color(0xf4, 0xf7, 0xfb, 0xff),
                     _ => tauri::webview::Color(0x1a, 0x1b, 0x26, 0xff),

@@ -24,6 +24,7 @@
     scrollToId = "",
     zoomLevel = 1.0,
     onautofix,
+    onactiveheadingchange,
   }: {
     content?: string;
     filePath?: string;
@@ -42,6 +43,7 @@
     scrollToId?: string;
     zoomLevel?: number;
     onautofix?: () => void;
+    onactiveheadingchange?: (slug: string) => void;
   } = $props();
 
   let htmlContent = $state("");
@@ -54,6 +56,8 @@
   let cachedBlocks: HTMLElement[] | undefined;
   // Timestamp of last search-driven scroll — active line scroll is suppressed briefly after
   let lastSearchScrollTime = 0;
+  // Timestamp until which IntersectionObserver heading updates are suppressed (TOC scroll lock)
+  let tocScrollLockUntil = 0;
 
   function signalContentReady() {
     if (contentReadyTimer) clearTimeout(contentReadyTimer);
@@ -447,11 +451,52 @@
     const frame = requestAnimationFrame(() => {
       const target = el.querySelector(`#${CSS.escape(id)}`);
       if (target) {
+        tocScrollLockUntil = Date.now() + 1000;
         target.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     });
 
     return () => cancelAnimationFrame(frame);
+  });
+
+  // Track active heading via IntersectionObserver for TOC highlighting
+  $effect(() => {
+    const el = articleEl;
+    const _html = htmlContent;
+    const callback = onactiveheadingchange;
+    if (!el || !_html || !callback) return;
+
+    const headings = el.querySelectorAll("h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]");
+    if (headings.length === 0) return;
+
+    const visibleIds = new Set<string>();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).id;
+          if (entry.isIntersecting) {
+            visibleIds.add(id);
+          } else {
+            visibleIds.delete(id);
+          }
+        }
+        // Suppress updates during TOC-initiated scroll to prevent jitter
+        if (Date.now() < tocScrollLockUntil) return;
+        // Find the topmost visible heading in DOM order
+        for (const heading of headings) {
+          if (visibleIds.has((heading as HTMLElement).id)) {
+            callback((heading as HTMLElement).id);
+            return;
+          }
+        }
+      },
+      { root: el, rootMargin: "-10% 0px -80% 0px", threshold: 0 }
+    );
+
+    headings.forEach((h) => observer.observe(h));
+
+    return () => observer.disconnect();
   });
 
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");

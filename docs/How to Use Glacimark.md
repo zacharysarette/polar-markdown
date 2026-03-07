@@ -322,6 +322,19 @@ Glacimark watches your folder for changes in real time. If you edit a markdown f
 
 ---
 
+## Table of Contents
+
+Press **Ctrl+T** to toggle the Table of Contents pane. The TOC appears as a dedicated panel on the left side of the content area (next to your file panes), auto-generated from the headings in the currently active file.
+
+- **Click** any heading in the TOC to scroll the viewer to that section
+- The **active heading** (the one currently visible in the viewport) is highlighted in the TOC — after clicking a TOC entry, the highlight stays stable during the smooth scroll (no jitter)
+- **Switch panes** and the TOC updates to reflect the new pane's headings
+- The TOC pane does **not** count toward the 4-pane limit — it's a utility panel
+- **Close** the TOC with the **x** button on its header, or press **Ctrl+T** again
+- TOC visibility is remembered across sessions
+
+---
+
 ## Zoom
 
 You can zoom the text content in and out for readability. Zoom applies to both the markdown viewer and the code editor.
@@ -350,6 +363,7 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+S** | Save immediately (in edit mode) |
 | **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
+| **Ctrl+T** | Toggle Table of Contents panel |
 | **Ctrl+Shift+F** | Auto-fix mermaid diagrams (in edit mode) |
 | **Ctrl+Z** | Undo last file operation (create, delete, rename, move, save) |
 | **Ctrl+Shift+Z** / **Ctrl+Y** | Redo last undone operation |

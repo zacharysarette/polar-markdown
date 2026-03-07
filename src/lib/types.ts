@@ -48,6 +48,12 @@ export type UndoAction =
   | { type: "create-directory"; path: string; description: string }
   | { type: "save-file"; path: string; previousContent: string; newContent: string; description: string };
 
+export interface TocEntry {
+  text: string;
+  slug: string;
+  depth: number;
+}
+
 export interface SearchMatch {
   line_number: number;
   line_content: string;
