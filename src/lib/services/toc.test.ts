@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { extractHeadings } from "./toc";
+import { renderMarkdown } from "./markdown";
 
 describe("extractHeadings", () => {
   it("returns empty array for empty content", () => {
@@ -65,5 +66,35 @@ describe("extractHeadings", () => {
     const result = extractHeadings(content);
     expect(result).toHaveLength(6);
     expect(result.map(e => e.depth)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("produces slugs matching renderMarkdown heading IDs for duplicate headings", async () => {
+    const content = "## API\n\nSome text.\n\n## API\n\nMore text.\n\n## API\n\nEven more.";
+    const tocEntries = extractHeadings(content);
+    const html = await renderMarkdown(content);
+
+    // Extract IDs from rendered HTML
+    const idMatches = [...html.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
+
+    expect(tocEntries.map(e => e.slug)).toEqual(idMatches);
+  });
+
+  it("produces slugs matching renderMarkdown for mixed headings with duplicates", async () => {
+    const content = "# Title\n\n## Section\n\n## Section\n\n### Details\n\n## Section";
+    const tocEntries = extractHeadings(content);
+    const html = await renderMarkdown(content);
+
+    const idMatches = [...html.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
+
+    expect(tocEntries.map(e => e.slug)).toEqual(idMatches);
+  });
+
+  it("does not accumulate stale slug state across multiple calls", () => {
+    const content = "## API\n\n## API";
+    const result1 = extractHeadings(content);
+    const result2 = extractHeadings(content);
+
+    expect(result1.map(e => e.slug)).toEqual(["api", "api-1"]);
+    expect(result2.map(e => e.slug)).toEqual(["api", "api-1"]);
   });
 });

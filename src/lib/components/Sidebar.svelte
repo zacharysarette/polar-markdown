@@ -1,8 +1,7 @@
 <script lang="ts">
-  import type { FileEntry, SearchResult, ThemeType, TocEntry } from "../types";
+  import type { FileEntry, SearchResult, ThemeType } from "../types";
   import FileTree from "./FileTree.svelte";
   import SearchResults from "./SearchResults.svelte";
-  import TableOfContents from "./TableOfContents.svelte";
   import { dragSourcePath, resetDragSource } from "./FileTreeItem.svelte";
 
   import type { SortMode } from "../services/sort";
@@ -50,11 +49,6 @@
     theme = "aurora" as ThemeType,
     onthemetoggle,
     loading = false,
-    tocVisible = false,
-    ontoctoggle,
-    tocEntries = [] as TocEntry[],
-    activeTocSlug = "",
-    ontocselect,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -98,11 +92,6 @@
     theme?: ThemeType;
     onthemetoggle?: () => void;
     loading?: boolean;
-    tocVisible?: boolean;
-    ontoctoggle?: () => void;
-    tocEntries?: TocEntry[];
-    activeTocSlug?: string;
-    ontocselect?: (slug: string) => void;
   } = $props();
 
   const sortLabels: Record<SortMode, string> = {
@@ -211,11 +200,6 @@
           {sortLabels[sortMode]}
         </button>
       {/if}
-      {#if ontoctoggle}
-        <button class="toc-toggle-btn" class:active={tocVisible} onclick={ontoctoggle} title="Table of Contents (Ctrl+T)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-        </button>
-      {/if}
       {#if onhelp}
         <button class="help-btn" class:help-active={helpActive} onclick={onhelp} title="Help">?</button>
       {/if}
@@ -266,10 +250,6 @@
       {:else}
         <SearchResults results={searchResults} query={searchQuery} onselect={handleSearchSelect} />
       {/if}
-    </div>
-  {:else if tocVisible && !searchMode && ontocselect}
-    <div class="sidebar-content">
-      <TableOfContents entries={tocEntries} activeSlug={activeTocSlug} onselect={ontocselect} />
     </div>
   {:else}
     {#if creatingFile}
@@ -400,30 +380,6 @@
 
   .sort-btn:hover {
     background: var(--accent-hover);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .toc-toggle-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    padding: 3px 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
-  }
-
-  .toc-toggle-btn:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .toc-toggle-btn.active {
-    background: var(--accent-active);
     border-color: var(--accent);
     color: var(--accent);
   }

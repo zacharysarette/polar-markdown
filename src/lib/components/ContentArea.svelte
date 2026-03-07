@@ -1,7 +1,8 @@
 <script lang="ts">
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import EditablePane from "./EditablePane.svelte";
-  import type { OpenPane, LayoutMode, ThemeType } from "../types";
+  import TocPane from "./TocPane.svelte";
+  import type { OpenPane, LayoutMode, ThemeType, TocEntry } from "../types";
   import logoUrl from "../../../img/logo.png";
 
   let {
@@ -25,6 +26,13 @@
     onautofix,
     onviewerautofix,
     onactiveheadingchange,
+    tocVisible = false,
+    tocEntries = [] as TocEntry[],
+    activeTocSlug = "",
+    ontocselect,
+    ontocclose,
+    ontoctoggle,
+    tocFileName = "",
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -46,6 +54,13 @@
     onautofix?: (fixCount: number) => void;
     onviewerautofix?: () => void;
     onactiveheadingchange?: (slug: string) => void;
+    tocVisible?: boolean;
+    tocEntries?: TocEntry[];
+    activeTocSlug?: string;
+    ontocselect?: (slug: string) => void;
+    ontocclose?: () => void;
+    ontoctoggle?: () => void;
+    tocFileName?: string;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -66,8 +81,11 @@
 {:else}
   <div
     class="content-area"
-    style="grid-template-columns: repeat({panes.length}, 1fr)"
+    style="grid-template-columns: {tocVisible ? '220px ' : ''}repeat({panes.length}, 1fr)"
   >
+    {#if tocVisible && ontocselect && ontocclose}
+      <TocPane entries={tocEntries} activeSlug={activeTocSlug} onselect={ontocselect} onclose={ontocclose} fileName={tocFileName} />
+    {/if}
     {#each panes as pane (pane.id)}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -110,6 +128,16 @@
                 onclick={(e) => { e.stopPropagation(); onsaveas?.(pane.id); }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              </button>
+            {/if}
+            {#if ontoctoggle && pane.id === activePaneId}
+              <button
+                class="toc-toggle-btn"
+                class:active={tocVisible}
+                title="Table of Contents (Ctrl+T)"
+                onclick={(e) => { e.stopPropagation(); ontoctoggle(); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
             {/if}
             <button
@@ -278,6 +306,29 @@
   .save-as-btn:hover {
     color: var(--accent);
     background: var(--accent-hover);
+  }
+
+  .toc-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .toc-toggle-btn:hover {
+    color: var(--accent);
+    background: var(--accent-hover);
+  }
+
+  .toc-toggle-btn.active {
+    color: var(--accent);
+    background: var(--accent-bg);
   }
 
   .copy-path-btn {

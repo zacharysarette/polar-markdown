@@ -56,6 +56,8 @@
   let cachedBlocks: HTMLElement[] | undefined;
   // Timestamp of last search-driven scroll — active line scroll is suppressed briefly after
   let lastSearchScrollTime = 0;
+  // Timestamp until which IntersectionObserver heading updates are suppressed (TOC scroll lock)
+  let tocScrollLockUntil = 0;
 
   function signalContentReady() {
     if (contentReadyTimer) clearTimeout(contentReadyTimer);
@@ -449,6 +451,7 @@
     const frame = requestAnimationFrame(() => {
       const target = el.querySelector(`#${CSS.escape(id)}`);
       if (target) {
+        tocScrollLockUntil = Date.now() + 1000;
         target.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     });
@@ -478,6 +481,8 @@
             visibleIds.delete(id);
           }
         }
+        // Suppress updates during TOC-initiated scroll to prevent jitter
+        if (Date.now() < tocScrollLockUntil) return;
         // Find the topmost visible heading in DOM order
         for (const heading of headings) {
           if (visibleIds.has((heading as HTMLElement).id)) {

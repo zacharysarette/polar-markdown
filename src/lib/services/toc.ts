@@ -1,4 +1,4 @@
-import { slugify } from "./markdown";
+import { slugify, resetSlugCounts, getUniqueSlug } from "./markdown";
 import type { TocEntry } from "../types";
 import { marked } from "marked";
 
@@ -19,16 +19,13 @@ export function extractHeadings(content: string): TocEntry[] {
   if (!content) return [];
 
   const tokens = marked.lexer(content);
-  const slugCounts = new Map<string, number>();
+  resetSlugCounts();
   const entries: TocEntry[] = [];
 
   for (const token of tokens) {
     if (token.type === "heading") {
       const text = stripInlineMarkdown((token as any).text);
-      const baseSlug = slugify((token as any).text);
-      const count = slugCounts.get(baseSlug) ?? 0;
-      slugCounts.set(baseSlug, count + 1);
-      const slug = count === 0 ? baseSlug : `${baseSlug}-${count}`;
+      const slug = getUniqueSlug(slugify((token as any).text));
       entries.push({ text, slug, depth: (token as any).depth });
     }
   }

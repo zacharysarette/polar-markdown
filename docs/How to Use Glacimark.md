@@ -324,13 +324,13 @@ Glacimark watches your folder for changes in real time. If you edit a markdown f
 
 ## Table of Contents
 
-Press **Ctrl+T** or click the **list icon** in the sidebar header to toggle the Table of Contents panel. The TOC is auto-generated from the headings in the currently active file.
+Press **Ctrl+T** to toggle the Table of Contents pane. The TOC appears as a dedicated panel on the left side of the content area (next to your file panes), auto-generated from the headings in the currently active file.
 
 - **Click** any heading in the TOC to scroll the viewer to that section
-- The **active heading** (the one currently visible in the viewport) is highlighted in the TOC
+- The **active heading** (the one currently visible in the viewport) is highlighted in the TOC — after clicking a TOC entry, the highlight stays stable during the smooth scroll (no jitter)
 - **Switch panes** and the TOC updates to reflect the new pane's headings
-- The TOC works in both view mode and edit mode
-- **Search overrides** the TOC — when search mode is active, the sidebar shows search results instead
+- The TOC pane does **not** count toward the 4-pane limit — it's a utility panel
+- **Close** the TOC with the **x** button on its header, or press **Ctrl+T** again
 - TOC visibility is remembered across sessions
 
 ---
