@@ -23,6 +23,8 @@ import {
   getLineWrapping,
   saveZoomLevel,
   getZoomLevel,
+  saveTocVisible,
+  getTocVisible,
 } from "./persistence";
 
 const STORAGE_KEY = "glacimark:last-selected-path";
@@ -269,5 +271,27 @@ describe("saveZoomLevel / getZoomLevel", () => {
     expect(getZoomLevel()).toBe(0.5);
     saveZoomLevel(2.0);
     expect(getZoomLevel()).toBe(2.0);
+  });
+});
+
+describe("saveTocVisible / getTocVisible", () => {
+  it("defaults to false when not stored", () => {
+    expect(getTocVisible()).toBe(false);
+  });
+
+  it("round-trips true", () => {
+    saveTocVisible(true);
+    expect(getTocVisible()).toBe(true);
+  });
+
+  it("round-trips false", () => {
+    saveTocVisible(true);
+    saveTocVisible(false);
+    expect(getTocVisible()).toBe(false);
+  });
+
+  it("returns false for corrupted data", () => {
+    localStorage.setItem("glacimark:toc-visible", "not-json");
+    expect(getTocVisible()).toBe(false);
   });
 });

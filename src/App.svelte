@@ -53,12 +53,15 @@
     getRecentFolders,
     saveZoomLevel,
     getZoomLevel,
+    saveTocVisible,
+    getTocVisible,
   } from "./lib/services/persistence";
   import { setMermaidTheme, setBobDarkMode } from "./lib/services/markdown";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
   import { sortEntries, type SortMode } from "./lib/services/sort";
   import { resetDragSource } from "./lib/components/FileTreeItem.svelte";
-  import type { FileEntry, LayoutMode, OpenPane, SearchResult, ThemeType, UndoAction } from "./lib/types";
+  import { extractHeadings } from "./lib/services/toc";
+  import type { FileEntry, LayoutMode, OpenPane, SearchResult, ThemeType, TocEntry, UndoAction } from "./lib/types";
 
   const MAX_PANES = 4;
   let nextPaneId = 1;
@@ -98,6 +101,8 @@
   let scrollToId = $state("");
   let loading = $state(false);
   let zoomLevel = $state(getZoomLevel());
+  let tocVisible = $state(getTocVisible());
+  let activeTocSlug = $state("");
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.0;
   const ZOOM_STEP = 0.1;
@@ -131,6 +136,10 @@
   let helpActive: boolean = $derived(
     panes.find((p) => p.id === activePaneId)?.readOnly === true
   );
+  let tocEntries: TocEntry[] = $derived.by(() => {
+    const activePane = panes.find((p) => p.id === activePaneId);
+    return activePane?.content ? extractHeadings(activePane.content) : [];
+  });
 
   async function loadTree() {
     if (!docsPath) return;
@@ -836,6 +845,20 @@
     saveZoomLevel(zoomLevel);
   }
 
+  function handleTocToggle() {
+    tocVisible = !tocVisible;
+    saveTocVisible(tocVisible);
+  }
+
+  function handleTocSelect(slug: string) {
+    scrollToId = "";
+    requestAnimationFrame(() => { scrollToId = slug; });
+  }
+
+  function handleActiveHeadingChange(slug: string) {
+    activeTocSlug = slug;
+  }
+
   function showToast(msg: string, duration = 3000) {
     toastMessage = msg;
     toastVisible = true;
@@ -1154,6 +1177,12 @@
       handleZoomReset();
       return;
     }
+    // Ctrl+T: toggle table of contents
+    if (event.ctrlKey && event.key === "t") {
+      event.preventDefault();
+      handleTocToggle();
+      return;
+    }
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
       event.preventDefault();
@@ -1368,8 +1397,8 @@
 </script>
 
 <div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} />
+  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} {tocVisible} ontoctoggle={handleTocToggle} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} />
 </div>
 <Toast message={toastMessage} visible={toastVisible} />
 

@@ -408,4 +408,80 @@ describe("Sidebar", () => {
     expect(screen.getByText("readme.md")).toBeInTheDocument();
     expect(screen.queryByText("other.md")).not.toBeInTheDocument();
   });
+
+  it("renders TOC toggle button when ontoctoggle is provided", () => {
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), ontoctoggle: vi.fn() },
+    });
+    expect(screen.getByTitle("Table of Contents (Ctrl+T)")).toBeInTheDocument();
+  });
+
+  it("calls ontoctoggle when TOC button is clicked", async () => {
+    const ontoctoggle = vi.fn();
+    render(Sidebar, {
+      props: { entries: [], selectedPath: "", onselect: vi.fn(), ontoctoggle },
+    });
+    await fireEvent.click(screen.getByTitle("Table of Contents (Ctrl+T)"));
+    expect(ontoctoggle).toHaveBeenCalledOnce();
+  });
+
+  it("shows TableOfContents when tocVisible is true and searchMode is false", () => {
+    const tocEntries = [
+      { text: "Heading One", slug: "heading-one", depth: 1 },
+    ];
+    render(Sidebar, {
+      props: {
+        entries: [{ name: "file.md", path: "/docs/file.md", is_directory: false, children: [] }],
+        selectedPath: "",
+        onselect: vi.fn(),
+        tocVisible: true,
+        ontoctoggle: vi.fn(),
+        tocEntries,
+        activeTocSlug: "",
+        ontocselect: vi.fn(),
+      },
+    });
+    expect(screen.getByText("Heading One")).toBeInTheDocument();
+    expect(screen.queryByText("file.md")).not.toBeInTheDocument();
+  });
+
+  it("shows FileTree when tocVisible is false", () => {
+    const entries = [{ name: "file.md", path: "/docs/file.md", is_directory: false, children: [] }];
+    render(Sidebar, {
+      props: {
+        entries,
+        selectedPath: "",
+        onselect: vi.fn(),
+        tocVisible: false,
+        ontoctoggle: vi.fn(),
+        tocEntries: [{ text: "Heading", slug: "heading", depth: 1 }],
+        ontocselect: vi.fn(),
+      },
+    });
+    expect(screen.getByText("file.md")).toBeInTheDocument();
+  });
+
+  it("search overrides TOC view", () => {
+    const searchResults = [
+      { path: "/docs/readme.md", name: "readme.md", matches: [{ line_number: 1, line_content: "# README" }] },
+    ];
+    render(Sidebar, {
+      props: {
+        entries: [],
+        selectedPath: "",
+        onselect: vi.fn(),
+        searchMode: true,
+        searchQuery: "readme",
+        searchResults,
+        onsearchchange: vi.fn(),
+        onsearchmodechange: vi.fn(),
+        tocVisible: true,
+        ontoctoggle: vi.fn(),
+        tocEntries: [{ text: "Heading", slug: "heading", depth: 1 }],
+        ontocselect: vi.fn(),
+      },
+    });
+    expect(screen.getByText("readme.md")).toBeInTheDocument();
+    expect(screen.queryByText("Heading")).not.toBeInTheDocument();
+  });
 });

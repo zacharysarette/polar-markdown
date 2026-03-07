@@ -24,6 +24,7 @@
     zoomLevel = 1.0,
     onautofix,
     onviewerautofix,
+    onactiveheadingchange,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -44,6 +45,7 @@
     zoomLevel?: number;
     onautofix?: (fixCount: number) => void;
     onviewerautofix?: () => void;
+    onactiveheadingchange?: (slug: string) => void;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -154,6 +156,7 @@
             scrollToId={pane.id === activePaneId ? scrollToId : ""}
             {zoomLevel}
             onautofix={onviewerautofix}
+            onactiveheadingchange={pane.id === activePaneId ? onactiveheadingchange : undefined}
           />
         {/if}
       </div>
