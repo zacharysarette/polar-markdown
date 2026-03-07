@@ -234,6 +234,12 @@ Supported diagram types include flowcharts, sequence diagrams, class diagrams, s
 
 **Editor linting:** In edit mode, mermaid blocks with invalid syntax get a **red wavy underline** directly in the code editor. Hover over the underline to see the specific error message in a tooltip. The lint gutter also shows error markers next to broken blocks. This gives you immediate feedback while typing — no need to switch to view mode to check for errors.
 
+**Auto-fix:** Glacimark can automatically repair common mermaid syntax mistakes — missing diagram type declarations, single-dash arrows (`->` instead of `-->`), bare `graph`/`flowchart` without a direction, and unclosed `subgraph` blocks.
+
+- **In view mode:** When diagrams fail, the status badge shows a "Try Auto-Fix" link. Click it to fix the file on disk and reload.
+- **In edit mode:** Click the wrench button (🔧) in the editor toolbar, or press **Ctrl+Shift+F**, to fix all mermaid blocks in the current file.
+- A toast notification confirms how many issues were fixed (or that none were found).
+
 ---
 
 ## Editing Markdown
@@ -326,6 +332,7 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+S** | Save immediately (in edit mode) |
 | **Ctrl+Shift+S** | Save As — save a copy with a new name/location |
+| **Ctrl+Shift+F** | Auto-fix mermaid diagrams (in edit mode) |
 | **Ctrl+Shift+N** | Open a new window |
 | **Ctrl+Click** | Open file in a new pane |
 | **Ctrl+W** | Close active pane |

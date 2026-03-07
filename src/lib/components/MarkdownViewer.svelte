@@ -23,6 +23,7 @@
     onfilelink,
     scrollToId = "",
     zoomLevel = 1.0,
+    onautofix,
   }: {
     content?: string;
     filePath?: string;
@@ -40,6 +41,7 @@
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
     scrollToId?: string;
     zoomLevel?: number;
+    onautofix?: () => void;
   } = $props();
 
   let htmlContent = $state("");
@@ -464,6 +466,9 @@
           <span class="mermaid-status" class:has-errors={mermaidStatus.errorCount > 0}>
             {#if mermaidStatus.errorCount > 0}
               {mermaidStatus.errorCount} of {mermaidStatus.total} diagram{mermaidStatus.total === 1 ? '' : 's'} failed
+              {#if onautofix}
+                <button class="autofix-link" onclick={onautofix}>Try Auto-Fix</button>
+              {/if}
             {:else}
               {mermaidStatus.total} diagram{mermaidStatus.total === 1 ? '' : 's'} OK
             {/if}
@@ -525,6 +530,20 @@
   .mermaid-status.has-errors {
     color: var(--red);
     background: var(--red-hover);
+  }
+
+  .autofix-link {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 11px;
+    text-decoration: underline;
+    padding: 0 4px;
+  }
+
+  .autofix-link:hover {
+    color: var(--text);
   }
 
   .layout-controls {

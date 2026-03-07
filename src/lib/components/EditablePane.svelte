@@ -4,6 +4,7 @@
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import type { ThemeType } from "../types";
   import { getLineWrapping, saveLineWrapping } from "../services/persistence";
+  import { fixMermaidInMarkdown } from "../services/mermaid-fixer";
 
   let {
     content = "",
@@ -14,6 +15,7 @@
     theme = "aurora" as ThemeType,
     onfilelink,
     zoomLevel = 1.0,
+    onautofix,
   }: {
     content?: string;
     filePath?: string;
@@ -23,6 +25,7 @@
     theme?: ThemeType;
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
     zoomLevel?: number;
+    onautofix?: (fixCount: number) => void;
   } = $props();
 
   let lineWrapping = $state(getLineWrapping());
@@ -123,7 +126,25 @@
     }, 2000);
   }
 
+  function handleAutoFix() {
+    const { result, totalFixes } = fixMermaidInMarkdown(editContent);
+    if (totalFixes === 0) {
+      onautofix?.(0);
+      return;
+    }
+    editContent = result;
+    previewContent = result;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    onsave?.(filePath, editContent);
+    onautofix?.(totalFixes);
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
+    if (event.ctrlKey && event.shiftKey && event.key === "F") {
+      event.preventDefault();
+      handleAutoFix();
+      return;
+    }
     if (event.ctrlKey && event.key === "s") {
       event.preventDefault();
       if (debounceTimer) clearTimeout(debounceTimer);
@@ -156,6 +177,11 @@
     <header class="editor-header">
       <span class="editor-label">Editor</span>
       <span class="editor-controls">
+        <button
+          class="autofix-btn"
+          onclick={handleAutoFix}
+          title="Auto-fix mermaid diagrams (Ctrl+Shift+F)"
+        >&#x1F527;</button>
         <button
           class="wrap-toggle"
           class:active={lineWrapping}
@@ -217,6 +243,22 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .autofix-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 1px 5px;
+    line-height: 1;
+  }
+
+  .autofix-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .wrap-toggle {

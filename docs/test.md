@@ -349,4 +349,49 @@ This is an extremely long line that should demonstrate how line wrapping works i
 
 ---
 
+## Mermaid Auto-Fix
+
+The blocks below are **intentionally broken** to test Glacimark's auto-fix feature. Click "Try Auto-Fix" in the error banner (view mode) or the wrench button / Ctrl+Shift+F (edit mode) to repair them.
+
+### Missing Diagram Type
+
+```mermaid
+A --> B
+B --> C
+```
+
+### Single-Dash Arrows
+
+```mermaid
+graph TD
+  Start -> Process
+  Process -> End
+```
+
+### Bare Graph Keyword (No Direction)
+
+```mermaid
+graph
+  X --> Y
+  Y --> Z
+```
+
+### Unclosed Subgraph
+
+```mermaid
+graph TD
+  subgraph Backend
+    API --> DB
+```
+
+### Combined Issues
+
+```mermaid
+subgraph Services
+  Auth -> Users
+  Users -> DB
+```
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*
