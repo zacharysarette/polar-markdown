@@ -63,8 +63,6 @@
   let mermaidStatus: MermaidRenderResult | null = $state(null);
   let contentReadyTimer: ReturnType<typeof setTimeout> | undefined;
   let diagramDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-  // Cached block elements for active line highlight (invalidated when htmlContent changes)
-  let cachedBlocks: HTMLElement[] | undefined;
   // Timestamp of last search-driven scroll — active line scroll is suppressed briefly after
   let lastSearchScrollTime = 0;
   // Timestamp until which IntersectionObserver heading updates are suppressed (TOC scroll lock)
@@ -76,11 +74,9 @@
   }
 
   $effect(() => {
-    const _lineNumbers = showLineNumbers; // depend on toggle
     if (content) {
-      renderMarkdown(content, filePath, { sourceLineNumbers: showLineNumbers }).then(async (html) => {
+      renderMarkdown(content, filePath, { sourceLineNumbers: true }).then(async (html) => {
         htmlContent = html;
-        cachedBlocks = undefined; // Invalidate block cache on content change
         clearLineHeightCache();
         // Re-apply active line highlight immediately after DOM update.
         // tick() resolves after Svelte updates the DOM but before the browser paints,
@@ -90,7 +86,6 @@
       });
     } else {
       htmlContent = "";
-      cachedBlocks = undefined;
     }
   });
 
@@ -334,15 +329,6 @@
     return false;
   }
 
-  function getBlockCache(): HTMLElement[] {
-    if (!cachedBlocks && articleEl) {
-      const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dd, dt';
-      const allBlocks = Array.from(articleEl.querySelectorAll(blockSelectors));
-      cachedBlocks = allBlocks.filter(b => !b.closest('pre')) as HTMLElement[];
-    }
-    return cachedBlocks ?? [];
-  }
-
   // Shared function to apply active line highlight to the preview DOM.
   // Called from two places: (1) the cursor-movement $effect, (2) after markdown re-render.
   // When scroll=false (after re-render), we only re-apply the class without scrolling.
@@ -354,25 +340,50 @@
     clearBlockHighlights(el, "active-line-block");
     el.querySelectorAll(".active-line-overlay").forEach(o => o.remove());
 
-    const text = activeLineText;
-    if (!text.trim()) return;
+    if (activeLineNumber < 1) return;
 
     const shouldScroll = scroll && Date.now() - lastSearchScrollTime > 500;
-    const positionRatio = activeTotalLines > 1 ? (activeLineNumber - 1) / (activeTotalLines - 1) : 0;
-    const stripped = stripMarkdownSyntax(text);
-    const cellIndex = getTableCellIndex(text, activeColumn);
 
-    // Strategy 1: Match normal block elements (p, h1-h6, li, td, th, etc.)
-    if (stripped.length >= 2) {
-      const block = findMatchingBlockElement(el, stripped, positionRatio, cellIndex >= 0 ? cellIndex : undefined, getBlockCache());
-      if (block) {
-        block.classList.add("active-line-block");
-        if (shouldScroll) block.scrollIntoView({ behavior: "instant", block: "center" });
+    // Strategy 1: Use data-source-line attributes for precise line-number matching.
+    // Find the element whose source line is closest to (but not greater than) the cursor line.
+    const annotated = el.querySelectorAll("[data-source-line]");
+    if (annotated.length > 0) {
+      let bestEl: HTMLElement | null = null;
+      let bestLine = -1;
+      for (const node of annotated) {
+        const srcLine = parseInt((node as HTMLElement).dataset.sourceLine ?? "", 10);
+        if (isNaN(srcLine)) continue;
+        if (srcLine <= activeLineNumber && srcLine > bestLine) {
+          bestLine = srcLine;
+          bestEl = node as HTMLElement;
+        }
+      }
+      if (bestEl) {
+        // For table rows, refine to the specific cell under the cursor
+        const cellIndex = getTableCellIndex(activeLineText, activeColumn);
+        if (cellIndex >= 0 && bestEl.tagName === "TABLE") {
+          const rows = bestEl.querySelectorAll("tr");
+          // Find the row based on line offset within the table
+          const tableStartLine = bestLine;
+          const lineOffset = activeLineNumber - tableStartLine;
+          // lineOffset 0 = header, 1 = separator, 2+ = data rows
+          if (lineOffset >= 0 && lineOffset < rows.length) {
+            const cells = rows[lineOffset]?.querySelectorAll("td, th");
+            if (cells && cellIndex < cells.length) {
+              bestEl = cells[cellIndex] as HTMLElement;
+            } else if (cells && cells.length > 0) {
+              bestEl = cells[0] as HTMLElement;
+            }
+          }
+        }
+        bestEl.classList.add("active-line-block");
+        if (shouldScroll) bestEl.scrollIntoView({ behavior: "instant", block: "center" });
         return;
       }
     }
 
-    // Strategy 2: Match code blocks and diagrams by raw line text
+    // Strategy 2 (fallback): Match code blocks and diagrams by raw line text
+    const text = activeLineText;
     const rawTrimmed = text.trim();
     if (rawTrimmed.length >= 2) {
       const pre = findMatchingPreElement(el, rawTrimmed);
