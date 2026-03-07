@@ -4,6 +4,8 @@
   import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import ContentArea from "./lib/components/ContentArea.svelte";
+  import Toast from "./lib/components/Toast.svelte";
+  import { fixMermaidInMarkdown } from "./lib/services/mermaid-fixer";
   import {
     readDirectoryTree,
     readFileContents,
@@ -99,6 +101,9 @@
   const recentOwnWrites = new Set<string>();
   let suppressWatcherUntil = 0;
   let savedPaneBeforeHelp: { path: string; content: string; editMode?: boolean } | null = null;
+  let toastMessage = $state("");
+  let toastVisible = $state(false);
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
   // Apply theme to DOM and diagram renderers
   $effect(() => {
@@ -763,6 +768,45 @@
     saveZoomLevel(zoomLevel);
   }
 
+  function showToast(msg: string, duration = 3000) {
+    toastMessage = msg;
+    toastVisible = true;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastVisible = false; }, duration);
+  }
+
+  function handleAutoFix(fixCount: number) {
+    if (fixCount === 0) {
+      showToast("No mermaid issues found");
+    } else {
+      showToast(`Auto-fixed ${fixCount} mermaid issue${fixCount === 1 ? '' : 's'}`);
+    }
+  }
+
+  async function handleViewerAutoFix() {
+    const pane = panes.find((p) => p.id === activePaneId);
+    if (!pane || pane.readOnly) return;
+
+    const { result, totalFixes } = fixMermaidInMarkdown(pane.content);
+    if (totalFixes === 0) {
+      showToast("No mermaid issues found");
+      return;
+    }
+
+    try {
+      recentOwnWrites.add(pane.path);
+      await writeFileContents(pane.path, result);
+      panes = panes.map((p) =>
+        p.path === pane.path ? { ...p, content: result } : p
+      );
+      setTimeout(() => recentOwnWrites.delete(pane.path), 500);
+      showToast(`Auto-fixed ${totalFixes} mermaid issue${totalFixes === 1 ? '' : 's'}`);
+    } catch (e) {
+      console.error("Failed to save auto-fixed content:", e);
+      recentOwnWrites.delete(pane.path);
+    }
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Alt+Enter: toggle fullscreen
     if (event.altKey && event.key === "Enter") {
@@ -1014,8 +1058,9 @@
 
 <div class="app-layout">
   <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} />
 </div>
+<Toast message={toastMessage} visible={toastVisible} />
 
 <style>
   .app-layout {

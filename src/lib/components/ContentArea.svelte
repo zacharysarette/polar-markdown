@@ -22,6 +22,8 @@
     onfilelink,
     scrollToId = "",
     zoomLevel = 1.0,
+    onautofix,
+    onviewerautofix,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -40,6 +42,8 @@
     onfilelink?: (path: string, hash?: string, ctrlKey?: boolean) => void;
     scrollToId?: string;
     zoomLevel?: number;
+    onautofix?: (fixCount: number) => void;
+    onviewerautofix?: () => void;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -134,6 +138,7 @@
             {theme}
             {onfilelink}
             {zoomLevel}
+            {onautofix}
           />
         {:else}
           <MarkdownViewer
@@ -148,6 +153,7 @@
             {onfilelink}
             scrollToId={pane.id === activePaneId ? scrollToId : ""}
             {zoomLevel}
+            onautofix={onviewerautofix}
           />
         {/if}
       </div>
