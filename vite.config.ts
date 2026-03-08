@@ -35,6 +35,7 @@ export default defineConfig(async () => ({
             "@codemirror/language",
             "@codemirror/lint",
             "@lezer/highlight",
+            "@replit/codemirror-vim",
           ],
           highlight: ["highlight.js"],
           marked: ["marked"],

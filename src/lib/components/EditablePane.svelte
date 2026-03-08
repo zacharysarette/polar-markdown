@@ -3,7 +3,7 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import type { ThemeType } from "../types";
-  import { getLineWrapping, saveLineWrapping } from "../services/persistence";
+  import { getLineWrapping, saveLineWrapping, getVimMode, saveVimMode } from "../services/persistence";
   import { fixMermaidInMarkdown } from "../services/mermaid-fixer";
   import { saveImage } from "../services/filesystem";
   import { generateImageFilename, fileToBytes, buildMarkdownImageRef } from "../services/image-paste";
@@ -20,6 +20,7 @@
     onautofix,
     showDocStats = false,
     ondocstatstoggle,
+    onclosepane,
   }: {
     content?: string;
     filePath?: string;
@@ -32,13 +33,40 @@
     onautofix?: (fixCount: number) => void;
     showDocStats?: boolean;
     ondocstatstoggle?: () => void;
+    onclosepane?: () => void;
   } = $props();
 
   let lineWrapping = $state(getLineWrapping());
+  let vimEnabled = $state(getVimMode());
+  let vimMode = $state("");
+  let vimKeyBuffer = $state("");
 
   function toggleLineWrapping() {
     lineWrapping = !lineWrapping;
     saveLineWrapping(lineWrapping);
+  }
+
+  function toggleVim() {
+    vimEnabled = !vimEnabled;
+    saveVimMode(vimEnabled);
+    if (!vimEnabled) { vimMode = ""; vimKeyBuffer = ""; }
+  }
+
+  function handleVimModeChange(mode: string) {
+    vimMode = mode;
+  }
+
+  function handleVimKeyBuffer(keys: string) {
+    vimKeyBuffer = keys;
+  }
+
+  function handleVimCommand(command: string) {
+    if (command === "write") {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      onsave?.(filePath, editContent);
+    } else if (command === "quit") {
+      onclosepane?.();
+    }
   }
 
   let editContent = $state(content);
@@ -206,11 +234,23 @@
           onclick={toggleLineWrapping}
           title={lineWrapping ? "Disable line wrapping" : "Enable line wrapping"}
         >⏎</button>
+        <button
+          class="vim-toggle"
+          class:active={vimEnabled}
+          onclick={toggleVim}
+          title={vimEnabled ? "Disable vim mode" : "Enable vim mode"}
+        >VIM</button>
         <span class="cursor-pos">Ln {activeLineNumber}, Col {activeColumn}</span>
+        {#if vimEnabled}
+          <span class="vim-mode">-- {(vimMode || "NORMAL").toUpperCase()} --</span>
+          {#if vimKeyBuffer}
+            <span class="vim-keys">{vimKeyBuffer}</span>
+          {/if}
+        {/if}
       </span>
     </header>
     <div class="editor-content">
-      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} {zoomLevel} onimagepaste={handleImagePaste} />
+      <MarkdownEditor content={editContent} onchange={handleEdit} {highlightText} {highlightKey} onactiveline={handleActiveLine} {theme} {lineWrapping} {zoomLevel} onimagepaste={handleImagePaste} {vimEnabled} onvimmodechange={handleVimModeChange} onvimkeybuffer={handleVimKeyBuffer} onvimcommand={handleVimCommand} />
     </div>
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -300,10 +340,47 @@
     border-color: var(--accent);
   }
 
+  .vim-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    line-height: 1;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  }
+
+  .vim-toggle:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+  }
+
+  .vim-toggle.active {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
   .cursor-pos {
     font-size: 11px;
     color: var(--text-muted);
     font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  }
+
+  .vim-mode {
+    font-size: 10px;
+    color: var(--green);
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+    font-weight: 600;
+  }
+
+  .vim-keys {
+    font-size: 10px;
+    color: var(--yellow, #e0af68);
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+    font-weight: 600;
   }
 
   .editor-content {

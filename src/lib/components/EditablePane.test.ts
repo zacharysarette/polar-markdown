@@ -15,12 +15,16 @@ vi.mock("../services/filesystem", () => ({
   renderAsciiDiagram: vi.fn(),
 }));
 
-// Mock persistence (needed by EditablePane for line wrapping)
+// Mock persistence (needed by EditablePane for line wrapping + vim mode)
 const mockGetLineWrapping = vi.fn().mockReturnValue(true);
 const mockSaveLineWrapping = vi.fn();
+const mockGetVimMode = vi.fn().mockReturnValue(false);
+const mockSaveVimMode = vi.fn();
 vi.mock("../services/persistence", () => ({
   getLineWrapping: (...args: any[]) => mockGetLineWrapping(...args),
   saveLineWrapping: (...args: any[]) => mockSaveLineWrapping(...args),
+  getVimMode: (...args: any[]) => mockGetVimMode(...args),
+  saveVimMode: (...args: any[]) => mockSaveVimMode(...args),
 }));
 
 // Mock CodeMirror modules (needed by MarkdownEditor)
@@ -593,6 +597,85 @@ describe("EditablePane", () => {
 
       expect(mockSaveLineWrapping).toHaveBeenCalledTimes(2);
       expect(mockSaveLineWrapping).toHaveBeenLastCalledWith(true);
+    });
+  });
+
+  describe("vim mode toggle", () => {
+    beforeEach(() => {
+      mockGetVimMode.mockClear();
+      mockSaveVimMode.mockClear();
+    });
+
+    it("renders a VIM toggle button", () => {
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".vim-toggle");
+      expect(btn).toBeInTheDocument();
+      expect(btn?.textContent).toContain("VIM");
+    });
+
+    it("VIM button has active class when vim is enabled", () => {
+      mockGetVimMode.mockReturnValue(true);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".vim-toggle");
+      expect(btn?.classList.contains("active")).toBe(true);
+    });
+
+    it("VIM button does not have active class when vim is disabled", () => {
+      mockGetVimMode.mockReturnValue(false);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".vim-toggle");
+      expect(btn?.classList.contains("active")).toBe(false);
+    });
+
+    it("clicking VIM toggle calls saveVimMode", async () => {
+      mockGetVimMode.mockReturnValue(false);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const btn = document.querySelector(".vim-toggle")!;
+      await fireEvent.click(btn);
+
+      expect(mockSaveVimMode).toHaveBeenCalledWith(true);
+    });
+
+    it("vim mode indicator is hidden when vim is disabled", () => {
+      mockGetVimMode.mockReturnValue(false);
+      render(EditablePane, {
+        props: {
+          content: "# Hello",
+          filePath: "/docs/test.md",
+          onsave: vi.fn(),
+        },
+      });
+
+      const indicator = document.querySelector(".vim-mode");
+      expect(indicator).not.toBeInTheDocument();
     });
   });
 

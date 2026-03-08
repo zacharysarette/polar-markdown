@@ -27,6 +27,8 @@ import {
   getTocVisible,
   saveDocStatsVisible,
   getDocStatsVisible,
+  saveVimMode,
+  getVimMode,
 } from "./persistence";
 
 const STORAGE_KEY = "glacimark:last-selected-path";
@@ -317,5 +319,27 @@ describe("saveDocStatsVisible / getDocStatsVisible", () => {
   it("returns false for corrupted data", () => {
     localStorage.setItem("glacimark:doc-stats-visible", "not-json");
     expect(getDocStatsVisible()).toBe(false);
+  });
+});
+
+describe("saveVimMode / getVimMode", () => {
+  it("defaults to false when not stored", () => {
+    expect(getVimMode()).toBe(false);
+  });
+
+  it("round-trips true", () => {
+    saveVimMode(true);
+    expect(getVimMode()).toBe(true);
+  });
+
+  it("round-trips false", () => {
+    saveVimMode(true);
+    saveVimMode(false);
+    expect(getVimMode()).toBe(false);
+  });
+
+  it("returns false for corrupted data", () => {
+    localStorage.setItem("glacimark:vim-mode", "not-json");
+    expect(getVimMode()).toBe(false);
   });
 });

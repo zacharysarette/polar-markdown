@@ -499,4 +499,38 @@ Press **Ctrl+I** or click the **Aa** button in the viewer header to toggle the d
 
 ---
 
+## Vim Mode (Editor)
+
+Open this file in **edit mode** (Ctrl+E) to test vim keybindings. Click the **VIM** button in the editor header to toggle vim mode.
+
+### Test Scenarios
+
+1. **Toggle on** -- click the VIM button: it should highlight (accent color), and a mode indicator (`-- NORMAL --`) should appear in the editor header
+2. **Normal mode** -- press `h`, `j`, `k`, `l` to move the cursor; `dd` to delete a line; `yy` to yank, `p` to paste; `w`/`b` for word navigation
+3. **Insert mode** -- press `i`, `a`, or `o` to enter insert mode: the indicator should change to `-- INSERT --`; type normally; press **Escape** to return to normal mode
+4. **Visual mode** -- press `v` for visual selection: the indicator should change to `-- VISUAL --`
+5. **App shortcuts** -- Ctrl+S should still save; Ctrl+E should still exit edit mode (not captured by vim)
+6. **Toggle off** -- click VIM again: normal editing restored, mode indicator disappears, cursor changes from block to bar
+7. **Persistence** -- toggle vim on, close and reopen the app: vim should still be enabled
+
+### Vim Ex Commands
+
+1. **`:w`** -- type `:w` then Enter: file should save immediately (check for no unsaved indicator)
+2. **`:q`** -- type `:q` then Enter: the current pane should close
+3. **`:wq`** -- type `:wq` then Enter: file saves then pane closes
+4. **`:x`** -- same as `:wq`
+5. **`:set rnu`** -- type `:set rnu` then Enter: line numbers change to relative (current line shows absolute, others show distance)
+6. **`:set nornu`** -- type `:set nornu` then Enter: line numbers revert to normal absolute numbering
+
+### Vim Mode Indicator Updates
+
+1. **Normal** -- indicator shows `-- NORMAL --`
+2. **Insert** -- press `i`: indicator changes to `-- INSERT --`
+3. **Visual** -- press `v`: indicator shows `-- VISUAL --`
+4. **Visual Line** -- press `V`: indicator shows `-- VISUAL LINEWISE --`
+5. **Visual Block** -- press `Ctrl+V`: indicator shows `-- VISUAL BLOCKWISE --`
+6. **Replace** -- press `R`: indicator shows `-- REPLACE --`
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

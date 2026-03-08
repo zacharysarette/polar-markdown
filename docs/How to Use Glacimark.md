@@ -314,6 +314,17 @@ You can insert images directly into the editor:
 
 Supported formats: PNG, JPG/JPEG, GIF, WebP. Images are saved with auto-generated filenames (timestamp + random ID) to avoid collisions.
 
+### Vim Mode
+
+Click the **VIM** button in the editor header to toggle vim keybindings. When enabled:
+
+- **Normal mode** — `h`/`j`/`k`/`l` navigation, `dd` delete line, `yy` yank, `p` paste, `w`/`b` word motion
+- **Insert mode** — `i`, `a`, `o` to enter; Escape to return to normal
+- **Visual mode** — `v` for character selection, `V` for line selection
+- A mode indicator (`-- NORMAL --`, `-- INSERT --`, `-- VISUAL --`) appears in the editor header
+- App shortcuts (Ctrl+S, Ctrl+E) still work — vim only captures editor-internal keys
+- The vim setting is remembered across sessions
+
 ### Navigating While Editing
 
 Clicking a file in the sidebar while in edit mode loads the new file into the editor — you stay in edit mode. Click the eye icon or press **Ctrl+E** to return to view mode.
