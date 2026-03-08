@@ -15,6 +15,7 @@ const LINE_WRAPPING_KEY = "glacimark:line-wrapping";
 const ZOOM_LEVEL_KEY = "glacimark:zoom-level";
 const TOC_VISIBLE_KEY = "glacimark:toc-visible";
 const DOC_STATS_VISIBLE_KEY = "glacimark:doc-stats-visible";
+const VIM_MODE_KEY = "glacimark:vim-mode";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -172,6 +173,20 @@ export function saveDocStatsVisible(visible: boolean): void {
 export function getDocStatsVisible(): boolean {
   const stored = localStorage.getItem(DOC_STATS_VISIBLE_KEY);
   if (!stored) return true;
+  try {
+    return JSON.parse(stored) === true;
+  } catch {
+    return false;
+  }
+}
+
+export function saveVimMode(enabled: boolean): void {
+  localStorage.setItem(VIM_MODE_KEY, JSON.stringify(enabled));
+}
+
+export function getVimMode(): boolean {
+  const stored = localStorage.getItem(VIM_MODE_KEY);
+  if (!stored) return false;
   try {
     return JSON.parse(stored) === true;
   } catch {

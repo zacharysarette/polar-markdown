@@ -179,6 +179,7 @@
             {onautofix}
             showDocStats={pane.id === activePaneId ? showDocStats : false}
             ondocstatstoggle={pane.id === activePaneId ? ondocstatstoggle : undefined}
+            onclosepane={() => onclosepane?.(pane.id)}
           />
         {:else}
           <MarkdownViewer

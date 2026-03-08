@@ -2,9 +2,9 @@
 
 ## Project Context
 
-Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live preview, native folder selector, file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`glacimark file.md`), single-instance handling, dual theming (Aurora/Glacier), drag-and-drop file organization, anchor/file link navigation, source line numbers, editor mermaid linting, and bundle code splitting with lazy-loaded dependencies.
+Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a split-pane CodeMirror editor with live previewk, native folder selector, file watching, keyboard navigation, Mermaid diagram rendering, scroll sync, active line highlighting, state persistence via localStorage, OS file associations for `.md` files, CLI support (`glacimark file.md`), single-instance handling, dual theming (Aurora/Glacier), drag-and-drop file organization, anchor/file link navigation, source line numbers, editor mermaid linting, and bundle code splitting with lazy-loaded dependencies.
 
-### Current Version: 0.1.3
+### Current Version: 0.1.5
 
 ### Current Test Count: 641 frontend (23 test files) + 118 Rust = 759 total
 
@@ -66,8 +66,28 @@ All shipped and tested:
 
 ## Known Bugs
 
-- **#23 — File tree does not refresh on new file creation** — When new files are created and updated, the file tree does not always refresh to show the new file. ([GitHub Issue](https://github.com/zacharysarette/glacimark/issues/23))
-- **#30 — Highlights in Editor don't always match on the viewer** — Search highlights in the editor sometimes don't correspond to the correct position in the viewer preview. ([GitHub Issue](https://github.com/zacharysarette/glacimark/issues/30))
+In View Spread mode, Tables overflow into the other columns if too long. Should contain a scroll bar and not overflow.
+
+---
+
+## High Priority
+
+### Vim Motions (Toggle)
+Add optional Vim keybinding mode to the CodeMirror editor via `@replit/codemirror-vim`. Toggle button in the editor header bar (e.g. "VIM" badge or a ⌨ icon) that enables/disables Vim motions. When enabled, the editor supports normal/insert/visual modes with a mode indicator in the status bar (e.g. "-- NORMAL --", "-- INSERT --"). Persisted via localStorage so the setting survives restarts. Should not interfere with app-level shortcuts (Ctrl+S, Ctrl+E, etc.) — only editor-internal navigation and editing.
+
+### Full Application Menu
+Fill out the native top menu bar (File, Edit, View, Help) with proper menu items and working accelerators:
+
+**File:** New File (Ctrl+N), New Window (Ctrl+Shift+N), Open Folder..., Save (Ctrl+S), Save As... (Ctrl+Shift+S), Close Pane (Ctrl+W), Exit
+
+**Edit:** Undo (Ctrl+Z), Redo (Ctrl+Shift+Z), Cut, Copy, Paste, Find (Ctrl+F), Find & Replace (Ctrl+H)
+
+**View:** Toggle Edit Mode (Ctrl+E), Toggle TOC (Ctrl+T), Toggle Doc Stats (Ctrl+I), Toggle Line Numbers, Toggle Line Wrapping, Zoom In (Ctrl+=), Zoom Out (Ctrl+-), Reset Zoom (Ctrl+0), Toggle Fullscreen (Alt+Enter), Toggle Theme
+
+**Help:** Help (opens embedded guide), Rendering Museum (opens test.md), About Glacimark
+
+### About Dialog
+"About Glacimark" menu item opens a native OS dialog (via `tauri-plugin-dialog` `message()`) or a styled modal showing: app name, version (read from `tauri.conf.json` at build time or `app.getVersion()`), tech stack summary, author/repo link, and the Glacimark polar bear mascot emoji.
 
 ---
 
@@ -106,17 +126,24 @@ Standalone Node.js MCP server (`mcp-server/` directory) using `@modelcontextprot
 
 ---
 
+## Low Priority
+
+### Viewer Highlighter Tool
+A colored highlighter for marking up text in the viewer. Select text in the rendered preview, pick a highlight color from a small palette (yellow, green, blue, pink, orange), and the selection gets a persistent colored background. Writes back to the markdown source using the `<mark>` HTML tag with inline styles: `<mark style="background: #fef08a">highlighted text</mark>`. The `<mark>` tag is valid HTML that `marked` passes through by default, so highlights survive re-renders and are portable to other markdown viewers/editors. Color picker appears as a floating toolbar on text selection (similar to Medium/Notion). In edit mode, the raw `<mark>` tags are visible and editable. A "clear highlight" option removes the `<mark>` wrapper from selected text.
+
+---
+
 ## Other Ideas for Future Iterations
 
 - **Split pane resizing** — draggable dividers between panes
 - **Export to PDF** — print/export the rendered markdown
 - **Markdown toolbar** — bold, italic, heading, link buttons above editor
-- **Vim/Emacs keybindings** — CodeMirror 6 extensions
 - **CLI linting script** — `npm run lint:mermaid -- docs/` for CI pipelines
 - **Markdown templates** — new file offers template choices (meeting notes, project plan, etc.)
 - **Highlight.js tree-shaking** — selective language imports to cut ~970 KB chunk to ~100-200 KB
 
 ---
+
 
 ## Self-Documenting Requirement
 
