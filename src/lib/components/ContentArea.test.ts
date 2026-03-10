@@ -497,4 +497,88 @@ describe("ContentArea", () => {
     await fireEvent.click(screen.getByTitle("Close TOC (Ctrl+T)"));
     expect(ontocclose).toHaveBeenCalledOnce();
   });
+
+  describe("table horizontal scroll in multi-pane", () => {
+    const wideTableMd = [
+      "| " + Array.from({ length: 12 }, (_, i) => `Column${i}`).join(" | ") + " |",
+      "| " + Array.from({ length: 12 }, () => "---").join(" | ") + " |",
+      "| " + Array.from({ length: 12 }, (_, i) => `value${i}`).join(" | ") + " |",
+    ].join("\n");
+
+    it("content-area grid constrains multiple panes", async () => {
+      render(ContentArea, {
+        props: {
+          panes: [
+            makePane("1", "/docs/a.md", wideTableMd),
+            makePane("2", "/docs/b.md", wideTableMd),
+          ],
+          activePaneId: "1",
+          layoutMode: "centered" as LayoutMode,
+        },
+      });
+
+      await vi.waitFor(() => {
+        const contentArea = document.querySelector(".content-area");
+        expect(contentArea).not.toBeNull();
+        // Grid template uses minmax(0, 1fr) so panes shrink below content size
+        expect(contentArea!.getAttribute("style")).toContain("repeat(2, minmax(0, 1fr))");
+        const panes = contentArea!.querySelectorAll(".pane");
+        expect(panes.length).toBe(2);
+      });
+    });
+
+    it("each pane renders table-wrapper around tables for scrolling", async () => {
+      render(ContentArea, {
+        props: {
+          panes: [
+            makePane("1", "/docs/a.md", wideTableMd),
+            makePane("2", "/docs/b.md", wideTableMd),
+          ],
+          activePaneId: "1",
+          layoutMode: "centered" as LayoutMode,
+        },
+      });
+
+      await vi.waitFor(() => {
+        const panes = document.querySelectorAll(".pane");
+        expect(panes.length).toBe(2);
+        for (const pane of panes) {
+          const wrapper = pane.querySelector(".table-wrapper");
+          expect(wrapper).not.toBeNull();
+          const table = wrapper!.querySelector("table");
+          expect(table).not.toBeNull();
+        }
+      });
+    });
+
+    it("containment chain is correct: pane > viewer > article > table-wrapper > table", async () => {
+      render(ContentArea, {
+        props: {
+          panes: [
+            makePane("1", "/docs/a.md", wideTableMd),
+            makePane("2", "/docs/b.md", wideTableMd),
+          ],
+          activePaneId: "1",
+          layoutMode: "centered" as LayoutMode,
+        },
+      });
+
+      await vi.waitFor(() => {
+        const panes = document.querySelectorAll(".pane");
+        expect(panes.length).toBe(2);
+        for (const pane of panes) {
+          const viewer = pane.querySelector(".viewer");
+          expect(viewer).not.toBeNull();
+          const article = viewer!.querySelector("article.markdown-body");
+          expect(article).not.toBeNull();
+          const wrapper = article!.querySelector(".table-wrapper");
+          expect(wrapper).not.toBeNull();
+          const table = wrapper!.querySelector("table");
+          expect(table).not.toBeNull();
+          // Table-wrapper must be the direct parent of table
+          expect(table!.parentElement).toBe(wrapper);
+        }
+      });
+    });
+  });
 });

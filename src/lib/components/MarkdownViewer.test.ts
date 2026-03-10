@@ -536,4 +536,70 @@ describe("MarkdownViewer", () => {
       expect(imgs.length).toBe(2);
     });
   });
+
+  describe("table horizontal scroll", () => {
+    const wideTableMd = [
+      "| " + Array.from({ length: 12 }, (_, i) => `Column${i}`).join(" | ") + " |",
+      "| " + Array.from({ length: 12 }, () => "---").join(" | ") + " |",
+      "| " + Array.from({ length: 12 }, (_, i) => `value${i}`).join(" | ") + " |",
+    ].join("\n");
+
+    it("wraps wide tables in a .table-wrapper div", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: wideTableMd, filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const wrapper = container.querySelector(".table-wrapper");
+        expect(wrapper).not.toBeNull();
+        expect(wrapper!.tagName).toBe("DIV");
+        const table = wrapper!.querySelector("table");
+        expect(table).not.toBeNull();
+      });
+    });
+
+    it("table-wrapper is inside .markdown-body article", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: wideTableMd, filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const article = container.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        const wrapper = article!.querySelector(".table-wrapper");
+        expect(wrapper).not.toBeNull();
+      });
+    });
+
+    it("viewer element has .viewer class for overflow containment", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: wideTableMd, filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const viewer = container.querySelector(".viewer");
+        expect(viewer).not.toBeNull();
+        // Verify the containment chain: .viewer > article.markdown-body > .table-wrapper > table
+        const article = viewer!.querySelector("article.markdown-body");
+        expect(article).not.toBeNull();
+        const wrapper = article!.querySelector(".table-wrapper");
+        expect(wrapper).not.toBeNull();
+        const table = wrapper!.querySelector("table");
+        expect(table).not.toBeNull();
+        expect(table!.querySelectorAll("th").length).toBe(12);
+      });
+    });
+
+    it("table-wrapper is the direct parent of the table element", async () => {
+      const { container } = render(MarkdownViewer, {
+        props: { content: wideTableMd, filePath: "/docs/test.md" },
+      });
+
+      await vi.waitFor(() => {
+        const table = container.querySelector("table");
+        expect(table).not.toBeNull();
+        expect(table!.parentElement!.classList.contains("table-wrapper")).toBe(true);
+      });
+    });
+  });
 });

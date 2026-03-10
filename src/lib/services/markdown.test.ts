@@ -631,3 +631,61 @@ describe("wiki-style [[links]]", () => {
     expect(html).toBeDefined();
   });
 });
+
+describe("table wrapper", () => {
+  it("wraps tables in a .table-wrapper div", async () => {
+    const md = "| A | B |\n|---|---|\n| 1 | 2 |";
+    const html = await renderMarkdown(md);
+    expect(html).toContain('<div class="table-wrapper">');
+    expect(html).toContain("</table></div>");
+  });
+
+  it("wraps wide tables with many columns in a .table-wrapper div", async () => {
+    const cols = Array.from({ length: 12 }, (_, i) => `Col${i}`);
+    const header = `| ${cols.join(" | ")} |`;
+    const sep = `| ${cols.map(() => "---").join(" | ")} |`;
+    const row = `| ${cols.map((_, i) => `val${i}`).join(" | ")} |`;
+    const md = `${header}\n${sep}\n${row}`;
+    const html = await renderMarkdown(md);
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    const wrapper = doc.querySelector(".table-wrapper");
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.tagName).toBe("DIV");
+
+    const table = wrapper!.querySelector("table");
+    expect(table).not.toBeNull();
+    expect(table!.querySelectorAll("th").length).toBe(12);
+  });
+
+  it("preserves table attributes when wrapping", async () => {
+    const md = "| A |\n|---|\n| 1 |";
+    const html = await renderMarkdown(md, undefined, { sourceLineNumbers: true });
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    const wrapper = doc.querySelector(".table-wrapper");
+    expect(wrapper).not.toBeNull();
+    const table = wrapper!.querySelector("table");
+    expect(table).not.toBeNull();
+    // Table should have data-source-line attribute from source line numbering
+    expect(table!.hasAttribute("data-source-line")).toBe(true);
+  });
+
+  it("table is the only direct child element of .table-wrapper", async () => {
+    const md = "| A | B |\n|---|---|\n| 1 | 2 |";
+    const html = await renderMarkdown(md);
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    const wrapper = doc.querySelector(".table-wrapper");
+    expect(wrapper).not.toBeNull();
+    const children = wrapper!.children;
+    expect(children.length).toBe(1);
+    expect(children[0].tagName).toBe("TABLE");
+  });
+});

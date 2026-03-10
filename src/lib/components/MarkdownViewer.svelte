@@ -573,6 +573,7 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    min-width: 0;
   }
 
   .viewer-header {
@@ -671,7 +672,9 @@
 
   .markdown-body {
     flex: 1;
+    min-width: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px 32px;
   }
 

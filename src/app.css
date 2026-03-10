@@ -265,10 +265,11 @@ html, body, #app {
 .markdown-body .table-wrapper {
   overflow-x: auto;
   margin-bottom: 1em;
+  break-inside: avoid;
 }
 
 .markdown-body table {
-  width: 100%;
+  min-width: 100%;
   border-collapse: collapse;
 }
 
