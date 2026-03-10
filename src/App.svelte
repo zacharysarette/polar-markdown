@@ -58,12 +58,18 @@
     getTocVisible,
     saveDocStatsVisible,
     getDocStatsVisible,
+    saveTtsVoice,
+    getTtsVoice,
+    saveTtsRate,
+    getTtsRate,
   } from "./lib/services/persistence";
   import { setMermaidTheme, setBobDarkMode } from "./lib/services/markdown";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
   import { sortEntries, type SortMode } from "./lib/services/sort";
   import { resetDragSource } from "./lib/components/FileTreeItem.svelte";
   import { extractHeadings } from "./lib/services/toc";
+  import { extractReadableText, createTtsController } from "./lib/services/tts";
+  import type { TtsState, TtsSegment, TtsController } from "./lib/services/tts";
   import type { FileEntry, LayoutMode, OpenPane, SearchResult, ThemeType, TocEntry, UndoAction } from "./lib/types";
 
   declare const __APP_VERSION__: string;
@@ -111,6 +117,14 @@
   let activeTocSlug = $state("");
   let backlinks: SearchResult[] = $state([]);
   let backlinkDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let ttsActive = $state(false);
+  let ttsState: TtsState = $state("idle");
+  let ttsHighlightLine = $state(-1);
+  let ttsSelectedVoice = $state(getTtsVoice());
+  let ttsRate = $state(getTtsRate());
+  let ttsVoices: SpeechSynthesisVoice[] = $state([]);
+  let ttsSegments: TtsSegment[] = [];
+  let ttsController: TtsController | null = null;
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 2.0;
   const ZOOM_STEP = 0.1;
@@ -200,6 +214,7 @@
   }
 
   async function openInActivePane(path: string, editMode = false, initialContent?: string) {
+    stopTts();
     try {
       const content = initialContent ?? await readFileContents(path);
       if (panes.length === 0) {
@@ -249,6 +264,7 @@
   }
 
   function handleClosePane(id: string) {
+    if (id === activePaneId) stopTts();
     panes = panes.filter((p) => p.id !== id);
     if (activePaneId === id) {
       activePaneId = panes.length > 0 ? panes[panes.length - 1].id : "";
@@ -257,6 +273,7 @@
   }
 
   function handleActivatePane(id: string) {
+    if (id !== activePaneId) stopTts();
     activePaneId = id;
     const pane = panes.find((p) => p.id === id);
     if (pane) saveLastSelectedPath(pane.path);
@@ -265,6 +282,7 @@
   async function handleToggleEdit(id: string) {
     const pane = panes.find((p) => p.id === id);
     if (!pane || pane.readOnly) return;
+    if (id === activePaneId) stopTts();
 
     if (pane.editMode) {
       // Switching from edit → view: reload from disk to show latest
@@ -381,6 +399,7 @@
   }
 
   async function switchToFolder(path: string) {
+    stopTts();
     docsPath = path;
     panes = [];
     activePaneId = "";
@@ -899,6 +918,91 @@
     saveDocStatsVisible(showDocStats);
   }
 
+  function stopTts() {
+    if (ttsController) {
+      ttsController.stop();
+    }
+    ttsState = "idle";
+    ttsHighlightLine = -1;
+  }
+
+  function handleTtsStartReading() {
+    const activePane = panes.find((p) => p.id === activePaneId);
+    if (!activePane || activePane.editMode) return;
+
+    ttsActive = true;
+    handleTtsPlay();
+  }
+
+  function handleTtsPlay() {
+    const activePane = panes.find((p) => p.id === activePaneId);
+    if (!activePane) return;
+
+    ttsSegments = extractReadableText(activePane.content);
+    if (ttsSegments.length === 0) return;
+
+    if (!ttsController) {
+      ttsController = createTtsController({
+        onSegmentChange(index) {
+          if (index < ttsSegments.length) {
+            ttsHighlightLine = ttsSegments[index].sourceLine;
+          }
+        },
+        onStateChange(state) {
+          ttsState = state;
+          if (state === "idle") {
+            ttsHighlightLine = -1;
+          }
+        },
+      });
+    }
+
+    ttsController.play(ttsSegments, ttsSelectedVoice, ttsRate);
+  }
+
+  function handleTtsPause() {
+    ttsController?.pause();
+  }
+
+  function handleTtsResume() {
+    ttsController?.resume();
+  }
+
+  function handleTtsStop() {
+    stopTts();
+  }
+
+  function handleTtsClose() {
+    stopTts();
+    ttsActive = false;
+  }
+
+  function handleTtsVoiceChange(name: string) {
+    ttsSelectedVoice = name;
+    saveTtsVoice(name);
+    ttsController?.setVoice(name);
+  }
+
+  function handleTtsRateChange(rate: number) {
+    ttsRate = rate;
+    saveTtsRate(rate);
+    ttsController?.setRate(rate);
+  }
+
+  function handleTtsToggle() {
+    if (ttsActive) {
+      if (ttsState === "playing") {
+        handleTtsPause();
+      } else if (ttsState === "paused") {
+        handleTtsResume();
+      } else {
+        handleTtsPlay();
+      }
+    } else {
+      handleTtsStartReading();
+    }
+  }
+
   function handleTocSelect(slug: string) {
     scrollToId = "";
     requestAnimationFrame(() => { scrollToId = slug; });
@@ -1292,6 +1396,14 @@
       handleDocStatsToggle();
       return;
     }
+    // Ctrl+Shift+R: TTS read aloud toggle
+    if (event.ctrlKey && event.shiftKey && event.key === "R") {
+      const active = document.activeElement;
+      if (active && active.closest(".cm-editor")) return;
+      event.preventDefault();
+      handleTtsToggle();
+      return;
+    }
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
       event.preventDefault();
@@ -1343,6 +1455,16 @@
     let unlistenMenuToggleTheme: (() => void) | undefined;
     let unlistenMenuRenderingMuseum: (() => void) | undefined;
     let unlistenMenuAbout: (() => void) | undefined;
+    let unlistenMenuReadAloud: (() => void) | undefined;
+
+    // Load speech synthesis voices
+    function loadVoices() {
+      ttsVoices = window.speechSynthesis?.getVoices() ?? [];
+    }
+    loadVoices();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    }
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
@@ -1469,6 +1591,8 @@
             if (pane.editMode) continue;
             if (recentOwnWrites.has(pane.path)) continue;
             if (changedPaths.has(pane.path)) {
+              // Stop TTS if the active pane's content changed externally
+              if (pane.id === activePaneId && ttsActive) stopTts();
               try {
                 const content = await readFileContents(pane.path);
                 panes = panes.map((p) =>
@@ -1517,6 +1641,7 @@
       unlistenMenuToggleTheme = await appWindow.listen("menu-toggle-theme", () => handleThemeToggle());
       unlistenMenuRenderingMuseum = await appWindow.listen("menu-rendering-museum", () => handleRenderingMuseum());
       unlistenMenuAbout = await appWindow.listen("menu-about", () => handleAbout());
+      unlistenMenuReadAloud = await appWindow.listen("menu-read-aloud", () => handleTtsToggle());
 
       // Ensure theme file exists for next launch (handles upgrade from older versions)
       saveThemeFile(theme).catch(() => {});
@@ -1553,6 +1678,11 @@
       unlistenMenuToggleTheme?.();
       unlistenMenuRenderingMuseum?.();
       unlistenMenuAbout?.();
+      unlistenMenuReadAloud?.();
+      stopTts();
+      if (window.speechSynthesis) {
+        window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+      }
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragover", globalDragOver);
       document.removeEventListener("drop", globalDrop);
@@ -1564,7 +1694,7 @@
 
 <div class="app-layout">
   <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} {showDocStats} ondocstatstoggle={handleDocStatsToggle} />
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} {showDocStats} ondocstatstoggle={handleDocStatsToggle} {ttsActive} {ttsState} {ttsHighlightLine} {ttsVoices} {ttsSelectedVoice} {ttsRate} onttsplay={handleTtsPlay} onttspause={handleTtsPause} onttsresume={handleTtsResume} onttsstop={handleTtsStop} onttsclose={handleTtsClose} onttsvoicechange={handleTtsVoiceChange} onttsratechange={handleTtsRateChange} onttsstartreading={handleTtsStartReading} />
 </div>
 <Toast message={toastMessage} visible={toastVisible} />
 

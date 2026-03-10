@@ -223,6 +223,7 @@ pub fn run() {
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-edit", "Toggle Edit Mode", true, Some("CmdOrCtrl+E"))?)
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-toc", "Toggle Table of Contents", true, Some("CmdOrCtrl+T"))?)
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-doc-stats", "Toggle Document Stats", true, Some("CmdOrCtrl+I"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "read-aloud", "Read Aloud", true, Some("CmdOrCtrl+Shift+R"))?)
                 .separator()
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-line-numbers", "Toggle Line Numbers", true, None::<&str>)?)
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-line-wrapping", "Toggle Line Wrapping", true, None::<&str>)?)

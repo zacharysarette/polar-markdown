@@ -16,6 +16,8 @@ const ZOOM_LEVEL_KEY = "glacimark:zoom-level";
 const TOC_VISIBLE_KEY = "glacimark:toc-visible";
 const DOC_STATS_VISIBLE_KEY = "glacimark:doc-stats-visible";
 const VIM_MODE_KEY = "glacimark:vim-mode";
+const TTS_VOICE_KEY = "glacimark:tts-voice";
+const TTS_RATE_KEY = "glacimark:tts-rate";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -191,5 +193,29 @@ export function getVimMode(): boolean {
     return JSON.parse(stored) === true;
   } catch {
     return false;
+  }
+}
+
+export function saveTtsVoice(name: string): void {
+  localStorage.setItem(TTS_VOICE_KEY, name);
+}
+
+export function getTtsVoice(): string {
+  return localStorage.getItem(TTS_VOICE_KEY) ?? "";
+}
+
+export function saveTtsRate(rate: number): void {
+  localStorage.setItem(TTS_RATE_KEY, JSON.stringify(rate));
+}
+
+export function getTtsRate(): number {
+  const stored = localStorage.getItem(TTS_RATE_KEY);
+  if (!stored) return 1.0;
+  try {
+    const val = JSON.parse(stored);
+    if (typeof val === "number" && val >= 0.5 && val <= 2.0) return val;
+    return 1.0;
+  } catch {
+    return 1.0;
   }
 }

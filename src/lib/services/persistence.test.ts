@@ -29,6 +29,10 @@ import {
   getDocStatsVisible,
   saveVimMode,
   getVimMode,
+  saveTtsVoice,
+  getTtsVoice,
+  saveTtsRate,
+  getTtsRate,
 } from "./persistence";
 
 const STORAGE_KEY = "glacimark:last-selected-path";
@@ -341,5 +345,50 @@ describe("saveVimMode / getVimMode", () => {
   it("returns false for corrupted data", () => {
     localStorage.setItem("glacimark:vim-mode", "not-json");
     expect(getVimMode()).toBe(false);
+  });
+});
+
+describe("saveTtsVoice / getTtsVoice", () => {
+  it("returns empty string as default when nothing stored", () => {
+    expect(getTtsVoice()).toBe("");
+  });
+
+  it("round-trips a voice name", () => {
+    saveTtsVoice("Microsoft David");
+    expect(getTtsVoice()).toBe("Microsoft David");
+  });
+
+  it("overwrites a previously saved voice", () => {
+    saveTtsVoice("Voice A");
+    saveTtsVoice("Voice B");
+    expect(getTtsVoice()).toBe("Voice B");
+  });
+});
+
+describe("saveTtsRate / getTtsRate", () => {
+  it("returns 1.0 as the default when nothing stored", () => {
+    expect(getTtsRate()).toBe(1.0);
+  });
+
+  it("round-trips a valid rate", () => {
+    saveTtsRate(1.5);
+    expect(getTtsRate()).toBe(1.5);
+  });
+
+  it("returns 1.0 for out-of-range values", () => {
+    saveTtsRate(5.0);
+    expect(getTtsRate()).toBe(1.0);
+  });
+
+  it("returns 1.0 for corrupted data", () => {
+    localStorage.setItem("glacimark:tts-rate", "not-json");
+    expect(getTtsRate()).toBe(1.0);
+  });
+
+  it("accepts boundary values", () => {
+    saveTtsRate(0.5);
+    expect(getTtsRate()).toBe(0.5);
+    saveTtsRate(2.0);
+    expect(getTtsRate()).toBe(2.0);
   });
 });
