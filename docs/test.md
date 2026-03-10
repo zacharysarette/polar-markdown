@@ -560,4 +560,39 @@ The native menu bar (File, Edit, View, Help) exposes all major features:
 
 ---
 
+## Text-to-Speech Reader
+
+This section tests the built-in document reader. Press Ctrl+Shift+R or click the speaker icon in the viewer header to start reading.
+
+### TTS Test Content
+
+This is a simple paragraph that should be read aloud. It has multiple sentences to test reading flow.
+
+**Bold text** and *italic text* should be read without formatting markers.
+
+> This blockquote should also be read aloud clearly.
+
+- List items should be concatenated and read
+- Second item here
+- Third item with a [link](https://example.com) that keeps the text
+
+| Speaker | Topic |
+| --- | --- |
+| Alice | Introduction |
+| Bob | Conclusion |
+
+```js
+// This code block should be SKIPPED by TTS
+const x = 1;
+```
+
+```mermaid
+graph TD
+    A[Also skipped] --> B[by TTS]
+```
+
+The final paragraph after skipped blocks should resume reading normally.
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

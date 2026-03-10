@@ -511,6 +511,14 @@ pre.mermaid.mermaid-invalid code {
   border-bottom-color: #d32f2f;
 }
 
+/* TTS reading highlight — currently spoken block */
+.tts-reading-block {
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+  transition: background 0.3s ease;
+}
+
 /* Active line highlight — single line within a code block */
 .active-line-overlay {
   background: var(--accent-bg);

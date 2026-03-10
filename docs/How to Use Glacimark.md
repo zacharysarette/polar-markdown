@@ -409,6 +409,43 @@ You can also toggle the stats bar via the **Aa** button in the viewer header (ne
 
 ---
 
+## Read Aloud (Text-to-Speech)
+
+Glacimark can read your documents aloud using the built-in Web Speech API.
+
+### How to Use
+- **Ctrl+Shift+R** — Start reading / pause / resume
+- Click the **speaker icon** in the viewer header
+- Or use the **View > Read Aloud** menu item
+
+### Controls
+When reading is active, a control bar appears below the viewer header with:
+- **Play/Pause** button
+- **Stop** button
+- **Speed selector** (0.5x to 2x)
+- **Voice selector** (all Windows-installed voices)
+- **Close** button to dismiss the reader
+
+### What Gets Read
+- Headings, paragraphs, blockquotes, lists, and tables are read
+- Code blocks, diagrams (mermaid, svgbob), and horizontal rules are skipped
+- Inline formatting (bold, italic, links) is stripped — only clean text is spoken
+
+### Reading Highlight
+The currently-spoken block is highlighted with a blue accent bar in the viewer, and the view auto-scrolls to follow along.
+
+### Settings
+Voice and reading speed selections are persisted across sessions.
+
+### Auto-Stop
+TTS automatically stops when you:
+- Switch files or panes
+- Toggle edit mode
+- Close the active pane
+- Change folders
+
+---
+
 ## Zoom
 
 You can zoom the text content in and out for readability. Zoom applies to both the markdown viewer and the code editor.

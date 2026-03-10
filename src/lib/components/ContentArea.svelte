@@ -3,6 +3,7 @@
   import EditablePane from "./EditablePane.svelte";
   import TocPane from "./TocPane.svelte";
   import type { OpenPane, LayoutMode, ThemeType, TocEntry, SearchResult } from "../types";
+  import type { TtsState } from "../services/tts";
   import logoUrl from "../../../img/logo.png";
 
   let {
@@ -37,6 +38,20 @@
     onbacklinkselect,
     showDocStats = false,
     ondocstatstoggle,
+    ttsActive = false,
+    ttsState = "idle" as TtsState,
+    ttsHighlightLine = -1,
+    ttsVoices = [] as SpeechSynthesisVoice[],
+    ttsSelectedVoice = "",
+    ttsRate = 1.0,
+    onttsplay,
+    onttspause,
+    onttsresume,
+    onttsstop,
+    onttsclose,
+    onttsvoicechange,
+    onttsratechange,
+    onttsstartreading,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -69,6 +84,20 @@
     onbacklinkselect?: (path: string) => void;
     showDocStats?: boolean;
     ondocstatstoggle?: () => void;
+    ttsActive?: boolean;
+    ttsState?: TtsState;
+    ttsHighlightLine?: number;
+    ttsVoices?: SpeechSynthesisVoice[];
+    ttsSelectedVoice?: string;
+    ttsRate?: number;
+    onttsplay?: () => void;
+    onttspause?: () => void;
+    onttsresume?: () => void;
+    onttsstop?: () => void;
+    onttsclose?: () => void;
+    onttsvoicechange?: (name: string) => void;
+    onttsratechange?: (rate: number) => void;
+    onttsstartreading?: () => void;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -200,6 +229,20 @@
             onbacklinkselect={onbacklinkselect}
             showDocStats={pane.id === activePaneId ? showDocStats : false}
             ondocstatstoggle={pane.id === activePaneId ? ondocstatstoggle : undefined}
+            ttsActive={pane.id === activePaneId ? ttsActive : false}
+            ttsState={pane.id === activePaneId ? ttsState : "idle"}
+            ttsHighlightLine={pane.id === activePaneId ? ttsHighlightLine : -1}
+            ttsVoices={pane.id === activePaneId ? ttsVoices : []}
+            ttsSelectedVoice={pane.id === activePaneId ? ttsSelectedVoice : ""}
+            ttsRate={pane.id === activePaneId ? ttsRate : 1.0}
+            onttsplay={pane.id === activePaneId ? onttsplay : undefined}
+            onttspause={pane.id === activePaneId ? onttspause : undefined}
+            onttsresume={pane.id === activePaneId ? onttsresume : undefined}
+            onttsstop={pane.id === activePaneId ? onttsstop : undefined}
+            onttsclose={pane.id === activePaneId ? onttsclose : undefined}
+            onttsvoicechange={pane.id === activePaneId ? onttsvoicechange : undefined}
+            onttsratechange={pane.id === activePaneId ? onttsratechange : undefined}
+            onttsstartreading={pane.id === activePaneId ? onttsstartreading : undefined}
           />
         {/if}
       </div>

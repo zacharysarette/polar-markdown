@@ -7,6 +7,8 @@
   import Backlinks from "./Backlinks.svelte";
   import DiagramOverlay from "./DiagramOverlay.svelte";
   import DocStats from "./DocStats.svelte";
+  import TtsControls from "./TtsControls.svelte";
+  import type { TtsState } from "../services/tts";
   import { computeDocumentStats } from "../services/doc-stats";
   import type { LayoutMode, SearchResult } from "../types";
 
@@ -33,6 +35,20 @@
     onbacklinkselect,
     showDocStats = false,
     ondocstatstoggle,
+    ttsActive = false,
+    ttsState = "idle" as TtsState,
+    ttsHighlightLine = -1,
+    ttsVoices = [] as SpeechSynthesisVoice[],
+    ttsSelectedVoice = "",
+    ttsRate = 1.0,
+    onttsplay,
+    onttspause,
+    onttsresume,
+    onttsstop,
+    onttsclose,
+    onttsvoicechange,
+    onttsratechange,
+    onttsstartreading,
   }: {
     content?: string;
     filePath?: string;
@@ -56,6 +72,20 @@
     onbacklinkselect?: (path: string) => void;
     showDocStats?: boolean;
     ondocstatstoggle?: () => void;
+    ttsActive?: boolean;
+    ttsState?: TtsState;
+    ttsHighlightLine?: number;
+    ttsVoices?: SpeechSynthesisVoice[];
+    ttsSelectedVoice?: string;
+    ttsRate?: number;
+    onttsplay?: () => void;
+    onttspause?: () => void;
+    onttsresume?: () => void;
+    onttsstop?: () => void;
+    onttsclose?: () => void;
+    onttsvoicechange?: (name: string) => void;
+    onttsratechange?: (rate: number) => void;
+    onttsstartreading?: () => void;
   } = $props();
 
   let htmlContent = $state("");
@@ -540,6 +570,37 @@
     return () => observer.disconnect();
   });
 
+  // TTS reading highlight — highlight the block matching the current reading line
+  $effect(() => {
+    const line = ttsHighlightLine;
+    const el = articleEl;
+    if (!el) return;
+
+    // Clear previous TTS highlights
+    el.querySelectorAll(".tts-reading-block").forEach((node) => {
+      node.classList.remove("tts-reading-block");
+    });
+
+    if (line < 1 || !ttsActive) return;
+
+    // Find the element whose data-source-line is closest to (but not greater than) the target line
+    const annotated = el.querySelectorAll("[data-source-line]");
+    let bestEl: HTMLElement | null = null;
+    let bestLine = -1;
+    for (const node of annotated) {
+      const srcLine = parseInt((node as HTMLElement).dataset.sourceLine ?? "", 10);
+      if (isNaN(srcLine)) continue;
+      if (srcLine <= line && srcLine > bestLine) {
+        bestLine = srcLine;
+        bestEl = node as HTMLElement;
+      }
+    }
+    if (bestEl) {
+      bestEl.classList.add("tts-reading-block");
+      bestEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+
   const fileName = $derived(filePath ? filePath.split(/[\\/]/).pop() ?? "" : "");
   const docStats = $derived(content ? computeDocumentStats(content) : null);
 </script>
@@ -565,12 +626,30 @@
           {#if zoomLevel !== 1.0}
             <span class="zoom-indicator">{Math.round(zoomLevel * 100)}%</span>
           {/if}
+          <button class="tts-toggle" class:active={ttsActive} onclick={() => onttsstartreading?.()} title="Read Aloud (Ctrl+Shift+R)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          </button>
           <button class="doc-stats-toggle" class:active={showDocStats} onclick={() => ondocstatstoggle?.()} title="Document statistics (Ctrl+I)">&#x03A3;</button>
           <button class="line-numbers-toggle" class:active={showLineNumbers} onclick={() => onlinenumberschange?.(!showLineNumbers)} title="Toggle source line numbers">1:</button>
           <button class:active={layoutMode === "centered"} onclick={() => onlayoutchange?.("centered")} title="Single column">&#x2261;</button>
           <button class:active={layoutMode === "columns"} onclick={() => onlayoutchange?.("columns")} title="Multi-column">&#x229E;</button>
         </div>
       </header>
+    {/if}
+    {#if ttsActive}
+      <TtsControls
+        state={ttsState}
+        voices={ttsVoices}
+        selectedVoice={ttsSelectedVoice}
+        rate={ttsRate}
+        onplay={onttsplay}
+        onpause={onttspause}
+        onresume={onttsresume}
+        onstop={onttsstop}
+        onclose={onttsclose}
+        onvoicechange={onttsvoicechange}
+        onratechange={onttsratechange}
+      />
     {/if}
     <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleArticleClick} style="font-size: {15 * zoomLevel}px">
       {@html htmlContent}
@@ -676,6 +755,12 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  }
+
+  .tts-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .doc-stats-toggle {
