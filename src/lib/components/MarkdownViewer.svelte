@@ -5,6 +5,7 @@
   import { open } from "@tauri-apps/plugin-shell";
   import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex, clearLineHeightCache } from "../services/highlight";
   import Backlinks from "./Backlinks.svelte";
+  import DiagramOverlay from "./DiagramOverlay.svelte";
   import DocStats from "./DocStats.svelte";
   import { computeDocumentStats } from "../services/doc-stats";
   import type { LayoutMode, SearchResult } from "../types";
@@ -60,6 +61,8 @@
   let htmlContent = $state("");
   let articleEl: HTMLElement | undefined = $state();
   let contentReady = $state(0);
+  let diagramOverlayHtml = $state("");
+  let diagramOverlayVisible = $state(false);
   let mermaidStatus: MermaidRenderResult | null = $state(null);
   let contentReadyTimer: ReturnType<typeof setTimeout> | undefined;
   let diagramDebounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -425,8 +428,24 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  function handleAnchorClick(event: MouseEvent) {
-    const anchor = (event.target as HTMLElement).closest("a");
+  function handleArticleClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+
+    // Diagram expand button
+    if (target.classList.contains("diagram-expand-btn")) {
+      event.preventDefault();
+      const pre = target.closest("pre");
+      if (pre) {
+        const svg = pre.querySelector("svg");
+        if (svg) {
+          diagramOverlayHtml = svg.outerHTML;
+          diagramOverlayVisible = true;
+        }
+      }
+      return;
+    }
+
+    const anchor = target.closest("a");
     if (!anchor) return;
     const href = anchor.getAttribute("href");
     if (!href) return;
@@ -553,11 +572,12 @@
         </div>
       </header>
     {/if}
-    <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleAnchorClick} style="font-size: {15 * zoomLevel}px">
+    <article class="markdown-body" class:centered={layoutMode === "centered"} class:columns={layoutMode === "columns"} class:show-source-lines={showLineNumbers} bind:this={articleEl} onclick={handleArticleClick} style="font-size: {15 * zoomLevel}px">
       {@html htmlContent}
     </article>
     <DocStats stats={docStats} visible={showDocStats} />
     <Backlinks {backlinks} onselect={onbacklinkselect} />
+    <DiagramOverlay svgHtml={diagramOverlayHtml} visible={diagramOverlayVisible} onclose={() => { diagramOverlayVisible = false; }} />
   {:else}
     <div class="empty-state">
       <div class="empty-icon">🏔️</div>

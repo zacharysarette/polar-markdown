@@ -358,6 +358,17 @@ export async function validateMermaidBlocks(): Promise<MermaidDiagnostic[]> {
   return diagnostics;
 }
 
+/** Inject an expand button into a diagram container (pre element with rendered SVG). */
+function injectExpandButton(container: HTMLElement): void {
+  container.style.position = "relative";
+  const btn = document.createElement("button");
+  btn.className = "diagram-expand-btn";
+  btn.title = "View fullscreen";
+  btn.setAttribute("aria-label", "Expand diagram");
+  btn.textContent = "\u26F6";
+  container.appendChild(btn);
+}
+
 let mermaidRenderCounter = 0;
 
 export async function renderMermaidDiagrams(): Promise<MermaidRenderResult> {
@@ -379,6 +390,7 @@ export async function renderMermaidDiagrams(): Promise<MermaidRenderResult> {
       const id = `mermaid-render-${mermaidRenderCounter++}`;
       const { svg } = await mermaid.render(id, text);
       block.innerHTML = svg;
+      injectExpandButton(block);
     } catch (err: any) {
       const errorMsg = err?.message ?? String(err);
       diagnostics.push({ blockIndex: i, error: errorMsg });
@@ -405,6 +417,7 @@ export async function renderBobDiagrams(): Promise<void> {
       el.innerHTML = svg;
       el.classList.remove("bob");
       el.classList.add("bob-rendered");
+      injectExpandButton(el as HTMLElement);
     } catch {
       // Leave as plain text if rendering fails
     }

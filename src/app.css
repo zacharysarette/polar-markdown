@@ -517,6 +517,39 @@ pre.mermaid.mermaid-invalid code {
   border-left: 3px solid var(--accent-outline);
 }
 
+/* Diagram expand button — appears on hover over rendered diagrams */
+.diagram-expand-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  z-index: 10;
+  padding: 0;
+  line-height: 1;
+}
+
+pre:hover > .diagram-expand-btn {
+  opacity: 1;
+}
+
+.diagram-expand-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
 /* Search highlight — block-level fallback when text spans multiple elements */
 .search-highlight-block {
   background: var(--yellow-glow) !important;
