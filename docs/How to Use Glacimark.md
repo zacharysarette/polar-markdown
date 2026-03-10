@@ -424,6 +424,57 @@ Mermaid and svgbob diagrams keep their native size — only text content scales.
 
 ---
 
+## Application Menu
+
+Glacimark has a full native menu bar with four menus exposing all major features:
+
+### File
+
+| Item | Shortcut | Action |
+|---|---|---|
+| New File | Ctrl+N | Create a new markdown file |
+| New Window | Ctrl+Shift+N | Open a new independent window |
+| Open Folder... | — | Pick a folder via native dialog |
+| Save | Ctrl+S | Save the active editor immediately |
+| Save As... | Ctrl+Shift+S | Save a copy with a new name/location |
+| Close Pane | Ctrl+W | Close the active pane |
+| Exit | Alt+F4 | Quit the application |
+
+### Edit
+
+| Item | Shortcut | Action |
+|---|---|---|
+| Undo | Ctrl+Z | Undo last file operation |
+| Redo | Ctrl+Shift+Z | Redo last undone operation |
+| Cut / Copy / Paste / Select All | Standard | Native clipboard operations |
+| Find | Ctrl+F | Open find panel in editor |
+| Find & Replace | Ctrl+H | Open find & replace panel in editor |
+
+### View
+
+| Item | Shortcut | Action |
+|---|---|---|
+| Toggle Edit Mode | Ctrl+E | Switch between view and edit mode |
+| Toggle Table of Contents | Ctrl+T | Show/hide TOC panel |
+| Toggle Document Stats | Ctrl+I | Show/hide stats footer |
+| Toggle Line Numbers | — | Show/hide source line numbers |
+| Toggle Line Wrapping | — | Toggle editor line wrapping |
+| Zoom In | Ctrl+= | Increase text size |
+| Zoom Out | Ctrl+- | Decrease text size |
+| Reset Zoom | Ctrl+0 | Return to 100% zoom |
+| Toggle Fullscreen | Alt+Enter | Enter/exit fullscreen |
+| Toggle Theme | — | Switch between Aurora and Glacier |
+
+### Help
+
+| Item | Action |
+|---|---|
+| Help | Open this user guide |
+| Rendering Museum | Open the rendering test document |
+| About Glacimark | Show version and app info dialog |
+
+---
+
 ## Keyboard Shortcuts
 
 | Key | Action |

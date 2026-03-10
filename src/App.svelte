@@ -66,6 +66,8 @@
   import { extractHeadings } from "./lib/services/toc";
   import type { FileEntry, LayoutMode, OpenPane, SearchResult, ThemeType, TocEntry, UndoAction } from "./lib/types";
 
+  declare const __APP_VERSION__: string;
+
   const MAX_PANES = 4;
   let nextPaneId = 1;
 
@@ -910,6 +912,54 @@
     handleFileLink(path);
   }
 
+  function handleMenuSave() {
+    document.dispatchEvent(new CustomEvent("glacimark-save"));
+  }
+
+  function handleMenuFind() {
+    document.dispatchEvent(new CustomEvent("glacimark-find"));
+  }
+
+  function handleMenuFindReplace() {
+    document.dispatchEvent(new CustomEvent("glacimark-find-replace"));
+  }
+
+  function handleMenuToggleLineWrapping() {
+    document.dispatchEvent(new CustomEvent("glacimark-toggle-line-wrapping"));
+  }
+
+  async function handleRenderingMuseum() {
+    try {
+      const activePane = panes.find((p) => p.id === activePaneId);
+      if (activePane && !activePane.readOnly) {
+        savedPaneBeforeHelp = { path: activePane.path, content: activePane.content, editMode: activePane.editMode };
+      }
+
+      const content = await getMuseumContent();
+      if (panes.length === 0) {
+        const id = createPaneId();
+        panes = [{ id, path: "test.md", content, readOnly: true, editMode: false }];
+        activePaneId = id;
+      } else {
+        panes = panes.map((p) =>
+          p.id === activePaneId
+            ? { ...p, path: "test.md", content, readOnly: true, editMode: false }
+            : p
+        );
+      }
+    } catch (e) {
+      console.error("Failed to load rendering museum:", e);
+    }
+  }
+
+  async function handleAbout() {
+    const { message } = await import("@tauri-apps/plugin-dialog");
+    await message(
+      `Glacimark v${__APP_VERSION__}\n\nA desktop markdown viewer with Mermaid diagram support.\nBuilt with Tauri + Svelte + TypeScript.`,
+      { title: "About Glacimark", kind: "info" }
+    );
+  }
+
   function showToast(msg: string, duration = 3000) {
     toastMessage = msg;
     toastVisible = true;
@@ -1278,6 +1328,21 @@
     let unlistenMenuToggleEdit: (() => void) | undefined;
     let unlistenMenuHelp: (() => void) | undefined;
     let unlistenMenuToggleFullscreen: (() => void) | undefined;
+    let unlistenMenuSave: (() => void) | undefined;
+    let unlistenMenuUndo: (() => void) | undefined;
+    let unlistenMenuRedo: (() => void) | undefined;
+    let unlistenMenuFind: (() => void) | undefined;
+    let unlistenMenuFindReplace: (() => void) | undefined;
+    let unlistenMenuToggleToc: (() => void) | undefined;
+    let unlistenMenuToggleDocStats: (() => void) | undefined;
+    let unlistenMenuToggleLineNumbers: (() => void) | undefined;
+    let unlistenMenuToggleLineWrapping: (() => void) | undefined;
+    let unlistenMenuZoomIn: (() => void) | undefined;
+    let unlistenMenuZoomOut: (() => void) | undefined;
+    let unlistenMenuZoomReset: (() => void) | undefined;
+    let unlistenMenuToggleTheme: (() => void) | undefined;
+    let unlistenMenuRenderingMuseum: (() => void) | undefined;
+    let unlistenMenuAbout: (() => void) | undefined;
 
     // Global keyboard shortcuts
     document.addEventListener("keydown", handleKeyDown);
@@ -1425,6 +1490,33 @@
       unlistenMenuToggleEdit = await appWindow.listen("menu-toggle-edit", () => { if (activePaneId) handleToggleEdit(activePaneId); });
       unlistenMenuHelp = await appWindow.listen("menu-help", () => handleHelp());
       unlistenMenuToggleFullscreen = await appWindow.listen("menu-toggle-fullscreen", () => handleToggleFullscreen());
+      unlistenMenuSave = await appWindow.listen("menu-save", () => handleMenuSave());
+      unlistenMenuUndo = await appWindow.listen("menu-undo", () => {
+        const active = document.activeElement;
+        if (active && active.closest(".cm-editor")) return;
+        executeUndo();
+      });
+      unlistenMenuRedo = await appWindow.listen("menu-redo", () => {
+        const active = document.activeElement;
+        if (active && active.closest(".cm-editor")) return;
+        executeRedo();
+      });
+      unlistenMenuFind = await appWindow.listen("menu-find", () => handleMenuFind());
+      unlistenMenuFindReplace = await appWindow.listen("menu-find-replace", () => handleMenuFindReplace());
+      unlistenMenuToggleToc = await appWindow.listen("menu-toggle-toc", () => handleTocToggle());
+      unlistenMenuToggleDocStats = await appWindow.listen("menu-toggle-doc-stats", () => {
+        const active = document.activeElement;
+        if (active && active.closest(".cm-editor")) return;
+        handleDocStatsToggle();
+      });
+      unlistenMenuToggleLineNumbers = await appWindow.listen("menu-toggle-line-numbers", () => handleLineNumbersChange(!showLineNumbers));
+      unlistenMenuToggleLineWrapping = await appWindow.listen("menu-toggle-line-wrapping", () => handleMenuToggleLineWrapping());
+      unlistenMenuZoomIn = await appWindow.listen("menu-zoom-in", () => handleZoomIn());
+      unlistenMenuZoomOut = await appWindow.listen("menu-zoom-out", () => handleZoomOut());
+      unlistenMenuZoomReset = await appWindow.listen("menu-zoom-reset", () => handleZoomReset());
+      unlistenMenuToggleTheme = await appWindow.listen("menu-toggle-theme", () => handleThemeToggle());
+      unlistenMenuRenderingMuseum = await appWindow.listen("menu-rendering-museum", () => handleRenderingMuseum());
+      unlistenMenuAbout = await appWindow.listen("menu-about", () => handleAbout());
 
       // Ensure theme file exists for next launch (handles upgrade from older versions)
       saveThemeFile(theme).catch(() => {});
@@ -1446,6 +1538,21 @@
       unlistenMenuToggleEdit?.();
       unlistenMenuHelp?.();
       unlistenMenuToggleFullscreen?.();
+      unlistenMenuSave?.();
+      unlistenMenuUndo?.();
+      unlistenMenuRedo?.();
+      unlistenMenuFind?.();
+      unlistenMenuFindReplace?.();
+      unlistenMenuToggleToc?.();
+      unlistenMenuToggleDocStats?.();
+      unlistenMenuToggleLineNumbers?.();
+      unlistenMenuToggleLineWrapping?.();
+      unlistenMenuZoomIn?.();
+      unlistenMenuZoomOut?.();
+      unlistenMenuZoomReset?.();
+      unlistenMenuToggleTheme?.();
+      unlistenMenuRenderingMuseum?.();
+      unlistenMenuAbout?.();
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragover", globalDragOver);
       document.removeEventListener("drop", globalDrop);

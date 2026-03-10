@@ -277,6 +277,27 @@
     }
     activeVimCommandHandler = (cmd) => onvimcommand?.(cmd);
 
+    // Listen for menu-triggered find/replace
+    const { openSearchPanel } = await import("@codemirror/search");
+    function handleGlacimarkFind() {
+      if (view) openSearchPanel(view);
+    }
+    function handleGlacimarkFindReplace() {
+      if (!view) return;
+      openSearchPanel(view);
+      // Toggle the replace field open after the panel renders
+      requestAnimationFrame(() => {
+        const toggle = view.dom.querySelector(".cm-search [name=replace]") as HTMLButtonElement | null;
+        if (toggle && toggle.getAttribute("aria-checked") !== "true") toggle.click();
+      });
+    }
+    document.addEventListener("glacimark-find", handleGlacimarkFind);
+    document.addEventListener("glacimark-find-replace", handleGlacimarkFindReplace);
+    cleanupFindListeners = () => {
+      document.removeEventListener("glacimark-find", handleGlacimarkFind);
+      document.removeEventListener("glacimark-find-replace", handleGlacimarkFindReplace);
+    };
+
     // Expose reconfigure callbacks for $effect blocks
     reconfigureTheme = (t: ThemeType) => {
       if (!view) return;
@@ -389,8 +410,11 @@
     dispatchSearchHighlight?.(text, _key, _content);
   });
 
+  let cleanupFindListeners: (() => void) | null = null;
+
   onDestroy(() => {
     cleanupVimPoller?.();
+    cleanupFindListeners?.();
     activeVimCommandHandler = null;
     view?.destroy();
   });

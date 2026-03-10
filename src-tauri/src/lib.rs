@@ -200,33 +200,67 @@ pub fn run() {
                 .separator()
                 .item(&tauri::menu::MenuItem::with_id(app, "open-folder", "Open Folder...", true, None::<&str>)?)
                 .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?)
                 .item(&tauri::menu::MenuItem::with_id(app, "save-as", "Save As...", true, Some("CmdOrCtrl+Shift+S"))?)
+                .separator()
                 .item(&tauri::menu::MenuItem::with_id(app, "close-pane", "Close Pane", true, Some("CmdOrCtrl+W"))?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "exit", "Exit", true, Some("Alt+F4"))?)
+                .build()?;
+            let edit_menu = tauri::menu::SubmenuBuilder::new(app, "Edit")
+                .item(&tauri::menu::MenuItem::with_id(app, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "redo", "Redo", true, Some("CmdOrCtrl+Shift+Z"))?)
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .select_all()
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "find", "Find", true, Some("CmdOrCtrl+F"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "find-replace", "Find && Replace", true, Some("CmdOrCtrl+H"))?)
                 .build()?;
             let view_menu = tauri::menu::SubmenuBuilder::new(app, "View")
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-edit", "Toggle Edit Mode", true, Some("CmdOrCtrl+E"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-toc", "Toggle Table of Contents", true, Some("CmdOrCtrl+T"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-doc-stats", "Toggle Document Stats", true, Some("CmdOrCtrl+I"))?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-line-numbers", "Toggle Line Numbers", true, None::<&str>)?)
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-line-wrapping", "Toggle Line Wrapping", true, None::<&str>)?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("CmdOrCtrl+="))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "zoom-out", "Zoom Out", true, Some("CmdOrCtrl+-"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "zoom-reset", "Reset Zoom", true, Some("CmdOrCtrl+0"))?)
                 .separator()
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-fullscreen", "Toggle Fullscreen", true, Some("Alt+Enter"))?)
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-theme", "Toggle Theme", true, None::<&str>)?)
                 .build()?;
             let help_menu = tauri::menu::SubmenuBuilder::new(app, "Help")
                 .item(&tauri::menu::MenuItem::with_id(app, "help", "Help", true, None::<&str>)?)
+                .item(&tauri::menu::MenuItem::with_id(app, "rendering-museum", "Rendering Museum", true, None::<&str>)?)
+                .separator()
+                .item(&tauri::menu::MenuItem::with_id(app, "about", "About Glacimark", true, None::<&str>)?)
                 .build()?;
             let menu = tauri::menu::MenuBuilder::new(app)
                 .item(&file_menu)
+                .item(&edit_menu)
                 .item(&view_menu)
                 .item(&help_menu)
                 .build()?;
             app.set_menu(menu)?;
 
-            // Handle menu events: new-window in Rust, everything else forwarded to focused window
+            // Handle menu events: new-window and exit in Rust, everything else forwarded to focused window
             let handle = app.handle().clone();
             app.on_menu_event(move |_app, event| {
                 let id = event.id().0.as_str();
-                if id == "new-window" {
-                    let _ = create_glacimark_window(&handle);
-                } else if let Some(label) = find_focused_window_label(&handle) {
-                    let target = tauri::EventTarget::webview_window(label);
-                    let _ = tauri::Emitter::emit_to(&handle, target, &format!("menu-{}", id), ());
+                match id {
+                    "new-window" => { let _ = create_glacimark_window(&handle); }
+                    "exit" => { handle.exit(0); }
+                    _ => {
+                        if let Some(label) = find_focused_window_label(&handle) {
+                            let target = tauri::EventTarget::webview_window(label);
+                            let _ = tauri::Emitter::emit_to(&handle, target, &format!("menu-{}", id), ());
+                        }
+                    }
                 }
             });
 
