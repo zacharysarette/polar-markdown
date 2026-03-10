@@ -81,7 +81,7 @@ const features: Feature[] = [
 
 ## Mermaid Diagrams
 
-Hover over any rendered diagram (Mermaid or Svgbob) to reveal an expand button in the top-right corner. Click it to open a fullscreen overlay for better viewing of large diagrams. Close with Escape, the X button, or clicking the backdrop.
+Hover over any rendered diagram (Mermaid or Svgbob) to reveal an expand button in the top-right corner. Click it to open a fullscreen overlay for better viewing of large diagrams. Close with Escape, the X button, or clicking the backdrop. The overlay includes zoom controls: use the +/− buttons or Ctrl+=/Ctrl+− to zoom in/out, Ctrl+0 or the "Fit" button to fit the diagram to screen, and Ctrl+Wheel to zoom with the mouse. When zoomed in past the viewport, scroll around to see details.
 
 ### Flowchart
 
