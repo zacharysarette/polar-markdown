@@ -311,7 +311,11 @@ export async function renderMarkdown(content: string, filePath?: string, options
   if (sourceLineNumbersEnabled) {
     const tokens = marked.lexer(content);
     annotateSourceLines(tokens);
-    const html = marked.parser(tokens);
+    let html = marked.parser(tokens);
+    // marked.parser() skips hooks, so apply postprocess manually (table-wrapper wrapping)
+    html = html
+      .replace(/<table([^>]*)>/g, '<div class="table-wrapper"><table$1>')
+      .replace(/<\/table>/g, '</table></div>');
     sourceLineNumbersEnabled = false;
     return html;
   }

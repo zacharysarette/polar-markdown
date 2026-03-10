@@ -89,7 +89,7 @@
 {:else}
   <div
     class="content-area"
-    style="grid-template-columns: {tocVisible ? '220px ' : ''}repeat({panes.length}, 1fr)"
+    style="grid-template-columns: {tocVisible ? '220px ' : ''}repeat({panes.length}, minmax(0, 1fr))"
   >
     {#if tocVisible && ontocselect && ontocclose}
       <TocPane entries={tocEntries} activeSlug={activeTocSlug} onselect={ontocselect} onclose={ontocclose} fileName={tocFileName} />
@@ -218,6 +218,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-width: 0;
     overflow: hidden;
     border-left: 1px solid var(--border);
   }
