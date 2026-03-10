@@ -533,4 +533,29 @@ Open this file in **edit mode** (Ctrl+E) to test vim keybindings. Click the **VI
 
 ---
 
+## Application Menu
+
+The native menu bar (File, Edit, View, Help) exposes all major features:
+
+| Menu | Items |
+|---|---|
+| **File** | New File, New Window, Open Folder, Save, Save As, Close Pane, Exit |
+| **Edit** | Undo, Redo, Cut, Copy, Paste, Select All, Find, Find & Replace |
+| **View** | Toggle Edit Mode, TOC, Doc Stats, Line Numbers, Line Wrapping, Zoom In/Out/Reset, Fullscreen, Theme |
+| **Help** | Help, Rendering Museum, About Glacimark |
+
+### Testing Checklist
+
+1. Click **File > New File** — same as Ctrl+N
+2. Click **File > Save** — saves active editor (only works in edit mode)
+3. Click **Edit > Undo** — undoes last file operation (not editor undo when editor is focused)
+4. Click **Edit > Find** — opens find panel in editor (edit mode only)
+5. Click **View > Toggle Theme** — switches between Aurora and Glacier
+6. Click **View > Toggle Line Wrapping** — toggles editor word wrap (edit mode only)
+7. Click **Help > About Glacimark** — shows version dialog
+8. Click **Help > Rendering Museum** — you're already here!
+9. **Cut/Copy/Paste** — select text in editor, use Edit menu items
+
+---
+
 *This file is a rendering museum — every feature of Glacimark displayed in one place.*

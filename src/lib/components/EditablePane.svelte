@@ -124,9 +124,25 @@
   // Set up scroll sync after mount (RAF ensures child onMount runs first)
   onMount(() => {
     const frame = requestAnimationFrame(setupScrollSync);
+
+    // Listen for menu-triggered save
+    function handleGlacimarkSave() {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      onsave?.(filePath, editContent);
+    }
+    // Listen for menu-triggered line wrapping toggle
+    function handleGlacimarkToggleLineWrapping() {
+      toggleLineWrapping();
+    }
+
+    document.addEventListener("glacimark-save", handleGlacimarkSave);
+    document.addEventListener("glacimark-toggle-line-wrapping", handleGlacimarkToggleLineWrapping);
+
     return () => {
       cancelAnimationFrame(frame);
       cleanupScrollSync?.();
+      document.removeEventListener("glacimark-save", handleGlacimarkSave);
+      document.removeEventListener("glacimark-toggle-line-wrapping", handleGlacimarkToggleLineWrapping);
     };
   });
 

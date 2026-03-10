@@ -61,6 +61,7 @@ All shipped and tested:
 38. **Image Paste/Drop** — Ctrl+V or drag-drop images into editor, auto-saved to `assets/` subfolder with markdown reference insertion
 39. **Copy Path** — right-click context menu to copy full file/folder path to clipboard
 40. **Multiple Windows** — Ctrl+Shift+N for independent windows, each with own sidebar/folder/panes
+41. **Full Application Menu** — File/Edit/View/Help menus with all features exposed, native Cut/Copy/Paste/Select All, About dialog with version from package.json via Vite `define`
 
 ---
 
@@ -75,19 +76,11 @@ In View Spread mode, Tables overflow into the other columns if too long. Should 
 ### Vim Motions (Toggle)
 Add optional Vim keybinding mode to the CodeMirror editor via `@replit/codemirror-vim`. Toggle button in the editor header bar (e.g. "VIM" badge or a ⌨ icon) that enables/disables Vim motions. When enabled, the editor supports normal/insert/visual modes with a mode indicator in the status bar (e.g. "-- NORMAL --", "-- INSERT --"). Persisted via localStorage so the setting survives restarts. Should not interfere with app-level shortcuts (Ctrl+S, Ctrl+E, etc.) — only editor-internal navigation and editing.
 
-### Full Application Menu
-Fill out the native top menu bar (File, Edit, View, Help) with proper menu items and working accelerators:
+### ~~Full Application Menu~~ DONE
+~~Fill out the native top menu bar (File, Edit, View, Help) with proper menu items and working accelerators.~~ Implemented: File (7 items), Edit (9 items incl. native Cut/Copy/Paste/Select All + Find/Replace), View (11 items), Help (3 items incl. About dialog). All accelerators wired. About dialog shows version via Vite `define`.
 
-**File:** New File (Ctrl+N), New Window (Ctrl+Shift+N), Open Folder..., Save (Ctrl+S), Save As... (Ctrl+Shift+S), Close Pane (Ctrl+W), Exit
-
-**Edit:** Undo (Ctrl+Z), Redo (Ctrl+Shift+Z), Cut, Copy, Paste, Find (Ctrl+F), Find & Replace (Ctrl+H)
-
-**View:** Toggle Edit Mode (Ctrl+E), Toggle TOC (Ctrl+T), Toggle Doc Stats (Ctrl+I), Toggle Line Numbers, Toggle Line Wrapping, Zoom In (Ctrl+=), Zoom Out (Ctrl+-), Reset Zoom (Ctrl+0), Toggle Fullscreen (Alt+Enter), Toggle Theme
-
-**Help:** Help (opens embedded guide), Rendering Museum (opens test.md), About Glacimark
-
-### About Dialog
-"About Glacimark" menu item opens a native OS dialog (via `tauri-plugin-dialog` `message()`) or a styled modal showing: app name, version (read from `tauri.conf.json` at build time or `app.getVersion()`), tech stack summary, author/repo link, and the Glacimark polar bear mascot emoji.
+### ~~About Dialog~~ DONE
+~~"About Glacimark" menu item opens a native OS dialog.~~ Implemented as part of the Full Application Menu feature above. Uses `message()` from `@tauri-apps/plugin-dialog` with version injected via `__APP_VERSION__` from `package.json`.
 
 ---
 
