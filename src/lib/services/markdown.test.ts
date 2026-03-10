@@ -20,7 +20,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => `http://asset.localhost/${path.replace(/\\/g, "/")}`),
 }));
 
-import { renderMarkdown, renderMermaidDiagrams, validateMermaidBlocks, getDirectory, resolveImageSrc, slugify, resolvePath } from "./markdown";
+import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams, validateMermaidBlocks, getDirectory, resolveImageSrc, slugify, resolvePath } from "./markdown";
 import type { MermaidDiagnostic } from "./markdown";
 import mermaid from "mermaid";
 
@@ -457,6 +457,28 @@ describe("renderMermaidDiagrams per-block error handling", () => {
     expect(document.querySelector(".mermaid-error")).toBeNull();
   });
 
+  it("injects expand button on successfully rendered mermaid blocks", async () => {
+    document.body.innerHTML = '<pre class="mermaid">flowchart TD\n    A-->B</pre>';
+    vi.mocked(mermaid.parse).mockResolvedValue(true as any);
+    vi.mocked(mermaid.render).mockResolvedValue({ svg: '<svg>rendered</svg>', bindFunctions: vi.fn() } as any);
+
+    await renderMermaidDiagrams();
+
+    const btn = document.querySelector(".diagram-expand-btn");
+    expect(btn).not.toBeNull();
+    expect(btn!.getAttribute("aria-label")).toBe("Expand diagram");
+  });
+
+  it("does not inject expand button on error blocks", async () => {
+    document.body.innerHTML = '<pre class="mermaid">bad diagram</pre>';
+    vi.mocked(mermaid.parse).mockRejectedValue(new Error("Parse error"));
+
+    await renderMermaidDiagrams();
+
+    const btn = document.querySelector(".diagram-expand-btn");
+    expect(btn).toBeNull();
+  });
+
   it("returns result with total and errorCount", async () => {
     document.body.innerHTML =
       '<pre class="mermaid">flowchart TD\n    A-->B</pre>' +
@@ -477,6 +499,24 @@ describe("renderMermaidDiagrams per-block error handling", () => {
     const result = await renderMermaidDiagrams();
     expect(result.total).toBe(0);
     expect(result.errorCount).toBe(0);
+  });
+});
+
+describe("renderBobDiagrams expand button", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("injects expand button on successfully rendered bob blocks", async () => {
+    const { renderAsciiDiagram } = await import("./filesystem");
+    vi.mocked(renderAsciiDiagram).mockResolvedValue('<svg><text>diagram</text></svg>');
+    document.body.innerHTML = '<pre class="bob">+-+\n| |\n+-+</pre>';
+
+    await renderBobDiagrams();
+
+    const btn = document.querySelector(".diagram-expand-btn");
+    expect(btn).not.toBeNull();
+    expect(btn!.getAttribute("aria-label")).toBe("Expand diagram");
   });
 });
 
