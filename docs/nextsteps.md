@@ -6,7 +6,7 @@ Desktop markdown editor built with **Tauri 2.10 + Svelte 5 + TypeScript**. Has a
 
 ### Current Version: 0.1.5
 
-### Current Test Count: 641 frontend (23 test files) + 118 Rust = 759 total
+### Current Test Count: 724 frontend (25 test files) + 118 Rust = 842 total
 
 ### Key Files
 - **Rust backend:** `src-tauri/src/` — `lib.rs`, `models.rs`, `commands/{mod,filesystem,watcher,diagram,jumplist}.rs`
@@ -62,60 +62,18 @@ All shipped and tested:
 39. **Copy Path** — right-click context menu to copy full file/folder path to clipboard
 40. **Multiple Windows** — Ctrl+Shift+N for independent windows, each with own sidebar/folder/panes
 41. **Full Application Menu** — File/Edit/View/Help menus with all features exposed, native Cut/Copy/Paste/Select All, About dialog with version from package.json via Vite `define`
-
----
-
-## Known Bugs
-
-In View Spread mode, Tables overflow into the other columns if too long. Should contain a scroll bar and not overflow.
+42. **Vim Motions** — optional `@replit/codemirror-vim` toggle in editor header, Normal/Insert/Visual modes with indicator, ex commands (`:w`, `:q`, `:wq`, `:set rnu`), persisted
+43. **Copy to Clipboard** — hover-visible copy button on all `<pre>` blocks (code, mermaid, svgbob). Copies source text for diagrams, code text for code blocks. Checkmark feedback on click.
 
 ---
 
 ## High Priority
-
-### Vim Motions (Toggle)
-Add optional Vim keybinding mode to the CodeMirror editor via `@replit/codemirror-vim`. Toggle button in the editor header bar (e.g. "VIM" badge or a ⌨ icon) that enables/disables Vim motions. When enabled, the editor supports normal/insert/visual modes with a mode indicator in the status bar (e.g. "-- NORMAL --", "-- INSERT --"). Persisted via localStorage so the setting survives restarts. Should not interfere with app-level shortcuts (Ctrl+S, Ctrl+E, etc.) — only editor-internal navigation and editing.
 
 ### ~~Full Application Menu~~ DONE
 ~~Fill out the native top menu bar (File, Edit, View, Help) with proper menu items and working accelerators.~~ Implemented: File (7 items), Edit (9 items incl. native Cut/Copy/Paste/Select All + Find/Replace), View (11 items), Help (3 items incl. About dialog). All accelerators wired. About dialog shows version via Vite `define`.
 
 ### ~~About Dialog~~ DONE
 ~~"About Glacimark" menu item opens a native OS dialog.~~ Implemented as part of the Full Application Menu feature above. Uses `message()` from `@tauri-apps/plugin-dialog` with version injected via `__APP_VERSION__` from `package.json`.
-
----
-
-## TODO: MCP Server for Claude Code Integration
-
-### Vision
-Expose Glacimark's capabilities as an MCP server so AI tools like Claude Code can read, write, validate, and search markdown docs programmatically.
-
-### MCP Tools to Expose
-
-| Tool | Description | Maps To |
-|------|-------------|---------|
-| `list_documents` | List all markdown files | `read_directory_tree` |
-| `read_document` | Read a file's contents | `read_file_contents` |
-| `write_document` | Write/update a file | `write_file_contents` |
-| `search_documents` | Full-text search | `search_files` |
-| `validate_mermaid` | Validate mermaid blocks | `mermaid.parse()` |
-| `fix_mermaid` | Auto-fix mermaid errors | `fixMermaidInMarkdown()` |
-| `get_document_outline` | Return heading structure | Parse headings |
-
-### Architecture
-Standalone Node.js MCP server (`mcp-server/` directory) using `@modelcontextprotocol/sdk`. Reads/writes directly to the docs folder. Independent of the Tauri app.
-
-```json
-{
-  "mcpServers": {
-    "glacimark": {
-      "command": "node",
-      "args": ["./mcp-server/dist/index.js", "--docs-path", "./docs"]
-    }
-  }
-}
-```
-
-**Tests:** list_documents, read_document, write_document, validate_mermaid, fix_mermaid, search_documents
 
 ---
 

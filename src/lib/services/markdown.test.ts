@@ -20,7 +20,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => `http://asset.localhost/${path.replace(/\\/g, "/")}`),
 }));
 
-import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams, validateMermaidBlocks, getDirectory, resolveImageSrc, slugify, resolvePath } from "./markdown";
+import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams, validateMermaidBlocks, getDirectory, resolveImageSrc, slugify, resolvePath, injectCopyButtons, handleCopyButtonClick } from "./markdown";
 import type { MermaidDiagnostic } from "./markdown";
 import mermaid from "mermaid";
 
@@ -727,5 +727,113 @@ describe("table wrapper", () => {
     const children = wrapper!.children;
     expect(children.length).toBe(1);
     expect(children[0].tagName).toBe("TABLE");
+  });
+});
+
+describe("injectCopyButtons", () => {
+  it("adds a copy button to each pre element", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<pre><code>hello</code></pre><pre><code>world</code></pre>';
+    injectCopyButtons(container);
+    const buttons = container.querySelectorAll(".code-copy-btn");
+    expect(buttons.length).toBe(2);
+  });
+
+  it("is idempotent — does not add duplicate buttons", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<pre><code>hello</code></pre>';
+    injectCopyButtons(container);
+    injectCopyButtons(container);
+    const buttons = container.querySelectorAll(".code-copy-btn");
+    expect(buttons.length).toBe(1);
+  });
+
+  it("sets position: relative on pre elements", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<pre><code>test</code></pre>';
+    injectCopyButtons(container);
+    const pre = container.querySelector("pre") as HTMLElement;
+    expect(pre.style.position).toBe("relative");
+  });
+
+  it("adds a button with correct class and aria-label", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<pre><code>test</code></pre>';
+    injectCopyButtons(container);
+    const btn = container.querySelector(".code-copy-btn") as HTMLElement;
+    expect(btn).not.toBeNull();
+    expect(btn.getAttribute("aria-label")).toBe("Copy to clipboard");
+    expect(btn.title).toBe("Copy to clipboard");
+  });
+
+  it("button contains an SVG icon", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<pre><code>test</code></pre>';
+    injectCopyButtons(container);
+    const btn = container.querySelector(".code-copy-btn") as HTMLElement;
+    expect(btn.querySelector("svg")).not.toBeNull();
+  });
+});
+
+describe("handleCopyButtonClick", () => {
+  const mockWriteText = vi.fn().mockResolvedValue(undefined);
+
+  beforeEach(() => {
+    mockWriteText.mockClear();
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: mockWriteText },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("copies code element text content", () => {
+    const pre = document.createElement("pre");
+    const code = document.createElement("code");
+    code.textContent = "const x = 1;";
+    pre.appendChild(code);
+    const btn = document.createElement("button");
+    btn.className = "code-copy-btn";
+    pre.appendChild(btn);
+
+    handleCopyButtonClick(btn);
+    expect(mockWriteText).toHaveBeenCalledWith("const x = 1;");
+  });
+
+  it("prefers data-source-text over code textContent", () => {
+    const pre = document.createElement("pre");
+    pre.dataset.sourceText = "graph TD\n  A-->B";
+    pre.innerHTML = "<svg>rendered</svg>";
+    const btn = document.createElement("button");
+    btn.className = "code-copy-btn";
+    pre.appendChild(btn);
+
+    handleCopyButtonClick(btn);
+    expect(mockWriteText).toHaveBeenCalledWith("graph TD\n  A-->B");
+  });
+
+  it("falls back to pre textContent when no code element", () => {
+    const pre = document.createElement("pre");
+    pre.textContent = "plain text";
+    const btn = document.createElement("button");
+    btn.className = "code-copy-btn";
+    pre.appendChild(btn);
+
+    handleCopyButtonClick(btn);
+    expect(mockWriteText).toHaveBeenCalledWith("plain text");
+  });
+
+  it("shows checkmark feedback after copy", async () => {
+    const pre = document.createElement("pre");
+    pre.textContent = "test";
+    const btn = document.createElement("button");
+    btn.className = "code-copy-btn";
+    pre.appendChild(btn);
+
+    handleCopyButtonClick(btn);
+    await vi.waitFor(() => {
+      expect(btn.classList.contains("copied")).toBe(true);
+    });
+    expect(btn.querySelector("svg")).not.toBeNull();
   });
 });

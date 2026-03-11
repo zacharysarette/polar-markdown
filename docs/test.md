@@ -178,6 +178,18 @@ flowchart INVALID
 
 ---
 
+## Copy to Clipboard
+
+Every code block and diagram above has a **copy button** that appears on hover. Test it:
+
+1. **Code block** — hover over any code block above (JavaScript, Rust, etc.): a clipboard icon should appear in the top-right corner. Click it — the icon changes to a green checkmark for 1.5s, and the code text should be on your clipboard.
+2. **Mermaid diagram** — hover over a rendered Mermaid diagram: the copy button appears to the **left** of the expand button. Click it — it copies the original Mermaid source text (e.g. `flowchart TD...`), not the SVG markup.
+3. **Svgbob diagram** — hover over a rendered ASCII art diagram: same behavior, copies the original ASCII art source.
+4. **Theme** — switch between Aurora and Glacier: the button should match both themes.
+5. **Broken mermaid** — the invalid mermaid block above should also have a copy button.
+
+---
+
 ## Tables
 
 ### Compact Table (fits in view)

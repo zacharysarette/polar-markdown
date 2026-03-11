@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams, getDirectory, resolvePath } from "../services/markdown";
+  import { renderMarkdown, renderMermaidDiagrams, renderBobDiagrams, injectCopyButtons, handleCopyButtonClick, getDirectory, resolvePath } from "../services/markdown";
   import type { MermaidRenderResult } from "../services/markdown";
   import { open } from "@tauri-apps/plugin-shell";
   import { extractDiagramLabels, getCodeBlockLineOverlayPosition, stripMarkdownSyntax, findMatchingBlockElement, findMatchingPreElement, clearBlockHighlights, getTableCellIndex, clearLineHeightCache } from "../services/highlight";
@@ -115,6 +115,7 @@
         // tick() resolves after Svelte updates the DOM but before the browser paints,
         // so the highlight is applied in the same frame — no visible flicker.
         await tick();
+        if (articleEl) injectCopyButtons(articleEl);
         applyActiveLineToDOM(false);
       });
     } else {
@@ -138,6 +139,7 @@
           try { await renderBobDiagrams(); } catch {
             // Bob diagram errors are non-fatal
           }
+          if (articleEl) injectCopyButtons(articleEl);
           // Signal that content is ready so highlight effect re-fires
           signalContentReady();
         });
@@ -460,6 +462,14 @@
 
   function handleArticleClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
+
+    // Copy to clipboard button
+    const copyBtn = target.closest(".code-copy-btn") as HTMLElement | null;
+    if (copyBtn) {
+      event.preventDefault();
+      handleCopyButtonClick(copyBtn);
+      return;
+    }
 
     // Diagram expand button
     if (target.classList.contains("diagram-expand-btn")) {

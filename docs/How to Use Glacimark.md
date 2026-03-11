@@ -228,12 +228,12 @@ Clicking a file name in the backlinks panel navigates to that file. Backlinks ar
 The main content area renders your markdown with full formatting support:
 
 - **Headings, lists, tables, blockquotes** — standard markdown
-- **Code blocks** — syntax highlighted with highlight.js, with line numbers in the left gutter
+- **Code blocks** — syntax highlighted with highlight.js, with line numbers in the left gutter. Hover over any code block to reveal a **copy button** in the top-right corner — click to copy the code to your clipboard
 - **Links** — clickable
 - **Anchor links** — `#hash` links (e.g. `[Go to top](#top)`) smooth-scroll to the matching heading within the document. Tables of contents, cross-references, and "Back to top" links all work. Headings automatically get GitHub-flavored IDs (lowercased, spaces become hyphens, special characters stripped). Duplicate headings get `-1`, `-2` suffixes.
 - **File links** — clicking a `.md` link (e.g. `[see notes](notes.md)`) opens that file in the active pane. Ctrl+Click opens it in a new pane. Links with `#section` fragments (e.g. `guide.md#installation`) open the file and scroll to the heading. Relative paths (`../sibling/file.md`, `sub/deep.md`) are resolved correctly.
 - **External links** — clicking an `http://` or `https://` link opens it in your system browser instead of navigating inside the app
-- **Mermaid diagrams** — rendered as live SVG diagrams
+- **Mermaid diagrams** — rendered as live SVG diagrams. Hover to reveal a **copy button** that copies the original mermaid source code (not the SVG)
 
 ### ASCII Art Diagrams (svgbob)
 
