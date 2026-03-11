@@ -558,6 +558,50 @@ pre:hover > .diagram-expand-btn {
   border-color: var(--accent);
 }
 
+/* Copy to clipboard button — appears on hover over code blocks and diagrams */
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  z-index: 10;
+  padding: 0;
+  line-height: 1;
+}
+
+pre:hover > .code-copy-btn {
+  opacity: 1;
+}
+
+.code-copy-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.code-copy-btn.copied {
+  background: var(--green);
+  color: var(--bg-primary);
+  border-color: var(--green);
+  opacity: 1;
+}
+
+/* Shift copy button left when expand button is also present */
+pre:has(.diagram-expand-btn) > .code-copy-btn {
+  right: 44px;
+}
+
 /* Search highlight — block-level fallback when text spans multiple elements */
 .search-highlight-block {
   background: var(--yellow-glow) !important;
