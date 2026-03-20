@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Glacimark",
   "mainBinaryName": "glacimark",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "identifier": "com.glacimark.app",
   "build": {
     "frontendDist": "../dist",
