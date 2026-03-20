@@ -240,11 +240,30 @@ const marked = new Marked({
     list(token: any) {
       const tag = token.ordered ? "ol" : "ul";
       const startAttr = token.ordered && token.start !== 1 ? ` start="${token.start}"` : "";
+      const listStartLine = token._sourceLine ?? 0;
       let body = "";
+      let lineOffset = 0;
       for (const item of token.items) {
+        // Compute each item's source line from the list's start line
+        if (listStartLine > 0) {
+          item._sourceLine = listStartLine + lineOffset;
+        }
         body += (this as any).listitem(item);
+        if (item.raw) {
+          lineOffset += (item.raw.match(/\n/g) || []).length;
+        }
       }
       return `<${tag}${startAttr}${getSourceLineAttr(token)}>\n${body}</${tag}>\n`;
+    },
+    listitem(token: any) {
+      const tokens = token.task ? token.tokens.filter((t: any) => t.type !== 'checkbox') : token.tokens;
+      const content = (this as any).parser.parse(tokens);
+      if (token.task) {
+        const checkedAttr = token.checked ? " checked" : "";
+        const lineAttr = token._sourceLine ? ` data-line="${token._sourceLine}"` : "";
+        return `<li class="task-list-item"><input type="checkbox" class="task-checkbox"${lineAttr}${checkedAttr}> ${content}</li>\n`;
+      }
+      return `<li>${content}</li>\n`;
     },
     table(token: any) {
       let header = "";

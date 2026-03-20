@@ -262,6 +262,38 @@ html, body, #app {
   margin-bottom: 0.25em;
 }
 
+.markdown-body .task-list-item {
+  list-style: none;
+  margin-left: -1.5em;
+}
+
+.markdown-body .task-checkbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: middle;
+  accent-color: var(--accent);
+}
+
+.markdown-body .task-checkbox:checked {
+  accent-color: var(--green);
+}
+
+.markdown-body .task-list-item:has(> .task-checkbox:checked) {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Glacier high-contrast checkbox overrides */
+[data-theme="glacier"] .markdown-body .task-checkbox {
+  accent-color: #2563eb;
+}
+
+[data-theme="glacier"] .markdown-body .task-checkbox:checked {
+  accent-color: #16a34a;
+}
+
 .markdown-body .table-wrapper {
   overflow-x: auto;
   margin-bottom: 1em;

@@ -2,7 +2,7 @@
 
 ## Context
 
-You want a central place to hold all your planning markdown files with the ability to visualize Mermaid diagrams beautifully — like a lightweight, custom viewer that Claude can easily generate content for. The `claude_polar_markdown` folder is currently empty, so we're building from scratch.
+A lightweight desktop markdown viewer with Mermaid diagram support that Claude can easily generate content for. Built from scratch.
 
 **MVP scope:** File tree sidebar + markdown renderer + Mermaid diagrams + live reload. No editor, no search, no graph view — those can come in future iterations.
 

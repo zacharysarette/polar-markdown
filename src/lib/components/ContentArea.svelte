@@ -52,6 +52,7 @@
     onttsvoicechange,
     onttsratechange,
     onttsstartreading,
+    oncheckboxtoggle,
   }: {
     panes?: OpenPane[];
     activePaneId?: string;
@@ -98,6 +99,7 @@
     onttsvoicechange?: (name: string) => void;
     onttsratechange?: (rate: number) => void;
     onttsstartreading?: () => void;
+    oncheckboxtoggle?: (path: string, lineNumber: number, checked: boolean) => void;
   } = $props();
 
   let copiedPaneId = $state("");
@@ -243,6 +245,7 @@
             onttsvoicechange={pane.id === activePaneId ? onttsvoicechange : undefined}
             onttsratechange={pane.id === activePaneId ? onttsratechange : undefined}
             onttsstartreading={pane.id === activePaneId ? onttsstartreading : undefined}
+            oncheckboxtoggle={!pane.readOnly && oncheckboxtoggle ? (lineNumber: number, checked: boolean) => oncheckboxtoggle(pane.path, lineNumber, checked) : undefined}
           />
         {/if}
       </div>

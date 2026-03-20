@@ -49,6 +49,7 @@
     onttsvoicechange,
     onttsratechange,
     onttsstartreading,
+    oncheckboxtoggle,
   }: {
     content?: string;
     filePath?: string;
@@ -86,6 +87,7 @@
     onttsvoicechange?: (name: string) => void;
     onttsratechange?: (rate: number) => void;
     onttsstartreading?: () => void;
+    oncheckboxtoggle?: (lineNumber: number, checked: boolean) => void;
   } = $props();
 
   let htmlContent = $state("");
@@ -462,6 +464,18 @@
 
   function handleArticleClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
+
+    // Task checkbox toggle
+    if (target.classList.contains("task-checkbox") && target instanceof HTMLInputElement) {
+      const lineStr = target.dataset.line;
+      if (lineStr && oncheckboxtoggle) {
+        const lineNumber = parseInt(lineStr, 10);
+        if (!isNaN(lineNumber)) {
+          oncheckboxtoggle(lineNumber, target.checked);
+        }
+      }
+      return;
+    }
 
     // Copy to clipboard button
     const copyBtn = target.closest(".code-copy-btn") as HTMLElement | null;
