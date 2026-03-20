@@ -224,7 +224,7 @@ The table below has many columns and should scroll horizontally instead of overf
 
 ## Text Formatting
 
-This paragraph has **bold text**, *italic text*, and ***bold italic***. Here is some `inline code` and a [link to GitHub](https://github.com/zacharysarette/planning-central).
+This paragraph has **bold text**, *italic text*, and ***bold italic***. Here is some `inline code` and a [link to GitHub](https://github.com/zacharysarette/glacimark).
 
 ---
 
@@ -604,6 +604,64 @@ graph TD
 ```
 
 The final paragraph after skipped blocks should resume reading normally.
+
+---
+
+## Task List Checkboxes
+
+Task lists render as interactive checkboxes. Clicking a checkbox in view mode toggles the `[ ]`/`[x]` state in the source file.
+
+### Shopping List
+
+- [x] Milk
+- [ ] Eggs
+- [x] Bread
+- [ ] Butter
+
+### Project Tasks
+
+- [x] Set up repository
+- [x] Write initial code
+- [ ] Add unit tests
+- [ ] Write documentation
+- [ ] Deploy to production
+
+### Test Scenarios
+
+1. **Click an unchecked box** -- click the "Eggs" checkbox above: it should become checked, and the text should get a strikethrough style
+2. **Click a checked box** -- click the "Milk" checkbox: it should become unchecked, strikethrough removed
+3. **File persistence** -- close and reopen this file: the checkbox states should match what you toggled
+4. **Edit mode** -- open this file in edit mode: the `[ ]` and `[x]` markers in the source should reflect your clicks
+5. **Theme** -- switch between Aurora and Glacier: checkboxes should have distinct, high-contrast colors in both themes
+6. **Read-only** -- embedded docs (Help, Museum) should NOT have clickable checkboxes
+
+---
+
+## Collapsible Sidebar
+
+Press **Ctrl+B** or click the chevron button in the sidebar header to collapse the sidebar. A thin expand strip appears on the left edge.
+
+### Test Scenarios
+
+1. **Collapse** -- press Ctrl+B or click the collapse button: the sidebar should slide away and the content area should expand
+2. **Expand strip** -- when collapsed, a thin vertical button with a right-pointing chevron should appear on the left edge: click it to expand
+3. **Persistence** -- collapse the sidebar, close and reopen the app: the sidebar should remain collapsed
+4. **Menu** -- View > Toggle Sidebar should also toggle the sidebar
+5. **Keyboard** -- Ctrl+B should toggle in both directions
+
+---
+
+## Editor Split Direction
+
+In edit mode, the editor and preview can be arranged side-by-side (horizontal) or stacked (vertical).
+
+### Test Scenarios
+
+1. **Toggle** -- enter edit mode (Ctrl+E), click the arrow button in the editor header: the split should switch between horizontal and vertical
+2. **Vertical mode** -- editor on top, preview on bottom, separated by a horizontal border
+3. **Scroll sync** -- scrolling should stay synced in both horizontal and vertical modes
+4. **Persistence** -- the split direction should be remembered across sessions
+5. **Button icon** -- shows a down arrow when horizontal (click to go vertical), right arrow when vertical (click to go horizontal)
 
 ---
 

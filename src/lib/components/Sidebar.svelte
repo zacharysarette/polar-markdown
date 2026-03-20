@@ -49,6 +49,7 @@
     theme = "aurora" as ThemeType,
     onthemetoggle,
     loading = false,
+    oncollapse,
   }: {
     entries: FileEntry[];
     selectedPath?: string;
@@ -92,6 +93,7 @@
     theme?: ThemeType;
     onthemetoggle?: () => void;
     loading?: boolean;
+    oncollapse?: () => void;
   } = $props();
 
   const sortLabels: Record<SortMode, string> = {
@@ -206,6 +208,11 @@
       {#if onchangefolder}
         <button class="change-folder-btn" onclick={onchangefolder} title="Change folder">
           <span class="folder-icon">🧊</span>
+        </button>
+      {/if}
+      {#if oncollapse}
+        <button class="collapse-btn" onclick={oncollapse} title="Collapse sidebar (Ctrl+B)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
       {/if}
     </div>
@@ -426,6 +433,25 @@
   .change-folder-btn:hover {
     background: var(--accent-hover);
     border-color: var(--accent);
+  }
+
+  .collapse-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 5px;
+    line-height: 1;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .collapse-btn:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .folder-path {

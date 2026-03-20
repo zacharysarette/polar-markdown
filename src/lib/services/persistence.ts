@@ -18,6 +18,8 @@ const DOC_STATS_VISIBLE_KEY = "glacimark:doc-stats-visible";
 const VIM_MODE_KEY = "glacimark:vim-mode";
 const TTS_VOICE_KEY = "glacimark:tts-voice";
 const TTS_RATE_KEY = "glacimark:tts-rate";
+const SIDEBAR_COLLAPSED_KEY = "glacimark:sidebar-collapsed";
+const SPLIT_DIRECTION_KEY = "glacimark:split-direction";
 
 export function saveLastSelectedPath(path: string): void {
   localStorage.setItem(STORAGE_KEY, path);
@@ -218,4 +220,30 @@ export function getTtsRate(): number {
   } catch {
     return 1.0;
   }
+}
+
+export function saveSidebarCollapsed(collapsed: boolean): void {
+  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(collapsed));
+}
+
+export function getSidebarCollapsed(): boolean {
+  const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+  if (!stored) return false;
+  try {
+    return JSON.parse(stored) === true;
+  } catch {
+    return false;
+  }
+}
+
+export type SplitDirection = "horizontal" | "vertical";
+
+export function saveSplitDirection(direction: SplitDirection): void {
+  localStorage.setItem(SPLIT_DIRECTION_KEY, direction);
+}
+
+export function getSplitDirection(): SplitDirection {
+  const stored = localStorage.getItem(SPLIT_DIRECTION_KEY);
+  if (stored === "vertical") return "vertical";
+  return "horizontal";
 }

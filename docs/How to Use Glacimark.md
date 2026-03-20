@@ -491,6 +491,7 @@ Glacimark has a full native menu bar with four menus exposing all major features
 
 | Item | Shortcut | Action |
 |---|---|---|
+| Toggle Sidebar | Ctrl+B | Show/hide the file browser sidebar |
 | Toggle Edit Mode | Ctrl+E | Switch between view and edit mode |
 | Toggle Table of Contents | Ctrl+T | Show/hide TOC panel |
 | Toggle Document Stats | Ctrl+I | Show/hide stats footer |
@@ -512,6 +513,35 @@ Glacimark has a full native menu bar with four menus exposing all major features
 
 ---
 
+## Collapsible Sidebar
+
+Press **Ctrl+B** to toggle the sidebar visibility. When collapsed, the content area expands to fill the full window width, and a thin expand strip appears on the left edge — click it or press Ctrl+B again to restore the sidebar.
+
+You can also toggle the sidebar via **View > Toggle Sidebar** in the menu bar. The collapsed/expanded state is remembered across sessions.
+
+---
+
+## Editor Split Direction
+
+In edit mode, the editor and preview are split side-by-side by default (horizontal). Click the **arrow button** in the editor header to switch to a **vertical split** (editor on top, preview on bottom). Click again to switch back.
+
+- Down arrow button = currently horizontal, click to go vertical
+- Right arrow button = currently vertical, click to go horizontal
+
+The split direction is remembered across sessions. Scroll sync works in both directions.
+
+---
+
+## Interactive Task Lists
+
+Markdown task lists (`- [ ]` and `- [x]`) render as interactive checkboxes in view mode. Click a checkbox to toggle its state — the change is written directly to the source file.
+
+- Checked items get a strikethrough style for visual clarity
+- Changes persist to disk immediately
+- Works with the undo system (Ctrl+Z to revert)
+
+---
+
 ## Keyboard Shortcuts
 
 | Key | Action |
@@ -522,6 +552,7 @@ Glacimark has a full native menu bar with four menus exposing all major features
 | **F2** | Rename focused file |
 | **Delete** | Delete focused file (with confirmation) |
 | **Ctrl+N** | Create a new markdown file |
+| **Ctrl+B** | Toggle sidebar visibility |
 | **Ctrl+E** | Toggle edit/view mode on active pane |
 | **Ctrl+F** | Find in editor (edit mode) |
 | **Ctrl+H** | Find & Replace in editor (edit mode) |

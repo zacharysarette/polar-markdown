@@ -25,6 +25,8 @@ vi.mock("../services/persistence", () => ({
   saveLineWrapping: (...args: any[]) => mockSaveLineWrapping(...args),
   getVimMode: (...args: any[]) => mockGetVimMode(...args),
   saveVimMode: (...args: any[]) => mockSaveVimMode(...args),
+  getSplitDirection: () => "horizontal",
+  saveSplitDirection: vi.fn(),
 }));
 
 // Mock CodeMirror modules (needed by MarkdownEditor)

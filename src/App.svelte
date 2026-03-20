@@ -62,6 +62,8 @@
     getTtsVoice,
     saveTtsRate,
     getTtsRate,
+    saveSidebarCollapsed,
+    getSidebarCollapsed,
   } from "./lib/services/persistence";
   import { setMermaidTheme, setBobDarkMode } from "./lib/services/markdown";
   import { findFirstFile, filterEntries } from "./lib/services/tree-utils";
@@ -122,6 +124,7 @@
   let ttsHighlightLine = $state(-1);
   let ttsSelectedVoice = $state(getTtsVoice());
   let ttsRate = $state(getTtsRate());
+  let sidebarCollapsed = $state(getSidebarCollapsed());
   let ttsVoices: SpeechSynthesisVoice[] = $state([]);
   let ttsSegments: TtsSegment[] = [];
   let ttsController: TtsController | null = null;
@@ -918,6 +921,11 @@
     saveDocStatsVisible(showDocStats);
   }
 
+  function handleSidebarToggle() {
+    sidebarCollapsed = !sidebarCollapsed;
+    saveSidebarCollapsed(sidebarCollapsed);
+  }
+
   function stopTts() {
     if (ttsController) {
       ttsController.stop();
@@ -1329,6 +1337,32 @@
     }
   }
 
+  async function handleCheckboxToggle(path: string, lineNumber: number, checked: boolean) {
+    try {
+      const content = await readFileContents(path);
+      const lines = content.split("\n");
+      const idx = lineNumber - 1;
+      if (idx < 0 || idx >= lines.length) return;
+
+      const line = lines[idx];
+      if (checked) {
+        lines[idx] = line.replace(/\[ \]/, "[x]");
+      } else {
+        lines[idx] = line.replace(/\[x\]/i, "[ ]");
+      }
+
+      const newContent = lines.join("\n");
+      recentOwnWrites.add(path);
+      await writeFileContents(path, newContent);
+      panes = panes.map((p) =>
+        p.path === path ? { ...p, content: newContent } : p
+      );
+      setTimeout(() => recentOwnWrites.delete(path), 500);
+    } catch (e) {
+      console.error("Failed to toggle checkbox:", e);
+    }
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Alt+Enter: toggle fullscreen
     if (event.altKey && event.key === "Enter") {
@@ -1404,6 +1438,14 @@
       handleTtsToggle();
       return;
     }
+    // Ctrl+B: toggle sidebar
+    if (event.ctrlKey && event.key === "b") {
+      const active = document.activeElement;
+      if (active && active.closest(".cm-editor")) return;
+      event.preventDefault();
+      handleSidebarToggle();
+      return;
+    }
     // Ctrl+N: new file
     if (event.ctrlKey && event.key === "n") {
       event.preventDefault();
@@ -1456,6 +1498,7 @@
     let unlistenMenuRenderingMuseum: (() => void) | undefined;
     let unlistenMenuAbout: (() => void) | undefined;
     let unlistenMenuReadAloud: (() => void) | undefined;
+    let unlistenMenuToggleSidebar: (() => void) | undefined;
 
     // Load speech synthesis voices
     function loadVoices() {
@@ -1642,6 +1685,7 @@
       unlistenMenuRenderingMuseum = await appWindow.listen("menu-rendering-museum", () => handleRenderingMuseum());
       unlistenMenuAbout = await appWindow.listen("menu-about", () => handleAbout());
       unlistenMenuReadAloud = await appWindow.listen("menu-read-aloud", () => handleTtsToggle());
+      unlistenMenuToggleSidebar = await appWindow.listen("menu-toggle-sidebar", () => handleSidebarToggle());
 
       // Ensure theme file exists for next launch (handles upgrade from older versions)
       saveThemeFile(theme).catch(() => {});
@@ -1679,6 +1723,7 @@
       unlistenMenuRenderingMuseum?.();
       unlistenMenuAbout?.();
       unlistenMenuReadAloud?.();
+      unlistenMenuToggleSidebar?.();
       stopTts();
       if (window.speechSynthesis) {
         window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
@@ -1692,17 +1737,61 @@
   });
 </script>
 
-<div class="app-layout">
-  <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} />
-  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} {showDocStats} ondocstatstoggle={handleDocStatsToggle} {ttsActive} {ttsState} {ttsHighlightLine} {ttsVoices} {ttsSelectedVoice} {ttsRate} onttsplay={handleTtsPlay} onttspause={handleTtsPause} onttsresume={handleTtsResume} onttsstop={handleTtsStop} onttsclose={handleTtsClose} onttsvoicechange={handleTtsVoiceChange} onttsratechange={handleTtsRateChange} onttsstartreading={handleTtsStartReading} />
+<div class="app-layout" style="grid-template-columns: {sidebarCollapsed ? '0px' : '280px'} 1fr">
+  <div class="sidebar-container" class:collapsed={sidebarCollapsed}>
+    <Sidebar entries={tree} {selectedPath} {selectedFolderPath} onselect={(path, event, lineContent) => handleSelect(path, event, lineContent)} onchangefolder={handleChangeFolder} {sortMode} onsortchange={handleSortChange} onhelp={handleHelp} {helpActive} {filterQuery} onfilterchange={handleFilterChange} {searchMode} onsearchmodechange={handleSearchModeChange} {searchResults} {searchQuery} onsearchchange={handleSearchChange} {isSearching} onnewfile={handleNewFile} onnewfolder={handleNewFolder} {creatingFile} {creatingFolder} oncreatenewfile={handleCreateNewFile} oncancelcreate={handleCancelCreate} oncreatenewfolder={handleCreateNewFolder} oncancelcreatefolder={handleCancelCreateFolder} {newFileError} {newFolderError} onfocuschange={handleFocusChange} onfolderselect={handleFolderSelect} onmovefile={handleMoveFile} {renamingPath} {renameError} onstartrename={handleStartRename} onconfirmrename={handleConfirmRename} oncancelrename={handleCancelRename} ondelete={handleDeleteFile} onsaveas={handleSaveAsForPath} {docsPath} {theme} onthemetoggle={handleThemeToggle} oncopypath={handleCopyPath} {loading} oncollapse={handleSidebarToggle} />
+  </div>
+  {#if sidebarCollapsed}
+    <button class="sidebar-expand-strip" onclick={handleSidebarToggle} title="Expand sidebar (Ctrl+B)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  {/if}
+  <ContentArea {panes} {activePaneId} {layoutMode} onlayoutchange={handleLayoutChange} {showLineNumbers} onlinenumberschange={handleLineNumbersChange} onclosepane={handleClosePane} onactivatepane={handleActivatePane} ontoggleedit={handleToggleEdit} onsave={handleSave} onsaveas={handleSaveAsFromPane} {highlightText} {highlightKey} {theme} onfilelink={handleFileLink} {scrollToId} {zoomLevel} onautofix={handleAutoFix} onviewerautofix={handleViewerAutoFix} onactiveheadingchange={handleActiveHeadingChange} {tocVisible} {tocEntries} {activeTocSlug} ontocselect={handleTocSelect} ontocclose={handleTocToggle} ontoctoggle={handleTocToggle} tocFileName={panes.find(p => p.id === activePaneId)?.path?.split(/[\\/]/).pop() ?? ""} {backlinks} onbacklinkselect={handleBacklinkSelect} {showDocStats} ondocstatstoggle={handleDocStatsToggle} {ttsActive} {ttsState} {ttsHighlightLine} {ttsVoices} {ttsSelectedVoice} {ttsRate} onttsplay={handleTtsPlay} onttspause={handleTtsPause} onttsresume={handleTtsResume} onttsstop={handleTtsStop} onttsclose={handleTtsClose} onttsvoicechange={handleTtsVoiceChange} onttsratechange={handleTtsRateChange} onttsstartreading={handleTtsStartReading} oncheckboxtoggle={handleCheckboxToggle} />
 </div>
 <Toast message={toastMessage} visible={toastVisible} />
 
 <style>
   .app-layout {
     display: grid;
-    grid-template-columns: 280px 1fr;
     height: 100%;
     overflow: hidden;
+    position: relative;
+    transition: grid-template-columns 0.2s ease;
+  }
+
+  .sidebar-container {
+    overflow: hidden;
+    height: 100%;
+  }
+
+  .sidebar-container.collapsed {
+    visibility: hidden;
+    width: 0;
+  }
+
+  .sidebar-expand-strip {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 0;
+  }
+
+  .sidebar-expand-strip:hover {
+    background: var(--accent-hover);
+    color: var(--accent);
+    border-color: var(--accent);
   }
 </style>

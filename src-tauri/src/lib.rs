@@ -220,6 +220,8 @@ pub fn run() {
                 .item(&tauri::menu::MenuItem::with_id(app, "find-replace", "Find && Replace", true, Some("CmdOrCtrl+H"))?)
                 .build()?;
             let view_menu = tauri::menu::SubmenuBuilder::new(app, "View")
+                .item(&tauri::menu::MenuItem::with_id(app, "toggle-sidebar", "Toggle Sidebar", true, Some("CmdOrCtrl+B"))?)
+                .separator()
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-edit", "Toggle Edit Mode", true, Some("CmdOrCtrl+E"))?)
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-toc", "Toggle Table of Contents", true, Some("CmdOrCtrl+T"))?)
                 .item(&tauri::menu::MenuItem::with_id(app, "toggle-doc-stats", "Toggle Document Stats", true, Some("CmdOrCtrl+I"))?)

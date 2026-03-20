@@ -3,7 +3,8 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import MarkdownViewer from "./MarkdownViewer.svelte";
   import type { ThemeType } from "../types";
-  import { getLineWrapping, saveLineWrapping, getVimMode, saveVimMode } from "../services/persistence";
+  import { getLineWrapping, saveLineWrapping, getVimMode, saveVimMode, getSplitDirection, saveSplitDirection } from "../services/persistence";
+  import type { SplitDirection } from "../services/persistence";
   import { fixMermaidInMarkdown } from "../services/mermaid-fixer";
   import { saveImage } from "../services/filesystem";
   import { generateImageFilename, fileToBytes, buildMarkdownImageRef } from "../services/image-paste";
@@ -38,12 +39,20 @@
 
   let lineWrapping = $state(getLineWrapping());
   let vimEnabled = $state(getVimMode());
+  let splitDirection: SplitDirection = $state(getSplitDirection());
   let vimMode = $state("");
   let vimKeyBuffer = $state("");
 
   function toggleLineWrapping() {
     lineWrapping = !lineWrapping;
     saveLineWrapping(lineWrapping);
+  }
+
+  function toggleSplitDirection() {
+    splitDirection = splitDirection === "horizontal" ? "vertical" : "horizontal";
+    saveSplitDirection(splitDirection);
+    // Re-setup scroll sync since DOM structure changes
+    requestAnimationFrame(setupScrollSync);
   }
 
   function toggleVim() {
@@ -233,12 +242,17 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="editable-pane" onkeydown={handleKeyDown} bind:this={paneEl}>
+<div class="editable-pane" class:vertical={splitDirection === "vertical"} onkeydown={handleKeyDown} bind:this={paneEl}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="editor-side" onpointerdown={() => activePane = 'editor'} onwheel={() => activePane = 'editor'}>
     <header class="editor-header">
       <span class="editor-label">Editor</span>
       <span class="editor-controls">
+        <button
+          class="split-toggle"
+          onclick={toggleSplitDirection}
+          title={splitDirection === "horizontal" ? "Switch to vertical split" : "Switch to horizontal split"}
+        >{splitDirection === "horizontal" ? "\u2B07" : "\u27A1"}</button>
         <button
           class="autofix-btn"
           onclick={handleAutoFix}
@@ -397,6 +411,32 @@
     color: var(--yellow, #e0af68);
     font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
     font-weight: 600;
+  }
+
+  .split-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 1px 5px;
+    line-height: 1;
+  }
+
+  .split-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .editable-pane.vertical {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .editable-pane.vertical .editor-side {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
   }
 
   .editor-content {
